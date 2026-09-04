@@ -1,0 +1,2034 @@
+<!doctype html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解DDD実践 — update処理の設計と、MVCからの移行コスト</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] } } }
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .chapter { @apply scroll-mt-20 mb-20 pb-8 border-b border-slate-800; }
+    .ch-h { @apply text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3 mb-4 leading-tight; }
+    .ch-n { @apply shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-slate-800 text-sky-400 font-mono text-lg; }
+    .part-h { @apply mt-24 mb-10 rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-950 px-6 py-7 scroll-mt-20; }
+    .part-h p.eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.25em] text-sky-400 mb-2; }
+    .part-h h2 { @apply text-2xl sm:text-4xl font-bold text-slate-50 leading-tight mb-3; }
+    .part-h p.sub { @apply text-slate-400 leading-relaxed max-w-3xl; }
+    .lede { @apply text-slate-400 mb-6 leading-relaxed; }
+    .metaphor { @apply rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 text-amber-100 leading-relaxed; }
+    .metaphor b { @apply text-amber-300; }
+    .step { @apply rounded-xl border px-5 py-4 mb-4; }
+    .step-h { @apply font-mono text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2; }
+    /* 10ステップの色分け */
+    .prob { @apply border-rose-500/40 bg-rose-500/5; }
+    .prob .step-h { @apply text-rose-400; }
+    .naive { @apply border-orange-500/40 bg-orange-500/5; }
+    .naive .step-h { @apply text-orange-400; }
+    .why { @apply border-amber-500/40 bg-amber-500/5; }
+    .why .step-h { @apply text-amber-400; }
+    .principle { @apply border-teal-500/40 bg-teal-500/5; }
+    .principle .step-h { @apply text-teal-400; }
+    .sol { @apply border-emerald-500/40 bg-emerald-500/5; }
+    .sol .step-h { @apply text-emerald-400; }
+    .ba { @apply border-sky-500/40 bg-sky-500/5; }
+    .ba .step-h { @apply text-sky-400; }
+    .impact { @apply border-indigo-500/40 bg-indigo-500/5; }
+    .impact .step-h { @apply text-indigo-400; }
+    .trade { @apply border-violet-500/40 bg-violet-500/5; }
+    .trade .step-h { @apply text-violet-400; }
+    .over { @apply border-dashed border-slate-500 bg-slate-800/40; }
+    .over .step-h { @apply text-slate-300; }
+    .rev { @apply border-fuchsia-500/40 bg-fuchsia-500/5; }
+    .rev .step-h { @apply text-fuchsia-400; }
+    /* 補助ブロック */
+    .zoom { @apply border-cyan-500/40 bg-cyan-500/5; }
+    .zoom .step-h { @apply text-cyan-400; }
+    .goog { @apply border-lime-500/40 bg-lime-500/5; }
+    .goog .step-h { @apply text-lime-400; }
+    .note { @apply border-slate-600 bg-slate-900; }
+    .note .step-h { @apply text-slate-400; }
+    .step p { @apply text-slate-300 leading-relaxed; }
+    .step ul { @apply list-disc pl-5 space-y-1.5 text-slate-300; }
+    .step ol { @apply list-decimal pl-5 space-y-1.5 text-slate-300; }
+    .step ul ul, .step ol ul { @apply mt-1.5; }
+    .fig { @apply my-4 rounded-xl border border-slate-700 bg-slate-900 p-3 overflow-x-auto; }
+    .fig svg { @apply w-full h-auto min-w-[700px]; }
+    .figcap { @apply mt-2 text-xs text-slate-400 font-mono px-1; }
+    .tbl { @apply my-3 overflow-x-auto rounded-xl border border-slate-700; }
+    .tbl table { @apply w-full text-sm border-collapse min-w-[640px]; }
+    .tbl th { @apply bg-slate-800 text-left px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400; }
+    .tbl td { @apply border-t border-slate-800 px-3 py-2 align-top text-slate-300; }
+    .tbl tr:hover td { @apply bg-slate-800/40; }
+    .k { @apply font-mono text-[13px] px-1.5 py-0.5 rounded bg-slate-800 text-sky-300; }
+    .good { @apply text-emerald-400 font-semibold; }
+    .bad { @apply text-rose-400 font-semibold; }
+    .warn { @apply text-amber-400 font-semibold; }
+    .toc-a { @apply block px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition; }
+    .toc-a.active { @apply bg-sky-500/15 text-sky-300 font-semibold; }
+    .toc-grp { @apply px-3 pt-4 pb-1 font-mono text-[10px] uppercase tracking-widest text-slate-500; }
+    .qa { @apply rounded-xl border border-slate-700 bg-slate-900 mb-3 overflow-hidden; }
+    .qa summary { @apply cursor-pointer px-5 py-4 font-semibold text-slate-100 hover:bg-slate-800/60 flex gap-3 items-start; }
+    .qa .ans { @apply px-5 pb-5 pt-1 text-slate-300 leading-relaxed border-t border-slate-800; }
+    .kv { @apply grid sm:grid-cols-2 gap-3 my-3; }
+    .kvi { @apply rounded-xl border border-slate-700 bg-slate-900 p-4; }
+    .kvi > p:first-child { @apply font-mono text-[11px] text-sky-400 mb-1; }
+    .kvi > p:last-child { @apply text-sm text-slate-300 leading-relaxed; }
+    .flow { @apply my-4 rounded-xl border border-slate-700 bg-[#0b1220] p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-slate-300 whitespace-pre; }
+  }
+</style>
+<style>
+  /* ===== コードブロック（自前ハイライタ） ===== */
+  .cb { margin: 0.9rem 0; border-radius: 0.75rem; border: 1px solid #334155; background: #0b1220; overflow: hidden; }
+  .cb-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.8rem; background: #111c31; border-bottom: 1px solid #1f2c45;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.04em; }
+  .cb-lang { color: #7dd3fc; text-transform: uppercase; font-weight: 700; }
+  .cb-cap { color: #94a3b8; }
+  .cb[data-tone="bad"] { border-color: rgba(244,63,94,.45); }
+  .cb[data-tone="bad"] .cb-bar { background: rgba(244,63,94,.10); border-bottom-color: rgba(244,63,94,.3); }
+  .cb[data-tone="bad"] .cb-cap { color: #fda4af; }
+  .cb[data-tone="good"] { border-color: rgba(16,185,129,.45); }
+  .cb[data-tone="good"] .cb-bar { background: rgba(16,185,129,.10); border-bottom-color: rgba(16,185,129,.3); }
+  .cb[data-tone="good"] .cb-cap { color: #6ee7b7; }
+  .cb[data-tone="warn"] { border-color: rgba(245,158,11,.45); }
+  .cb[data-tone="warn"] .cb-bar { background: rgba(245,158,11,.10); border-bottom-color: rgba(245,158,11,.3); }
+  .cb[data-tone="warn"] .cb-cap { color: #fcd34d; }
+  .cb pre { margin: 0; padding: 0.85rem 0.9rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.65; color: #cbd5e1; white-space: pre; }
+  .cb .ln { display: block; padding: 0 0.9rem; margin: 0 -0.9rem; }
+  .cb .ln-bad { background: rgba(244,63,94,.13); box-shadow: inset 3px 0 0 #f43f5e; }
+  .cb .ln-good { background: rgba(16,185,129,.13); box-shadow: inset 3px 0 0 #10b981; }
+  .cb .ln-warn { background: rgba(245,158,11,.13); box-shadow: inset 3px 0 0 #f59e0b; }
+  .cb .ln-focus { background: rgba(56,189,248,.13); box-shadow: inset 3px 0 0 #38bdf8; }
+  .t-cm { color: #64748b; }
+  .t-st { color: #86efac; }
+  .t-kw { color: #f472b6; }
+  .t-cn { color: #e879f9; }
+  .t-ty { color: #38bdf8; }
+  .t-id { color: #7dd3fc; }
+  .t-fn { color: #fde047; }
+  .t-nu { color: #fb923c; }
+  .t-pn { color: #94a3b8; }
+  .t-tag { color: #f9a8d4; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased">
+
+<div class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+  <button id="tocBtn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-mono text-slate-300">☰ 目次</button>
+  <span class="text-sm font-bold text-slate-100 truncate">図解DDD実践</span>
+</div>
+
+<div class="lg:grid lg:grid-cols-[300px_minmax(0,1fr)]">
+
+  <aside id="toc" class="hidden lg:block lg:sticky lg:top-0 lg:h-screen overflow-y-auto border-r border-slate-800 bg-slate-900/60 px-3 py-6">
+    <div class="px-3 mb-4">
+      <p class="font-mono text-[10px] uppercase tracking-widest text-sky-400">DDD in Practice · Go</p>
+      <p class="text-lg font-bold text-slate-100 leading-tight mt-1">図解DDD実践</p>
+      <p class="text-xs text-slate-500 mt-1">update処理の設計と、MVCからの移行コスト</p>
+    </div>
+    <nav id="tocNav">
+      <a class="toc-a" href="#intro">00 はじめに — DDDの1つの問い</a>
+      <a class="toc-a" href="#map">00.5 全体地図</a>
+
+      <div class="toc-grp">Part 1 update処理の設計</div>
+      <a class="toc-a" href="#ch1">01 アンチパターン: 全フィールド送信</a>
+      <a class="toc-a" href="#ch2">02 正しい形: get → domain → save</a>
+      <a class="toc-a" href="#ch3">03 「命令」と「状態」の違い</a>
+      <a class="toc-a" href="#ch4">04 トランザクション境界はどこか</a>
+      <a class="toc-a" href="#ch5">05 楽観ロックと悲観ロック</a>
+      <a class="toc-a" href="#ch6">06 対比表と「DBアクセス2回」の是非</a>
+
+      <div class="toc-grp">Part 2 MVC → DDD の移行コスト</div>
+      <a class="toc-a" href="#ch7">07 生まれる構造物の一覧</a>
+      <a class="toc-a" href="#ch8">08 なぜ増えるのか（変更の局所化）</a>
+      <a class="toc-a" href="#ch9">09 コストを数字で見る</a>
+      <a class="toc-a" href="#ch10">10 採用判断のフレーム</a>
+      <a class="toc-a" href="#ch11">11 段階的移行の実務手順</a>
+
+      <div class="toc-grp">付録</div>
+      <a class="toc-a" href="#cheat">チェックリスト / レビュー観点</a>
+    </nav>
+  </aside>
+
+  <main class="min-w-0 px-4 sm:px-8 lg:px-12 py-10 max-w-[1180px]">
+
+    <header class="mb-14">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-sky-400 mb-3">DDD · Go · 実践 · 図解版</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-50 leading-tight mb-5">図解DDD実践<br><span class="text-slate-400 text-2xl sm:text-3xl">update処理の設計と、MVCからの移行コスト</span></h1>
+      <p class="text-slate-400 max-w-3xl leading-relaxed">DDDの理論書ではなく、<b class="text-slate-200">実務で最初に必要になる2つの具体的な問い</b>だけを扱う。<br>
+      ①<b class="text-emerald-400">「更新処理をどう書くか」</b>（get → domain → save / トランザクション境界 / ロック戦略）<br>
+      ②<b class="text-emerald-400">「MVCから移行すると何が増え、いくらかかるか」</b>（構造物の数 / 判断基準 / 段階的移行）</p>
+      <p class="text-slate-400 max-w-3xl leading-relaxed mt-4">理論の全体像（Entity・VO・Aggregate・Bounded Context・ifの置き場）は <b class="text-sky-400">software-design-micro.html の Part 3〜5</b> にある。この教材はその<b class="text-slate-200">実践編・移行編</b>として、コードと判断基準に絞る。</p>
+      <div class="mt-6 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張1</p><p class="text-sm text-slate-300"><b class="text-slate-100">クライアントが送るのは「命令」であって「新しい状態」ではない</b>。この1点を守るだけで、更新処理の設計はほぼ決まる。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張2</p><p class="text-sm text-slate-300">トランザクション境界は<b class="text-slate-100">usecase（application service）</b>。ドメインはトランザクションを知らない。Repositoryも自分でcommitしない。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張3</p><p class="text-sm text-slate-300">DDDは<b class="text-rose-400">「構造物の増殖」という明確なコスト</b>を伴う。1リソースで構造体5〜6個。<b class="text-slate-100">払う価値があるかを機能単位で判断する</b>。</p></div>
+      </div>
+    </header>
+
+    <section id="intro" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00</span> はじめに — DDDの1つの問い</h2>
+      <p class="lede">DDDの本は分厚いが、実務で最初に効くのは<b class="text-emerald-400">「ビジネスルールをどこに書くか」</b>という1つの問いだけ。そして更新処理（update）は、この問いが最も鋭く現れる場所である。<b class="text-slate-200">なぜなら「何を変えてよいか」の判断が、必ずどこかに書かれなければならないから</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">「名前を変える」という要求が、どこに書かれるか</text>
+          <defs><marker id="da" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="470" height="330" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="265" y="80" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">A. ルールが「散る」設計</text>
+            <text x="46" y="106" fill="#fca5a5">クライアント（フロントエンド）</text>
+            <rect x="60" y="118" width="410" height="46" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="76" y="138" fill="#e2e8f0">PUT /users/1 { name, email, role, ... }</text>
+            <text x="76" y="155" fill="#fca5a5" font-size="9.5">★ 全フィールドを送る = 現在の状態を全部知っている前提</text>
+            <line x1="265" y1="166" x2="265" y2="182" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#da)"/>
+            <rect x="60" y="184" width="410" height="40" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="76" y="209" fill="#e2e8f0">handler: そのまま Update() に渡す</text>
+            <line x1="265" y1="226" x2="265" y2="242" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#da)"/>
+            <rect x="60" y="244" width="410" height="40" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="76" y="269" fill="#e2e8f0">repository: UPDATE users SET ... WHERE id=?</text>
+
+            <text x="46" y="312" fill="#f87171" font-weight="bold">ルールはどこにあるか？</text>
+            <text x="46" y="332" fill="#fca5a5">→ どこにもない（またはフロントエンドにある）</text>
+            <text x="46" y="352" fill="#fca5a5">→ 「role は管理者だけが変えられる」を書く場所がない</text>
+            <text x="46" y="372" fill="#fbbf24">→ 別の入り口（バッチ・管理画面）で必ず再実装される</text>
+
+            <rect x="530" y="55" width="470" height="330" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="765" y="80" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">B. ルールが「集まる」設計</text>
+            <text x="546" y="106" fill="#86efac">クライアント</text>
+            <rect x="560" y="118" width="410" height="46" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="576" y="138" fill="#e2e8f0">POST /users/1/rename { name: "新しい名前" }</text>
+            <text x="576" y="155" fill="#86efac" font-size="9.5">★ 「何をしたいか」だけを送る = 命令（コマンド）</text>
+            <line x1="765" y1="166" x2="765" y2="182" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#da)"/>
+            <rect x="560" y="184" width="410" height="40" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="576" y="209" fill="#e2e8f0">usecase: 取得 → user.ChangeName() → 保存</text>
+            <line x1="765" y1="226" x2="765" y2="242" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#da)"/>
+            <rect x="560" y="244" width="410" height="46" rx="6" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="576" y="264" fill="#dcfce7">entity: ChangeName() の中に</text>
+            <text x="576" y="282" fill="#bbf7d0">・空文字禁止 ・文字数上限 ・変更可能な状態か の判定</text>
+
+            <text x="546" y="318" fill="#4ade80" font-weight="bold">ルールはどこにあるか？</text>
+            <text x="546" y="338" fill="#bbf7d0">→ Entity のメソッドの中に1箇所だけ</text>
+            <text x="546" y="358" fill="#bbf7d0">→ バッチ・管理画面・CSVインポートからも同じルールが効く</text>
+            <text x="546" y="378" fill="#4ade80">→ ★ これがDDDが解こうとしている問題のすべて</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-1 同じ「名前変更」でも、ルールの置き場所で設計が根本的に変わる。</p>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">この教材で扱う範囲（と扱わない範囲）</p>
+        <div class="kv">
+          <div class="kvi"><p>扱う</p><p>update処理の具体的な書き方 / トランザクション境界 / 楽観ロックの実装 / MVCからの移行コストの見積もり / 採用判断のフレーム</p></div>
+          <div class="kvi"><p>扱わない（他ノート参照）</p><p>Entity/VO/Aggregate の理論、Bounded Context、ifの置き場所の全パターン → <b class="text-sky-400">software-design-micro.html Part 3〜5</b>。Lost Update とMVCCの理論 → <b class="text-sky-400">transaction-system-design.html</b></p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="map" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00.5</span> 全体地図</h2>
+      <p class="lede">この教材は2部構成。<b class="text-emerald-400">Part 1 は「正しい書き方」、Part 2 は「そのコストを払うべきかの判断」</b>。順序が重要 — 正しい書き方を知らずにコストを議論することはできない。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">2部構成 — 「書き方」と「払うべきか」</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="470" height="300" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="80" fill="#bae6fd" font-size="13" font-weight="bold" text-anchor="middle">Part 1: update処理の設計</text>
+            <text x="46" y="108" fill="#7dd3fc">ch1  アンチパターンを特定する</text>
+            <text x="62" y="126" fill="#e2e8f0" font-size="9.5">「全フィールドを送ってそのままUPDATE」の何が悪いのか</text>
+            <text x="46" y="150" fill="#7dd3fc">ch2  get → domain → save の3ステップ</text>
+            <text x="62" y="168" fill="#e2e8f0" font-size="9.5">Entityが自分の状態変更を担う形</text>
+            <text x="46" y="192" fill="#7dd3fc">ch3  「命令」と「状態」の区別</text>
+            <text x="62" y="210" fill="#e2e8f0" font-size="9.5">APIの形がドメイン設計を決めてしまう</text>
+            <text x="46" y="234" fill="#7dd3fc">ch4  トランザクション境界 = usecase</text>
+            <text x="62" y="252" fill="#e2e8f0" font-size="9.5">なぜdomainでもrepositoryでもないのか</text>
+            <text x="46" y="276" fill="#7dd3fc">ch5  楽観ロック / 悲観ロック</text>
+            <text x="62" y="294" fill="#e2e8f0" font-size="9.5">Lost Updateを実際に防ぐ実装</text>
+            <text x="46" y="318" fill="#7dd3fc">ch6  対比表 / DBアクセス2回は許容できるか</text>
+            <text x="46" y="344" fill="#4ade80">→ 結論: パフォーマンスが許容範囲なら get→変更→save 一択</text>
+
+            <rect x="530" y="55" width="470" height="300" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="765" y="80" fill="#fef3c7" font-size="13" font-weight="bold" text-anchor="middle">Part 2: 移行コストの見積もり</text>
+            <text x="546" y="108" fill="#fcd34d">ch7  生まれる構造物の一覧</text>
+            <text x="562" y="126" fill="#e2e8f0" font-size="9.5">Request/Input/Entity/DBModel/Response + mapper</text>
+            <text x="546" y="150" fill="#fcd34d">ch8  なぜ増えるのか</text>
+            <text x="562" y="168" fill="#e2e8f0" font-size="9.5">「変更の局所化」を買っている</text>
+            <text x="546" y="192" fill="#fcd34d">ch9  コストを数字で見る</text>
+            <text x="562" y="210" fill="#e2e8f0" font-size="9.5">行数・ファイル数・レビュー時間の実測感覚</text>
+            <text x="546" y="234" fill="#fcd34d">ch10 採用判断のフレーム</text>
+            <text x="562" y="252" fill="#e2e8f0" font-size="9.5">機能単位で Core/Supporting/Generic に分類する</text>
+            <text x="546" y="276" fill="#fcd34d">ch11 段階的移行の実務手順</text>
+            <text x="562" y="294" fill="#e2e8f0" font-size="9.5">全面書き換えをしない。境界を決めて共存させる</text>
+            <text x="546" y="330" fill="#f87171">→ 結論: 「全部DDD」も「全部MVC」も判断の放棄。</text>
+            <text x="546" y="348" fill="#fca5a5">　 機能ごとに投資を配分する</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-2 2部構成。Part 1で「正しさ」を、Part 2で「経済性」を扱う。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part1">
+      <p class="eyebrow">Part 1</p>
+      <h2>update処理の設計</h2>
+      <p class="sub">結論を先に: <b class="text-emerald-400">usecase内で「get → ドメインロジック → save」の順に処理し、その全体をトランザクションで囲み、ロックは楽観ロックをデフォルトにする</b>。この3行が Part 1 のすべてである。以下はその根拠と実装。</p>
+    </div>
+
+    <section id="ch1" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">01</span> アンチパターン: 全フィールド送信 → 直接update</h2>
+      <p class="lede">最も多く見る形。<b class="text-rose-400">動くし、コードも短い。だから疑われない</b>。しかしこれは「DDDの構造だけ借用したトランザクションスクリプト」である。</p>
+
+      <div class="cb" data-lang="go" data-cap="よく見るコード" data-tone="bad"><script type="text/plain">
+// handler
+func (h *UserHandler) Update(c echo.Context) error {
+    var req UpdateUserRequest // { Name, Email, Role, ... 全フィールド }
+    if err := c.Bind(&req); err != nil {
+        return c.JSON(400, errBody("invalid"))
+    }
+@@-    return h.usecase.UpdateUser(c.Request().Context(), &User{
+@@-        ID:    c.Param("id"),
+@@-        Name:  req.Name,
+@@-        Email: req.Email,
+@@-        Role:  req.Role,
+@@-    })
+}
+
+// usecase
+@@-func (u *UserUsecase) UpdateUser(ctx context.Context, user *User) error {
+@@-    return u.userRepository.Update(ctx, user) // そのまま渡すだけ
+@@-}
+
+// repository
+@@-func (r *UserRepository) Update(ctx context.Context, user *User) error {
+@@-    return r.db.WithContext(ctx).Save(user).Error // 全カラムUPDATE
+@@-}
+</script></div>
+
+      <div class="step why">
+        <p class="step-h">③ なぜ問題なのか — 4つの具体的な損失</p>
+        <div class="fig">
+          <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+            <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">全フィールド送信で失われる4つのもの</text>
+            <g font-family="monospace" font-size="10.5">
+              <rect x="30" y="50" width="470" height="180" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+              <text x="46" y="74" fill="#fecaca" font-size="12" font-weight="bold">損失1: 不変条件がクライアントに漏れる</text>
+              <text x="46" y="98" fill="#fca5a5">「role は管理者しか変更できない」</text>
+              <text x="46" y="116" fill="#fca5a5">「email を変えたら再認証が必要」</text>
+              <text x="46" y="134" fill="#fca5a5">「退会済みユーザーは変更不可」</text>
+              <text x="46" y="156" fill="#e2e8f0">→ これらをどこに書く？ handlerに書けば、</text>
+              <text x="62" y="174" fill="#e2e8f0">バッチ・管理画面・CSV取込で再実装される</text>
+              <text x="46" y="198" fill="#fbbf24">→ 実際には「書かれない」ことが多い。</text>
+              <text x="62" y="216" fill="#fde68a">　 その結果、フロントのバリデーションだけが防衛線になる</text>
+
+              <rect x="530" y="50" width="470" height="180" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+              <text x="546" y="74" fill="#fecaca" font-size="12" font-weight="bold">損失2: 意図が消える</text>
+              <text x="546" y="98" fill="#fca5a5">PUT /users/1 { name, email, role }</text>
+              <text x="546" y="120" fill="#e2e8f0">これは何をしたいリクエストか？</text>
+              <text x="546" y="140" fill="#e2e8f0">・名前だけ変えたい？</text>
+              <text x="546" y="158" fill="#e2e8f0">・全体を置き換えたい？</text>
+              <text x="546" y="176" fill="#e2e8f0">・role が同じ値なら「変更なし」なのか</text>
+              <text x="562" y="194" fill="#e2e8f0">「同じ値で更新した」のか？</text>
+              <text x="546" y="216" fill="#fbbf24">→ 監査ログに「何が変わったか」を残せない</text>
+
+              <rect x="30" y="245" width="470" height="185" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+              <text x="46" y="269" fill="#fecaca" font-size="12" font-weight="bold">損失3: 楽観ロックの粒度が荒くなる</text>
+              <text x="46" y="293" fill="#e2e8f0">A: 名前を変更中（version=5 を読んだ）</text>
+              <text x="46" y="311" fill="#e2e8f0">B: role を変更して保存（version=6 になった）</text>
+              <text x="46" y="329" fill="#f87171">A が保存 → 競合エラー</text>
+              <text x="46" y="351" fill="#fca5a5">★ 実際には「名前」と「role」は無関係なので、</text>
+              <text x="62" y="369" fill="#fca5a5">　 競合させる必要がなかった</text>
+              <text x="46" y="393" fill="#fbbf24">→ 無駄な競合が増え、ユーザーが「保存できない」</text>
+              <text x="62" y="411" fill="#fde68a">　 と感じる（体感品質の低下）</text>
+
+              <rect x="530" y="245" width="470" height="185" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+              <text x="546" y="269" fill="#fecaca" font-size="12" font-weight="bold">損失4: 送られなかったフィールドが消える</text>
+              <text x="546" y="293" fill="#e2e8f0">req.Email が未指定（空文字）だった場合:</text>
+              <text x="546" y="313" fill="#f87171">db.Save(user) → email カラムが "" で上書きされる</text>
+              <text x="546" y="337" fill="#fca5a5">★ GORM の Save は全カラムを更新する。</text>
+              <text x="562" y="355" fill="#fca5a5">　 「送られなかった = 変更しない」ではない</text>
+              <text x="546" y="379" fill="#fbbf24">→ 実務で最も多いデータ破壊事故。</text>
+              <text x="562" y="397" fill="#fde68a">　 「なぜかメールアドレスが消えている」</text>
+              <text x="546" y="419" fill="#4ade80">→ 対策: Updates(map) で明示 or そもそも命令型APIにする</text>
+            </g>
+          </svg>
+          <p class="figcap">図1-1 4つの損失。特に損失4（送られなかったフィールドが消える）は実際のデータ破壊につながる。</p>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="損失4を実際に踏むコード（GORMの落とし穴）" data-tone="bad"><script type="text/plain">
+// リクエスト: { "name": "新しい名前" }  ← email も role も送られていない
+var req UpdateUserRequest
+c.Bind(&req) // req.Email = "", req.Role = ""
+
+user := &User{ID: id, Name: req.Name, Email: req.Email, Role: req.Role}
+@@-db.Save(user)
+// 発行されるSQL:
+//   UPDATE users SET name='新しい名前', email='', role='' WHERE id=1
+//   ★ email と role が空文字で上書きされた（データ破壊）
+
+// ---- 部分的な回避策（それでも設計は改善しない）----
+// 変更したいカラムだけを明示する
+@@!db.Model(&User{}).Where("id = ?", id).Updates(map[string]any{
+@@!    "name": req.Name,
+@@!})
+// → SQLは正しくなるが、「どのフィールドを更新すべきか」の判断が
+//   handlerに残っている。ビジネスルールの置き場所は依然としてない。
+
+// ★ さらに罠: Updates(struct) はゼロ値のフィールドを無視する
+db.Model(&user).Updates(User{Name: "x", Age: 0})
+// → age は更新されない（0 はゼロ値なので無視される）
+// → 「年齢を0にリセットしたい」ができない
+// ★ これがORMの「暗黙の挙動」の危険性。map で明示するのが安全。
+</script></div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ このアンチパターンを見つける質問</p>
+        <ul>
+          <li><b class="text-slate-100">「このリクエストで、送られなかったフィールドはどうなりますか？」</b> — 答えられないなら設計が曖昧</li>
+          <li><b class="text-slate-100">「role を勝手に変えられませんか？」</b> — 認可がどこにあるかを確認する</li>
+          <li><b class="text-slate-100">「同じ処理をバッチから呼びたくなったらどうしますか？」</b> — handlerにルールがあると呼べない</li>
+          <li><b class="text-slate-100">「Entityにメソッドが1つもないのはなぜですか？」</b> — 貧血モデルの確認</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch2" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">02</span> 正しい形: get → domain → save</h2>
+      <p class="lede">結論。<b class="text-emerald-400">usecaseは「取得して、Entityに依頼して、保存する」だけ</b>。判定も計算もEntityが行う。<b class="text-slate-200">usecaseにif文が並び始めたら、それはEntityに移すべきロジックである</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">3ステップ + トランザクション境界</text>
+          <defs><marker id="d2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="60" y="55" width="920" height="270" rx="12" fill="#0b1220" stroke="#a78bfa" stroke-width="2.5" stroke-dasharray="8 4"/>
+            <text x="80" y="80" fill="#c4b5fd" font-size="12" font-weight="bold">txManager.Run(ctx, func(ctx) error { ... }) ← トランザクション境界（usecase）</text>
+
+            <rect x="100" y="100" width="240" height="90" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="220" y="124" fill="#bae6fd" font-size="12" text-anchor="middle" font-weight="bold">① get</text>
+            <text x="116" y="146" fill="#e0f2fe" font-size="9.5">repo.FindByID(ctx, id)</text>
+            <text x="116" y="164" fill="#7dd3fc" font-size="9.5">→ *User（現在の状態）</text>
+            <text x="116" y="180" fill="#94a3b8" font-size="9">見つからなければ ErrNotFound</text>
+
+            <line x1="344" y1="145" x2="384" y2="145" stroke="#4ade80" stroke-width="2" marker-end="url(#d2)"/>
+
+            <rect x="388" y="100" width="264" height="90" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="520" y="124" fill="#dcfce7" font-size="12" text-anchor="middle" font-weight="bold">② ドメインロジック</text>
+            <text x="404" y="146" fill="#bbf7d0" font-size="9.5">user.ChangeName(newName)</text>
+            <text x="404" y="164" fill="#86efac" font-size="9.5">★ 検証・不変条件・状態遷移</text>
+            <text x="404" y="180" fill="#94a3b8" font-size="9">エラーならここで return（保存しない）</text>
+
+            <line x1="656" y1="145" x2="696" y2="145" stroke="#4ade80" stroke-width="2" marker-end="url(#d2)"/>
+
+            <rect x="700" y="100" width="240" height="90" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="820" y="124" fill="#ede9fe" font-size="12" text-anchor="middle" font-weight="bold">③ save</text>
+            <text x="716" y="146" fill="#ddd6fe" font-size="9.5">repo.Save(ctx, user)</text>
+            <text x="716" y="164" fill="#c4b5fd" font-size="9.5">★ 楽観ロックの判定はここ</text>
+            <text x="716" y="180" fill="#94a3b8" font-size="9">競合なら ErrConflict</text>
+
+            <rect x="100" y="210" width="840" height="98" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="116" y="234" fill="#e2e8f0" font-size="11.5" font-weight="bold">この3ステップで各層が持つもの / 持たないもの</text>
+            <text x="116" y="256" fill="#cbd5e1" font-size="10">usecase:    処理の順序 / トランザクション境界 / 認可 / エラーの分類　　★ 検証も計算もしない</text>
+            <text x="116" y="276" fill="#cbd5e1" font-size="10">entity:     不変条件 / 状態遷移 / 業務ルール　　　　　　　　　　　　★ DBもHTTPも知らない</text>
+            <text x="116" y="296" fill="#cbd5e1" font-size="10">repository: SQL / マッピング / 楽観ロックのWHERE句　　　　　　　　　★ 業務ルールを持たない</text>
+
+            <text x="520" y="352" fill="#4ade80" font-size="11.5" text-anchor="middle">★ 「クライアントが送ったデータをEntityに詰め直す」のではなく、「Entityに操作を依頼する」</text>
+            <text x="520" y="374" fill="#86efac" font-size="10.5" text-anchor="middle">前者は貧血モデル、後者がDDD。この違いはコードの形に明確に現れる。</text>
+          </g>
+        </svg>
+        <p class="figcap">図2-1 3ステップ。②が「Entityへの依頼」であることが本質。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="usecase — 順序とトランザクションだけを持つ" data-tone="good"><script type="text/plain">
+// usecase/change_user_name.go
+package usecase
+
+type ChangeUserNameUseCase struct {
+    users domain.UserRepository
+    tx    TransactionManager
+}
+
+// Execute は「ユーザーの名前を変更する」という1つの業務操作。
+//
+// ★ 引数は「命令」の形: 誰の、何を、どう変えるか。
+//   Userの全フィールドは受け取らない。
+func (u *ChangeUserNameUseCase) Execute(
+    ctx context.Context, actor Actor, id domain.UserID, newName string,
+) error {
+@@+    return u.tx.Run(ctx, func(ctx context.Context) error {
+        // ① get
+        user, err := u.users.FindByID(ctx, id)
+        if err != nil {
+            return fmt.Errorf("find user: %w", err)
+        }
+
+        // 認可はusecaseの責務（「誰が操作できるか」はアプリの関心）
+        if !actor.CanEdit(user) {
+            return fmt.Errorf("%w: user=%s", domain.ErrForbidden, id)
+        }
+
+        // ② ドメインロジック（検証も不変条件もEntityの中）
+@@+        if err := user.ChangeName(newName); err != nil {
+            return err // ErrInvalidName など。ドメインの語彙のまま返す
+        }
+
+        // ③ save（楽観ロックの判定はrepository実装の中）
+        if err := u.users.Save(ctx, user); err != nil {
+            return fmt.Errorf("save user: %w", err)
+        }
+        return nil
+    })
+}
+
+// ★ 注目すべき点:
+//   ・if文が2つしかない（認可 + エラー処理）。業務判定は1つもない
+//   ・newName の検証をしていない（Entityに任せている）
+//   ・SQLもGORMも現れない
+//   ・この関数はバッチ・管理画面・CLIからも同じように呼べる
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="entity — 変更の責務を持つ" data-tone="good"><script type="text/plain">
+// domain/user.go
+package domain
+
+type User struct {
+    id      UserID
+    name    string
+    email   string
+    role    Role
+    status  UserStatus
+    version int // 楽観ロック用（ch5）
+}
+
+var (
+    ErrInvalidName     = errors.New("invalid name")
+    ErrUserNotEditable = errors.New("user is not editable")
+)
+
+const maxNameLength = 100
+
+// ChangeName は名前を変更する。
+//
+// ★ この1メソッドに集まっているもの:
+//   ・入力の妥当性（空文字・文字数）
+//   ・状態による可否（退会済みは変更不可）
+//   ・変更の記録（必要ならイベント）
+// ★ これらは「名前を変更する」全ての入り口で必ず通る。
+func (u *User) ChangeName(name string) error {
+    // 状態による可否（不変条件）
+@@+    if u.status == StatusWithdrawn {
+        return fmt.Errorf("%w: withdrawn user", ErrUserNotEditable)
+    }
+    // 入力の妥当性
+    name = strings.TrimSpace(name)
+    if name == "" {
+        return fmt.Errorf("%w: name must not be empty", ErrInvalidName)
+    }
+    if utf8.RuneCountInString(name) > maxNameLength {
+        return fmt.Errorf("%w: name must be %d characters or less",
+            ErrInvalidName, maxNameLength)
+    }
+    // 変更なしなら何もしない（冪等 / 監査ログを汚さない）
+    if u.name == name {
+        return nil
+    }
+    u.name = name
+    return nil
+}
+
+// ★ role の変更は別メソッドにする（権限が違うため）
+func (u *User) ChangeRole(newRole Role, byAdmin bool) error {
+    if !byAdmin {
+        return fmt.Errorf("%w: only admin can change role", ErrForbidden)
+    }
+    if u.role == newRole {
+        return nil
+    }
+    u.role = newRole
+    return nil
+}
+// ★ 「1メソッド = 1つの業務操作」にすると、
+//   認可・検証・監査の要件が自然に分離される。
+//   全フィールドを受け取る Update() だとこれができない。
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="entity のテスト — DBなしで全ルールを検証できる" data-tone="good"><script type="text/plain">
+func TestUser_ChangeName(t *testing.T) {
+    tests := []struct {
+        name    string
+        status  domain.UserStatus
+        input   string
+        want    string
+        wantErr error
+    }{
+        {"正常", domain.StatusActive, "田中太郎", "田中太郎", nil},
+        {"前後の空白は除去", domain.StatusActive, "  田中  ", "田中", nil},
+        {"空文字はエラー", domain.StatusActive, "", "", domain.ErrInvalidName},
+        {"空白のみはエラー", domain.StatusActive, "   ", "", domain.ErrInvalidName},
+        {"101文字はエラー", domain.StatusActive, strings.Repeat("あ", 101), "", domain.ErrInvalidName},
+        {"100文字はOK", domain.StatusActive, strings.Repeat("あ", 100), strings.Repeat("あ", 100), nil},
+        {"退会済みは変更不可", domain.StatusWithdrawn, "田中", "", domain.ErrUserNotEditable},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            u := domain.ReconstructUser(domain.UserID("u1"), "元の名前", tt.status)
+            err := u.ChangeName(tt.input)
+@@+            if !errors.Is(err, tt.wantErr) {
+                t.Fatalf("err = %v, want %v", err, tt.wantErr)
+            }
+            if tt.wantErr == nil && u.Name() != tt.want {
+                t.Errorf("name = %q, want %q", u.Name(), tt.want)
+            }
+        })
+    }
+}
+// ★ 実行時間: 1ms未満。DBもHTTPも不要。
+// ★ この7ケースが「名前変更の仕様書」として永久に残る。
+// ★ アンチパターン（全フィールド送信）では、このテストが書けない
+//   （ルールがhandlerに散っているため、DBを立てないと検証できない）。
+</script></div>
+
+      <div class="step ba">
+        <p class="step-h">⑥ Before / After — 「文字数上限を100→50に変える」要求</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>観点</th><th>アンチパターン（全フィールド送信）</th><th>get→domain→save</th></tr></thead>
+            <tbody>
+              <tr><td>変更箇所</td><td class="bad">handlerのバリデーション + フロントの検証 + バッチ + 管理画面 = 4箇所</td><td class="good"><span class="k">domain/user.go</span> の定数1箇所</td></tr>
+              <tr><td>テスト</td><td class="bad">DBを立てて統合テストを4本修正</td><td class="good">単体テストに1ケース追加（1ms）</td></tr>
+              <tr><td>漏れのリスク</td><td class="bad">高（1箇所忘れると不整合なデータが入る）</td><td class="good">構造的にゼロ</td></tr>
+              <tr><td>実装時間</td><td class="bad">半日（4箇所の調査 + 修正 + 動作確認）</td><td class="good">10分</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch3" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">03</span> 「命令」と「状態」の違い</h2>
+      <p class="lede">結論。<b class="text-emerald-400">クライアントが送るべきは「命令（コマンド）」であり、「エンティティの新しい状態」ではない</b>。この区別を最初に決めないと、APIの形がドメイン設計を歪めてしまう。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">状態を送るAPI vs 命令を送るAPI</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="180" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="265" y="74" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">状態を送る（PUT / リソース指向）</text>
+            <text x="46" y="100" fill="#fde68a">PUT /users/1</text>
+            <text x="46" y="118" fill="#e2e8f0">{ "name": "田中", "email": "a@b.c", "role": "admin" }</text>
+            <text x="46" y="142" fill="#fcd34d">意味: 「このリソースをこの内容に置き換えろ」</text>
+            <text x="46" y="166" fill="#4ade80">向く場面:</text>
+            <text x="46" y="184" fill="#bbf7d0">・設定画面（全項目を1画面で編集）</text>
+            <text x="46" y="200" fill="#bbf7d0">・マスタのCRUD（ビジネスルールが薄い）</text>
+            <text x="46" y="220" fill="#f87171">向かない場面: 状態遷移・権限が項目ごとに違う・監査が必要</text>
+
+            <rect x="530" y="50" width="470" height="180" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="765" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">命令を送る（POST / タスク指向）</text>
+            <text x="546" y="100" fill="#bbf7d0">POST /users/1/rename      { "name": "田中" }</text>
+            <text x="546" y="118" fill="#bbf7d0">POST /users/1/change-role { "role": "admin" }</text>
+            <text x="546" y="136" fill="#bbf7d0">POST /users/1/withdraw    { "reason": "..." }</text>
+            <text x="546" y="160" fill="#86efac">意味: 「この操作を実行せよ」</text>
+            <text x="546" y="184" fill="#4ade80">得られるもの:</text>
+            <text x="546" y="202" fill="#bbf7d0">・操作ごとに認可・検証・監査を分けられる</text>
+            <text x="546" y="218" fill="#bbf7d0">・Entityのメソッドと1:1で対応する</text>
+
+            <rect x="30" y="248" width="970" height="200" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="272" fill="#bae6fd" font-size="12" font-weight="bold">実務での判断（RESTの原理主義に陥らない）</text>
+            <text x="46" y="298" fill="#e0f2fe">・「RESTだからPUTで全体を送るべき」は目的を見失っている。<tspan fill="#4ade80" font-weight="bold">APIの形は業務操作の形に合わせる</tspan></text>
+            <text x="46" y="322" fill="#e0f2fe">・状態遷移がある操作（確定・キャンセル・承認・退会）は<tspan font-weight="bold">必ず命令型</tspan>にする</text>
+            <text x="62" y="340" fill="#7dd3fc" font-size="9.5">→ PUT で status を直接書き換えられると、遷移ルールが守れない（canceled → confirmed が通る）</text>
+            <text x="46" y="364" fill="#e0f2fe">・部分更新が必要なら PATCH + <tspan font-weight="bold">ポインタフィールド</tspan>（未指定とnullを区別する）</text>
+            <text x="62" y="382" fill="#7dd3fc" font-size="9.5">→ ただしPATCHは実装が複雑になるので、命令型APIに分ける方が結果的に簡単なことが多い</text>
+            <text x="46" y="406" fill="#e0f2fe">・現実的な折衷: <tspan fill="#4ade80">「単純な属性はまとめてPUT、状態遷移は命令型POST」</tspan>の併用</text>
+            <text x="62" y="424" fill="#7dd3fc" font-size="9.5">例: PUT /users/1（名前・電話）+ POST /users/1/change-role + POST /users/1/withdraw</text>
+            <text x="46" y="442" fill="#fbbf24">★ 判定: 「その項目を変えるとき、他の項目と違う権限・検証・副作用があるか」→ Yesなら別の命令にする</text>
+          </g>
+        </svg>
+        <p class="figcap">図3-1 状態型と命令型。状態遷移を含む操作は命令型でなければルールを守れない。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="状態を直接書き換えられるAPIの危険性" data-tone="bad"><script type="text/plain">
+// PUT /reservations/1 { "status": "confirmed", ... }
+@@-func (h *Handler) Update(c echo.Context) error {
+@@-    var req UpdateReservationRequest
+@@-    c.Bind(&req)
+@@-    r, _ := h.repo.FindByID(ctx, id)
+@@-    r.Status = req.Status // ★ 任意の状態に書き換えられる
+@@-    return h.repo.Save(ctx, r)
+}
+
+// ★ 何が起きるか:
+//   canceled → confirmed に戻せる（キャンセル料が消える）
+//   no_show → pending に戻せる（在庫が二重に減る）
+//   任意の値（"cofirmed" のtypo）が入る
+//
+// ★ しかもこれは「バグ」ではなく「仕様通り」に見える。
+//   APIが「statusを送れる」形をしているので、送った通りに動いている。
+//   → APIの形が、防げないバグを作り出している
+</script></div>
+      <div class="cb" data-lang="go" data-cap="命令型にすると、遷移ルールが構造的に守られる" data-tone="good"><script type="text/plain">
+// POST /reservations/1/confirm
+func (h *Handler) Confirm(c echo.Context) error {
+    id := domain.ReservationID(c.Param("id"))
+@@+    err := h.confirmUseCase.Execute(c.Request().Context(), actorFrom(c), id)
+    return h.respond(c, err)
+}
+
+// POST /reservations/1/cancel  { "reason": "..." }
+func (h *Handler) Cancel(c echo.Context) error { ... }
+
+// ★ 「statusを送る」という選択肢が存在しない。
+//   → 状態遷移は必ず Entity の Confirm() / Cancel() を通る
+//   → 遷移表（canceled → confirmed は不可）が必ず適用される
+//
+// ★ 副次的な利点:
+//   ・エンドポイントごとに認可を設定できる（confirmは誰でも、cancelは管理者だけ）
+//   ・アクセスログから「何が行われたか」が分かる（PUT /users/1 では分からない）
+//   ・監査ログの実装が自然になる（操作名がそのまま記録できる）
+//   ・APIドキュメントが業務のユースケース一覧になる
+</script></div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 過剰になる境界 — 命令型にしすぎる害</p>
+        <ul>
+          <li><b>属性1つごとにエンドポイントを作る</b> — <span class="k">/users/1/change-phone</span> <span class="k">/change-address</span> <span class="k">/change-birthday</span>… <b class="text-rose-400">10個のエンドポイントと10個のUseCaseが生まれる</b>。設定画面で全部同時に編集するなら、まとめて1つのPUTでよい</li>
+          <li><b>判定基準</b>: <b class="text-emerald-400">「その項目が、他と違う権限・検証・副作用を持つか」</b>。Noなら同じエンドポイントでまとめる</li>
+          <li><b>現実的な形</b>: <span class="k">PUT /users/1/profile</span>（名前・電話・住所をまとめて）+ <span class="k">POST /users/1/change-role</span>（権限が違う）+ <span class="k">POST /users/1/withdraw</span>（状態遷移）</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch4" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">04</span> トランザクション境界はどこか</h2>
+      <p class="lede">結論。<b class="text-emerald-400">usecase（application service）</b>。理由は<b class="text-slate-200">「1つの業務操作 = 全部成功か全部失敗」という単位が、usecaseと一致するから</b>。domainに置くとインフラを知ることになり、repositoryに置くと複数操作をまとめられない。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">なぜ get と save の間にトランザクションが必要か</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="970" height="180" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="74" fill="#fecaca" font-size="12" font-weight="bold">Lost Update — トランザクションがない場合</text>
+            <text x="46" y="98" fill="#94a3b8">時刻   Goroutine A（名前を変更）              Goroutine B（roleを変更）        DBの状態</text>
+            <line x1="46" y1="104" x2="990" y2="104" stroke="#475569"/>
+            <text x="46" y="124" fill="#e0f2fe">t1     FindByID → {name:"旧", role:"user"}                                    name:"旧" role:"user"</text>
+            <text x="46" y="144" fill="#fde68a">t2                                          FindByID → {name:"旧", role:"user"}</text>
+            <text x="46" y="164" fill="#fde68a">t3                                          role="admin" → Save              name:"旧" role:"admin"</text>
+            <text x="46" y="184" fill="#e0f2fe">t4     name="新" → Save                                                       name:"新" role:"user" ★</text>
+            <text x="46" y="208" fill="#f87171" font-weight="bold">結果: B の role 変更が消えた。エラーもログも出ない。「なぜか権限が戻っている」という問い合わせになる。</text>
+
+            <rect x="30" y="250" width="470" height="195" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="265" y="274" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">対策1: トランザクション + 楽観ロック</text>
+            <text x="46" y="298" fill="#bbf7d0">・get で version を読む</text>
+            <text x="46" y="316" fill="#bbf7d0">・save で WHERE version = ? を付ける</text>
+            <text x="46" y="334" fill="#bbf7d0">・0行更新なら競合 → エラーを返す</text>
+            <text x="46" y="358" fill="#4ade80">→ B の更新が消えることはない</text>
+            <text x="46" y="376" fill="#86efac">→ A は「他の人が更新しました」を受け取る</text>
+            <text x="46" y="400" fill="#fbbf24">★ トランザクションだけでは足りない点に注意:</text>
+            <text x="46" y="418" fill="#fde68a">READ COMMITTED では t1 と t2 が同じ値を読める。</text>
+            <text x="46" y="436" fill="#fde68a">version条件が「最後の防衛線」になる（ch5）</text>
+
+            <rect x="530" y="250" width="470" height="195" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="765" y="274" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">対策2: 命令型APIで競合そのものを減らす</text>
+            <text x="546" y="298" fill="#e0f2fe">A: POST /users/1/rename  { name }</text>
+            <text x="546" y="316" fill="#e0f2fe">B: POST /users/1/change-role { role }</text>
+            <text x="546" y="340" fill="#7dd3fc">→ 更新するカラムが違うので、</text>
+            <text x="546" y="358" fill="#7dd3fc">　 SQL レベルでは競合しない</text>
+            <text x="546" y="382" fill="#fbbf24">★ ただし version を全体で持っていると、</text>
+            <text x="546" y="400" fill="#fde68a">　 無関係な変更でも競合する（ch1の損失3）</text>
+            <text x="546" y="424" fill="#4ade80">→ 「競合の粒度」も設計対象である</text>
+          </g>
+        </svg>
+        <p class="figcap">図4-1 Lost Update。トランザクションと楽観ロックは別の道具で、両方必要。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="TransactionManager — usecaseがインフラを知らずにTxを張る" data-tone="good"><script type="text/plain">
+// ===== usecase 側（interfaceを所有する）=====
+package usecase
+
+// TransactionManager は「一連の処理を全部か無かで実行する能力」の抽象。
+// ★ GORMもSQLも現れない → usecaseはDBの実装を知らない
+type TransactionManager interface {
+    Run(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+// ===== infrastructure 側（実装）=====
+package txmanager
+
+type ctxKey struct{} // 非公開の型（他パッケージが上書きできない）
+
+type gormTx struct{ db *gorm.DB }
+
+func New(db *gorm.DB) usecase.TransactionManager { return &gormTx{db: db} }
+
+func (m *gormTx) Run(ctx context.Context, fn func(ctx context.Context) error) error {
+    // すでにTx内なら参加する（ネストを防ぐ）
+    if _, ok := From(ctx); ok {
+        return fn(ctx)
+    }
+    return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+@@+        return fn(context.WithValue(ctx, ctxKey{}, tx))
+    })
+}
+
+func From(ctx context.Context) (*gorm.DB, bool) {
+    tx, ok := ctx.Value(ctxKey{}).(*gorm.DB)
+    return tx, ok
+}
+
+// ===== repository 側（ctxからTxを取り出す）=====
+package repository
+
+type base struct{ db *gorm.DB }
+
+// conn は「Txがあればそれを、なければ通常の接続を」返す。
+func (b base) conn(ctx context.Context) *gorm.DB {
+@@+    if tx, ok := txmanager.From(ctx); ok {
+        return tx.WithContext(ctx)
+    }
+    return b.db.WithContext(ctx)
+}
+
+func (r *userRepo) Save(ctx context.Context, u *domain.User) error {
+@@+    return r.conn(ctx).Save(toRecord(u)).Error // ★ 自動でTxに参加する
+}
+</script></div>
+
+      <div class="step why">
+        <p class="step-h">③ なぜ domain / repository ではないのか</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>置き場所</th><th>問題</th><th>判定</th></tr></thead>
+            <tbody>
+              <tr><td><b>domain（Entity）</b></td><td>Entityがトランザクション（インフラの概念）を知ることになる。<span class="k">func (u *User) ChangeName(name string, tx *gorm.DB)</span> のようなシグネチャは<b class="text-rose-400">ドメイン層の汚染</b>。単体テストにもDBが必要になる</td><td class="bad">不可</td></tr>
+              <tr><td><b>repository の内部</b></td><td>1メソッド = 1トランザクションになるので、<b class="text-rose-400">「ユーザー更新 + 監査ログ記録」を1つのTxにできない</b>。片方だけ成功する状態が生まれる</td><td class="bad">複数操作があると不可</td></tr>
+              <tr><td><b>handler / middleware</b></td><td>「1リクエスト = 1Tx」になる。読み取りAPIでも無駄にTxが張られ、<b class="text-amber-400">外部API呼び出しがTx内に入ってしまう</b>（最悪）</td><td class="bad">推奨しない</td></tr>
+              <tr><td><b>usecase</b></td><td>「1つの業務操作」の単位と一致する。複数Repositoryをまとめられる。domainは無関係でいられる</td><td class="good">★ これ</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-amber-400">context に値を入れることへの批判</b>: Goのガイドラインでは「contextは必須の依存を運ぶべきではない」とされる。<b class="text-slate-100">反論としては「Txがない場合は通常接続にデグレードするので壊れない」「代替案（Reposを引数で渡す）は保守コストが高い」</b>。<b class="text-emerald-400">弱点を潰す方法として、Tx必須のメソッドで <span class="k">if _, ok := From(ctx); !ok { return ErrNoTransaction }</span> と検査するのが実務的</b>。詳細は software-design-micro.html ch32（5方式の比較）。</p>
+      </div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ トランザクションのレビュー観点</p>
+        <ul>
+          <li><b class="text-rose-400">Txの中に外部通信（HTTP・メール・S3・Queue publish）が入っていないか</b> — 例外なしのルール。ロック時間が外部の応答時間になる</li>
+          <li>Txが何ms続くか（100ms超は要注意）</li>
+          <li>複数テーブルを更新する順序が、他の箇所と一致しているか（デッドロック）</li>
+          <li><b class="text-amber-400">ロールバックされたとき、メモリ上のEntityはどうなるか</b> — <b class="text-slate-100">Goではロールバックしてもメモリ上のEntityは変更されたまま</b>。そのEntityを再利用すると不整合になる（リトライ時に注意）</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch5" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">05</span> 楽観ロックと悲観ロック</h2>
+      <p class="lede">結論。<b class="text-emerald-400">DDDでは楽観ロックをデフォルトにする</b>。理由は「ロックを取らないのでスループットが落ちない」「デッドロックしない」「Aggregateの境界と一致する」の3つ。<b class="text-slate-200">悲観ロックが必要なのは「必ず成功させたい」処理だけ</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">楽観ロック / 悲観ロック / 原子的UPDATE</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="20" y="50" width="330" height="410" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="185" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">① 楽観ロック ★デフォルト</text>
+            <text x="34" y="100" fill="#86efac">仕組み:</text>
+            <text x="34" y="120" fill="#e2e8f0" font-size="9.5">・Entityが version を持つ</text>
+            <text x="34" y="138" fill="#e2e8f0" font-size="9.5">・get で version を読む</text>
+            <text x="34" y="156" fill="#e2e8f0" font-size="9.5">・save で WHERE version=? を付ける</text>
+            <text x="34" y="174" fill="#e2e8f0" font-size="9.5">・0行更新なら競合 → ErrConflict</text>
+            <text x="34" y="200" fill="#4ade80">利点:</text>
+            <text x="34" y="218" fill="#bbf7d0" font-size="9.5">・ロックを取らない（待たない）</text>
+            <text x="34" y="234" fill="#bbf7d0" font-size="9.5">・デッドロックしない</text>
+            <text x="34" y="250" fill="#bbf7d0" font-size="9.5">・読み取りの並行度が最大</text>
+            <text x="34" y="266" fill="#bbf7d0" font-size="9.5">・分散環境でも動く</text>
+            <text x="34" y="282" fill="#bbf7d0" font-size="9.5">・Aggregate単位と一致する</text>
+            <text x="34" y="308" fill="#fbbf24">欠点:</text>
+            <text x="34" y="326" fill="#fde68a" font-size="9.5">・競合が多いとリトライが増える</text>
+            <text x="34" y="342" fill="#fde68a" font-size="9.5">・リトライのコードが必要</text>
+            <text x="34" y="358" fill="#fde68a" font-size="9.5">・ユーザーに「再試行」を見せる場合UX設計が必要</text>
+            <text x="34" y="384" fill="#4ade80">向く場面:</text>
+            <text x="34" y="402" fill="#bbf7d0" font-size="9.5">・競合が稀（同じレコードを同時に</text>
+            <text x="34" y="418" fill="#bbf7d0" font-size="9.5">　触ることが少ない）</text>
+            <text x="34" y="436" fill="#bbf7d0" font-size="9.5">・管理画面の編集（他の人が更新したら</text>
+            <text x="34" y="452" fill="#bbf7d0" font-size="9.5">　知らせたい ← むしろ利点）</text>
+
+            <rect x="360" y="50" width="330" height="410" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="525" y="74" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">② 悲観ロック</text>
+            <text x="374" y="100" fill="#fcd34d">仕組み:</text>
+            <text x="374" y="120" fill="#e2e8f0" font-size="9.5">・SELECT ... FOR UPDATE で読む</text>
+            <text x="374" y="138" fill="#e2e8f0" font-size="9.5">・他のTxはその行を読めず待たされる</text>
+            <text x="374" y="156" fill="#e2e8f0" font-size="9.5">・COMMIT / ROLLBACK で解放</text>
+            <text x="374" y="182" fill="#4ade80">利点:</text>
+            <text x="374" y="200" fill="#bbf7d0" font-size="9.5">・リトライ不要（必ず勝つ）</text>
+            <text x="374" y="216" fill="#bbf7d0" font-size="9.5">・複雑な読み書きでも安全</text>
+            <text x="374" y="232" fill="#bbf7d0" font-size="9.5">・アプリのifがそのまま正しく動く</text>
+            <text x="374" y="258" fill="#f87171">欠点:</text>
+            <text x="374" y="276" fill="#fca5a5" font-size="9.5">・待ち時間が発生（スループット低下）</text>
+            <text x="374" y="292" fill="#fca5a5" font-size="9.5">・★ デッドロックのリスク</text>
+            <text x="374" y="308" fill="#fca5a5" font-size="9.5">・ロック順序を全箇所で統一が必要</text>
+            <text x="374" y="324" fill="#fca5a5" font-size="9.5">・Tx中に外部通信すると致命的</text>
+            <text x="374" y="340" fill="#fca5a5" font-size="9.5">・行が存在しない場合は効かない</text>
+            <text x="390" y="356" fill="#94a3b8" font-size="9">（ギャップロックになり挙動が複雑）</text>
+            <text x="374" y="382" fill="#fbbf24">向く場面:</text>
+            <text x="374" y="400" fill="#fde68a" font-size="9.5">・在庫の確保（必ず成功させたい）</text>
+            <text x="374" y="416" fill="#fde68a" font-size="9.5">・連番の発行（最大値+1）</text>
+            <text x="374" y="432" fill="#fde68a" font-size="9.5">・バッチ処理のジョブ取得</text>
+            <text x="374" y="450" fill="#fde68a" font-size="9.5">　（FOR UPDATE SKIP LOCKED）</text>
+
+            <rect x="700" y="50" width="320" height="410" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="860" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">③ 原子的UPDATE（読まない）</text>
+            <text x="714" y="100" fill="#7dd3fc">仕組み:</text>
+            <text x="714" y="120" fill="#e2e8f0" font-size="9.5">・「読んで判断」をやめる</text>
+            <text x="714" y="138" fill="#e2e8f0" font-size="9.5">・条件をWHERE句に入れる</text>
+            <text x="714" y="156" fill="#e2e8f0" font-size="9.5">　UPDATE ... WHERE remain &gt;= 1</text>
+            <text x="714" y="174" fill="#e2e8f0" font-size="9.5">・DBが原子的に判断する</text>
+            <text x="714" y="200" fill="#4ade80">利点:</text>
+            <text x="714" y="218" fill="#bbf7d0" font-size="9.5">・★ 最も速く、最も確実</text>
+            <text x="714" y="234" fill="#bbf7d0" font-size="9.5">・ロックも待ちもリトライも不要</text>
+            <text x="714" y="250" fill="#bbf7d0" font-size="9.5">・1クエリで完結</text>
+            <text x="714" y="276" fill="#f87171">欠点:</text>
+            <text x="714" y="294" fill="#fca5a5" font-size="9.5">・複雑なビジネスロジックが書けない</text>
+            <text x="714" y="310" fill="#fca5a5" font-size="9.5">・★ ドメインモデルを通らない</text>
+            <text x="714" y="326" fill="#fca5a5" font-size="9.5">・SQLに業務ルールが埋まる</text>
+            <text x="714" y="352" fill="#38bdf8">向く場面:</text>
+            <text x="714" y="370" fill="#e0f2fe" font-size="9.5">・カウンタ・在庫の増減</text>
+            <text x="714" y="386" fill="#e0f2fe" font-size="9.5">・単純な数値操作</text>
+            <text x="714" y="410" fill="#fbbf24" font-size="9.5">★ DDDの理想（Entityを通す）と</text>
+            <text x="714" y="426" fill="#fde68a" font-size="9.5">　 性能の要求が衝突する場所。</text>
+            <text x="714" y="444" fill="#fde68a" font-size="9.5">　 規模で判断を変える（後述）</text>
+          </g>
+        </svg>
+        <p class="figcap">図5-1 3方式。DDDのデフォルトは①、性能が要求されるカウンタ系は③。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="楽観ロックの完全な実装" data-tone="good"><script type="text/plain">
+// ===== domain: version は Entity が持ってよい =====
+package domain
+
+type User struct {
+    id      UserID
+    name    string
+    version int // ★ 楽観ロック用。ドメインの概念ではないが、
+                //   「読んだ時点の世代」としてEntityが保持するのが実務的
+}
+
+func (u *User) Version() int { return u.version }
+
+// ★ 議論: version をドメインに置くべきか？
+//   ・置かない派: 永続化の関心なので、repositoryが管理すべき
+//     → しかしEntityを渡すだけでは「どの世代を読んだか」が伝わらない
+//   ・置く派（実務の多数）: Entityが持つのが最も単純
+//     → DDDの原典でも Aggregate に version を持たせる例がある
+//   ★ 結論: 置く。ただし「WHERE version=? を書く」のはrepositoryの責務
+
+// ===== repository: WHERE version=? を書くのはここ =====
+package repository
+
+var ErrConflict = errors.New("conflict: record was updated by another process")
+
+func (r *userRepo) Save(ctx context.Context, u *domain.User) error {
+    rec := toRecord(u)
+@@+    result := r.conn(ctx).Model(&userRecord{}).
+@@+        Where("id = ? AND version = ?", rec.ID, rec.Version).
+        Updates(map[string]any{
+            "name":       rec.Name,
+            "email":      rec.Email,
+            "role":       rec.Role,
+@@+            "version":    rec.Version + 1, // ★ インクリメント
+            "updated_at": time.Now(),
+        })
+    if result.Error != nil {
+        return fmt.Errorf("update user: %w", result.Error)
+    }
+@@*    if result.RowsAffected == 0 {
+@@*        // 0行 = 誰かが先に更新した（または行が存在しない）
+@@*        return fmt.Errorf("%w: user=%s expected_version=%d",
+@@*            domain.ErrConflict, rec.ID, rec.Version)
+@@*    }
+    return nil
+}
+
+// ★ 注意: RowsAffected == 0 は「競合」と「行が存在しない」の両方を意味する。
+//   区別が必要なら、別途 SELECT COUNT で確認する（通常は不要 — getで存在確認済み）
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="GORMの自動楽観ロックを使わない理由" data-tone="warn"><script type="text/plain">
+// GORMには gorm.io/plugin/optimisticlock がある
+type User struct {
+    ID      uint
+    Name    string
+@@!    Version optimisticlock.Version // プラグインが自動でWHERE句を付ける
+}
+
+// ★ 使わない方がよい理由:
+//   1. 「いつWHERE句が付くか」が暗黙的（Save/Updates/Update で挙動が違う）
+//   2. 競合時のエラーが分かりにくい（RowsAffected を自分で見る必要がある）
+//   3. ドメインモデルにGORMの型が侵入する（Dependency Rule違反）
+//   4. デバッグ時にSQLの意図が読めない
+//
+// ★ 手書きの利点:
+//   ・SQLが明示的（レビューで確認できる）
+//   ・エラーをドメインの語彙（ErrConflict）に翻訳できる
+//   ・「なぜこのWHERE句があるか」がコードから読める
+//
+// ★ 判断: 楽観ロックは「5行のコード」で書けるので、プラグインを入れる価値が薄い。
+//   ただしチーム全体で統一するなら、共通のヘルパー関数を作るのが良い:
+//
+func updateWithVersion(db *gorm.DB, table string, id string, version int,
+    fields map[string]any) error {
+    fields["version"] = version + 1
+    fields["updated_at"] = time.Now()
+    res := db.Table(table).Where("id = ? AND version = ?", id, version).Updates(fields)
+    if res.Error != nil {
+        return res.Error
+    }
+    if res.RowsAffected == 0 {
+        return domain.ErrConflict
+    }
+    return nil
+}
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="競合時のリトライ — どこでやるか" data-tone="good"><script type="text/plain">
+// ★ 原則: リトライはトランザクションの「外」で行う。
+//   Tx内でリトライしても、読み込んだデータは古いまま。
+
+// ---- パターンA: バッチ・Workerなど「自動で解決したい」場合 ----
+func (w *Worker) process(ctx context.Context, id domain.UserID) error {
+    const maxAttempts = 3
+    for attempt := 1; attempt <= maxAttempts; attempt++ {
+        err := w.usecase.Execute(ctx, id) // 中でTxを張る
+        if err == nil {
+            return nil
+        }
+@@*        if !errors.Is(err, domain.ErrConflict) {
+@@*            return err // 競合以外はリトライしない
+@@*        }
+        // ジッター付きバックオフ（同時に負けた者同士の再衝突を避ける）
+        d := time.Duration(1<<(attempt-1)) * 50 * time.Millisecond
+        select {
+        case <-ctx.Done():
+            return ctx.Err()
+        case <-time.After(d + time.Duration(rand.Int63n(int64(d/2)))):
+        }
+    }
+    return fmt.Errorf("giving up after %d conflicts", maxAttempts)
+}
+
+// ---- パターンB: 管理画面など「人間に知らせたい」場合 ----
+// リトライしない。409 Conflict を返してUIに表示する。
+func (h *Handler) Update(c echo.Context) error {
+    err := h.usecase.Execute(...)
+@@+    if errors.Is(err, domain.ErrConflict) {
+        return c.JSON(http.StatusConflict, errorResponse{
+            Code:    "conflict",
+            Message: "他のユーザーが更新しました。画面を再読み込みしてください。",
+        })
+    }
+    ...
+}
+// ★ これが楽観ロックの「利点」でもある:
+//   自動リトライすると「後から保存した人の内容で上書きされる」（サイレント上書き）。
+//   人間の編集では、それを知らせる方が正しい。
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ 選択の判断表</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>対象</th><th>方式</th><th>リトライ</th><th>理由</th></tr></thead>
+            <tbody>
+              <tr><td>ユーザー・予約などのEntity更新</td><td class="good">楽観ロック</td><td>Workerなら自動 / 人間なら409</td><td>競合が稀。Aggregate単位と一致する</td></tr>
+              <tr><td>在庫の減算</td><td class="good">原子的UPDATE</td><td>不要</td><td><span class="k">WHERE remain &gt;= 1</span> で原子的に判定。<b>Entityを通すと並行実行で破れる</b></td></tr>
+              <tr><td>ポイント・残高の加算</td><td class="good">原子的UPDATE + 台帳</td><td>不要</td><td>履歴から再計算できる形にする（監査要件）</td></tr>
+              <tr><td>連番の発行</td><td class="warn">SEQUENCE / AUTO_INCREMENT</td><td>不要</td><td>「最大値+1」は競合する。DBの機能を使う</td></tr>
+              <tr><td>バッチのジョブ取得</td><td class="good"><span class="k">FOR UPDATE SKIP LOCKED</span></td><td>不要</td><td>他のWorkerが処理中の行を飛ばす</td></tr>
+              <tr><td>複雑な読み書き（複数テーブル参照後に判定）</td><td class="warn">悲観ロック</td><td>不要</td><td>原子的UPDATEに落とせない場合のみ</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-teal-300">重要な認識</b>: <b class="text-rose-400">「Entityの中でチェックしているから安全」は並行実行下では成り立たない</b>。<span class="k">if u.balance >= amount</span> をEntityに書いても、2つのgoroutineが同じ残高を読めば両方通る。<b class="text-emerald-400">アプリの不変条件とDBの制約は二重化する</b>（詳細: software-design-micro.html ch20, ch46 / transaction-system-design.html）。</p>
+      </div>
+    </section>
+
+    <section id="ch6" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">06</span> 対比表と「DBアクセス2回」の是非</h2>
+      <p class="lede">Part 1 の総括。<b class="text-emerald-400">get→変更→save は DBアクセスが2回になる</b>。これが唯一の実質的なコストなので、正面から評価する。</p>
+
+      <div class="step ba">
+        <p class="step-h">⑥ 総合対比表</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>観点</th><th>全フィールド送信 → 直接update</th><th class="text-emerald-400">get → 変更 → save</th></tr></thead>
+            <tbody>
+              <tr><td>ドメイン知識の場所</td><td class="bad">散逸（handler / フロントエンドに漏れる）</td><td class="good">Entityに集約</td></tr>
+              <tr><td>不変条件の保護</td><td class="bad">できない（任意の値が入る）</td><td class="good">Entityのメソッドで保護</td></tr>
+              <tr><td>状態遷移の制御</td><td class="bad">できない（statusを直接書ける）</td><td class="good">遷移表で制御できる</td></tr>
+              <tr><td>DBアクセス数</td><td class="good">1回（UPDATE のみ）</td><td class="warn">2回（SELECT + UPDATE）</td></tr>
+              <tr><td>競合検知</td><td class="bad">難しい（読んでいないのでversionが分からない）</td><td class="good">楽観ロックで対応可</td></tr>
+              <tr><td>「送られなかったフィールド」の扱い</td><td class="bad">空文字で上書きされる危険</td><td class="good">触らないフィールドはそのまま</td></tr>
+              <tr><td>監査ログ</td><td class="bad">何が変わったか分からない</td><td class="good">変更前後を比較できる</td></tr>
+              <tr><td>単体テスト</td><td class="bad">DBが必要</td><td class="good">Entityだけで書ける（1ms）</td></tr>
+              <tr><td>別の入り口からの再利用</td><td class="bad">ルールを再実装する</td><td class="good">同じEntityメソッドを呼ぶ</td></tr>
+              <tr><td>実装の初期コスト</td><td class="good">低（3行）</td><td class="warn">中（Entity + メソッド + テスト）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ 「DBアクセスが2回になる」を正面から評価する</p>
+        <div class="kv">
+          <div class="kvi"><p>実際のコスト</p><p>同一AZ内のRDSで <b class="text-slate-100">1クエリのRTTは 0.5〜2ms</b>。主キー検索のSELECTは1ms未満。<b class="text-emerald-400">つまり増分は約1ms</b>。HTTPリクエスト全体が50〜200msなら、1〜2%の増加。</p></div>
+          <div class="kvi"><p>気にすべき場合</p><p><b class="text-amber-400">①ループの中で更新する（N件 → 2N クエリ）②毎秒数千件の更新 ③RTTが大きい構成（クロスAZ・クロスリージョン）</b>。この3つに該当しないなら、測る前に最適化する理由はない。</p></div>
+          <div class="kvi"><p>ループの場合の対処</p><p><b class="text-slate-100">「1件ずつget→save」をやめて、バルク処理にする</b>。<span class="k">FindByIDs</span> で一括取得 → メモリ上で全Entityを変更 → <span class="k">SaveAll</span> で一括更新。<b class="text-emerald-400">Entityを通す形は維持できる</b>。</p></div>
+          <div class="kvi"><p>高スループットの場合の対処</p><p><b class="text-rose-400">Entityを通さない高速パスを、意図的に用意する</b>（原子的UPDATE一発）。ただし①どのルールを捨てたか ②どう検出するか（突合バッチ）をADRに書く。<b class="text-slate-100">これは「妥協」ではなく「担保の場所を移す」設計判断</b>。</p></div>
+        </div>
+        <div class="cb" data-lang="go" data-cap="ループでの更新 — 2N クエリを 2 クエリにする" data-tone="good"><script type="text/plain">
+// ✗ 悪い: 100件で200クエリ
+@@-for _, id := range ids {
+@@-    u, _ := repo.FindByID(ctx, id)
+@@-    u.Deactivate()
+@@-    repo.Save(ctx, u)
+@@-}
+
+// ✓ 良い: 2クエリ（Entityを通す形は維持）
+@@+users, err := repo.FindByIDs(ctx, ids)   // 1クエリ（IN句）
+if err != nil {
+    return err
+}
+for _, u := range users {
+@@+    if err := u.Deactivate(); err != nil { // メモリ上で変更（ルールは効く）
+        return fmt.Errorf("deactivate user %s: %w", u.ID(), err)
+    }
+}
+@@+return repo.SaveAll(ctx, users)            // 1クエリ（バルクUPDATE / CASE式 or 一時テーブル）
+
+// ★ SaveAll の実装は難しくなる（楽観ロックとの併用は特に）。
+//   実務的な折衷: 「version条件を諦めて、バッチは悲観ロック or 単一Workerで実行する」
+//   → バッチは並行実行しないので、楽観ロックが不要なことが多い
+</script></div>
+      </div>
+
+      <div class="step goog">
+        <p class="step-h">Part 1 のまとめ</p>
+        <ol>
+          <li><b class="text-lime-300">クライアントは「命令」を送る</b>。Entityの新しい状態を送らせない</li>
+          <li><b class="text-lime-300">usecaseは get → Entityに依頼 → save の3ステップだけ</b>。if文が並んだらEntityに移す</li>
+          <li><b class="text-lime-300">トランザクション境界はusecase</b>。TransactionManagerをinterfaceで注入する</li>
+          <li><b class="text-lime-300">楽観ロックをデフォルトにする</b>。version は Entity が持ち、WHERE句は repository が書く</li>
+          <li><b class="text-lime-300">在庫・カウンタは原子的UPDATE</b>。Entityのチェックは並行実行で破れる</li>
+          <li><b class="text-lime-300">DBアクセス2回は約1ms</b>。ループと高スループット以外では問題にならない</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part2">
+      <p class="eyebrow">Part 2</p>
+      <h2>MVC → DDD の移行コスト</h2>
+      <p class="sub">DDDは堅実だが、MVCからの移行は<b class="text-rose-400">「構造物の増殖」という明確なコスト</b>を伴う。<b class="text-emerald-400">メリットとコストを正確に把握した上で、機能単位で採用を判断する</b>のが正しい態度。「DDDが正しいから全部DDDにする」は判断の放棄である。</p>
+    </div>
+
+    <section id="ch7" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">07</span> 生まれる構造物の一覧</h2>
+      <p class="lede">MVCでは <span class="k">db.Model</span> 1つを全レイヤーで使い回していた。DDDでは<b class="text-rose-400">同じデータが4〜5種類の構造体 + mapper に分解される</b>。まずこれを正確に数える。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1060 520" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1060" height="520" fill="#0f172a" rx="10"/>
+          <text x="530" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">同じ「ユーザー」が、いくつの型になるか</text>
+          <defs><marker id="d7" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <!-- MVC -->
+            <rect x="30" y="50" width="300" height="440" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="180" y="76" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">MVC: 1つの型を使い回す</text>
+
+            <rect x="60" y="96" width="240" height="46" rx="6" fill="#1e293b" stroke="#94a3b8"/>
+            <text x="76" y="116" fill="#e2e8f0">handler</text>
+            <text x="76" y="133" fill="#94a3b8" font-size="9">c.Bind(&amp;user) — db.Model をそのまま</text>
+            <line x1="180" y1="144" x2="180" y2="158" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#d7)"/>
+
+            <rect x="60" y="160" width="240" height="46" rx="6" fill="#1e293b" stroke="#94a3b8"/>
+            <text x="76" y="180" fill="#e2e8f0">service</text>
+            <text x="76" y="197" fill="#94a3b8" font-size="9">同じ user を受け取り、加工する</text>
+            <line x1="180" y1="208" x2="180" y2="222" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#d7)"/>
+
+            <rect x="60" y="224" width="240" height="46" rx="6" fill="#1e293b" stroke="#94a3b8"/>
+            <text x="76" y="244" fill="#e2e8f0">db（GORM）</text>
+            <text x="76" y="261" fill="#94a3b8" font-size="9">db.Save(&amp;user) — 同じ型</text>
+
+            <rect x="60" y="296" width="240" height="76" rx="6" fill="#052e16" stroke="#4ade80"/>
+            <text x="76" y="318" fill="#bbf7d0">型の数: 1個</text>
+            <text x="76" y="338" fill="#bbf7d0">type User struct {</text>
+            <text x="76" y="354" fill="#bbf7d0">  ID uint `gorm:"..." json:"..."`</text>
+            <text x="76" y="368" fill="#bbf7d0">}  ← タグを併記</text>
+
+            <text x="46" y="400" fill="#4ade80">利点: 圧倒的に速く書ける</text>
+            <text x="46" y="420" fill="#f87171">欠点1: DBのカラム名がAPIに露出する</text>
+            <text x="46" y="438" fill="#f87171">欠点2: 内部フィールドがJSONに漏れる</text>
+            <text x="46" y="456" fill="#f87171">欠点3: テーブル変更がAPIの破壊的変更</text>
+            <text x="46" y="474" fill="#f87171">欠点4: 不変条件を守る場所がない</text>
+
+            <!-- DDD -->
+            <rect x="360" y="50" width="330" height="440" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="525" y="76" fill="#bae6fd" font-size="12.5" font-weight="bold" text-anchor="middle">DDD: レイヤーごとに型を持つ</text>
+
+            <rect x="380" y="96" width="290" height="52" rx="6" fill="#164e63" stroke="#22d3ee"/>
+            <text x="396" y="114" fill="#cffafe">① handler: RequestModel</text>
+            <text x="396" y="130" fill="#a5f3fc" font-size="9">json タグ / validate タグ</text>
+            <text x="396" y="143" fill="#67e8f9" font-size="9">変更理由: API仕様（フロントエンドの要求）</text>
+
+            <rect x="380" y="154" width="290" height="52" rx="6" fill="#164e63" stroke="#22d3ee"/>
+            <text x="396" y="172" fill="#cffafe">② handler: ResponseModel</text>
+            <text x="396" y="188" fill="#a5f3fc" font-size="9">出すフィールドを1つずつ選ぶ</text>
+            <text x="396" y="201" fill="#67e8f9" font-size="9">変更理由: 画面の表示要件</text>
+
+            <rect x="380" y="212" width="290" height="52" rx="6" fill="#3f2d0a" stroke="#fbbf24"/>
+            <text x="396" y="230" fill="#fef3c7">③ usecase: Input / Output（DTO）</text>
+            <text x="396" y="246" fill="#fde68a" font-size="9">タグなし。純粋なGoの型</text>
+            <text x="396" y="259" fill="#fcd34d" font-size="9">変更理由: ユースケースの引数の増減</text>
+
+            <rect x="380" y="270" width="290" height="52" rx="6" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="396" y="288" fill="#dcfce7">④ domain: Entity（+ VO）</text>
+            <text x="396" y="304" fill="#bbf7d0" font-size="9">unexported フィールド + メソッド</text>
+            <text x="396" y="317" fill="#86efac" font-size="9">変更理由: ビジネスルール</text>
+
+            <rect x="380" y="328" width="290" height="52" rx="6" fill="#4c1d95" stroke="#a78bfa"/>
+            <text x="396" y="346" fill="#ede9fe">⑤ repository: DBModel（record）</text>
+            <text x="396" y="362" fill="#ddd6fe" font-size="9">gorm タグ / カラム名 / index</text>
+            <text x="396" y="375" fill="#c4b5fd" font-size="9">変更理由: テーブル設計・性能</text>
+
+            <rect x="380" y="386" width="290" height="52" rx="6" fill="#450a0a" stroke="#f87171"/>
+            <text x="396" y="404" fill="#fecaca">⑥ mapper × 4方向</text>
+            <text x="396" y="420" fill="#fca5a5" font-size="9">Request→Input / Input→Entity</text>
+            <text x="396" y="433" fill="#fca5a5" font-size="9">Entity→record / Entity→Response</text>
+
+            <text x="376" y="462" fill="#f87171" font-weight="bold">型の数: 5個 + mapper 4個</text>
+            <text x="376" y="480" fill="#fca5a5" font-size="9.5">★ 1リソースあたり。テストを書くと倍増する</text>
+
+            <!-- 判定 -->
+            <rect x="720" y="50" width="310" height="440" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="875" y="76" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">なぜ分けるのか（1文で）</text>
+            <text x="736" y="104" fill="#bbf7d0">★ 各型の「変更理由」が違うから</text>
+            <text x="736" y="130" fill="#e2e8f0" font-size="9.5">・API仕様が変わる  → ①②だけ変わる</text>
+            <text x="736" y="148" fill="#e2e8f0" font-size="9.5">・業務ルールが変わる → ④だけ変わる</text>
+            <text x="736" y="166" fill="#e2e8f0" font-size="9.5">・テーブルが変わる  → ⑤だけ変わる</text>
+            <text x="736" y="192" fill="#4ade80">＝ 変更が局所化される</text>
+            <text x="736" y="218" fill="#fbbf24">逆に MVC では:</text>
+            <text x="736" y="238" fill="#fde68a" font-size="9.5">・カラム名を変えたらAPIが壊れる</text>
+            <text x="736" y="256" fill="#fde68a" font-size="9.5">・APIに項目を足したらDBに列が増える</text>
+            <text x="736" y="274" fill="#fde68a" font-size="9.5">・内部用のフラグがJSONに出る</text>
+            <text x="736" y="300" fill="#f87171">＝ 変更が全層に波及する</text>
+
+            <text x="736" y="336" fill="#86efac" font-size="11" font-weight="bold">★ 判断の本質</text>
+            <text x="736" y="358" fill="#bbf7d0" font-size="9.5">「変更の局所化」を、</text>
+            <text x="736" y="376" fill="#bbf7d0" font-size="9.5">「型5個 + mapper 4個」で買っている。</text>
+            <text x="736" y="402" fill="#e2e8f0" font-size="9.5">変更が頻繁に来る機能 → 元が取れる</text>
+            <text x="736" y="420" fill="#e2e8f0" font-size="9.5">変更が来ない機能   → 純損失</text>
+            <text x="736" y="448" fill="#fbbf24" font-size="9.5">★ だから「機能単位で判断する」</text>
+            <text x="736" y="466" fill="#fde68a" font-size="9.5">　（ch10のフレーム）</text>
+          </g>
+        </svg>
+        <p class="figcap">図7-1 1リソースで型5個 + mapper 4個。これがDDDの実質的なコストの正体。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実際のコード量 — 「ユーザー名を変更する」機能1つで" data-tone="warn"><script type="text/plain">
+// ===== MVC版: 1ファイル・約25行 =====
+// handler/user.go
+type User struct {
+    ID    uint   `gorm:"primaryKey" json:"id"`
+    Name  string `gorm:"size:100"   json:"name"`
+    Email string `gorm:"size:255"   json:"email"`
+}
+
+func UpdateUser(c echo.Context) error {
+    var u User
+    if err := c.Bind(&u); err != nil {
+        return c.JSON(400, map[string]string{"error": "invalid"})
+    }
+    if u.Name == "" {
+        return c.JSON(400, map[string]string{"error": "name required"})
+    }
+    if err := db.Model(&User{}).Where("id = ?", c.Param("id")).
+        Updates(map[string]any{"name": u.Name}).Error; err != nil {
+        return c.JSON(500, map[string]string{"error": "internal"})
+    }
+    return c.JSON(200, u)
+}
+
+// ===== DDD版: 6ファイル・約180行 =====
+// domain/user.go              (60行)  Entity + メソッド + エラー定義
+// domain/user_repository.go   (8行)   interface
+// usecase/change_user_name.go (35行)  UseCase + Input
+// repository/user_gorm.go     (45行)  実装 + 楽観ロック
+// repository/user_record.go   (15行)  record 構造体
+// repository/user_mapper.go   (25行)  toDomain / toRecord
+// handler/user_handler.go     (40行)  handler + DTO + エラーマッピング
+//
+// + テスト:
+// domain/user_test.go         (60行)  境界値の網羅
+// usecase/..._test.go         (50行)  Fake repositoryを使った順序の検証
+// repository/..._test.go      (70行)  実DBでのSQL検証
+// repository/mapper_test.go   (25行)  round-trip
+//
+// ★ 合計: 約 430行（テスト込み）/ 11ファイル
+// ★ MVC版: 約 25行 / 1ファイル（テストなし）
+//
+// ★ 比率: 約 17倍
+//   ただし「テストがある」「ルールが1箇所」「変更が局所化」という価値が付く。
+//   17倍の投資が回収されるかどうかは、その機能に何回変更が来るかで決まる。
+</script></div>
+    </section>
+
+    <section id="ch8" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">08</span> なぜ増えるのか — 「変更の局所化」を買っている</h2>
+      <p class="lede">構造物が増える理由は<b class="text-emerald-400">「各レイヤーは自分の関心事だけを持つべき」という原則の帰結</b>。抽象論ではなく、具体的な変更シナリオで効果を測る。</p>
+
+      <div class="step impact">
+        <p class="step-h">⑦ 5つの変更シナリオで比較する</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>変更要求</th><th>MVC の影響範囲</th><th>DDD の影響範囲</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>DBのカラム名を <span class="k">name</span> → <span class="k">display_name</span> に変える</b></td>
+                <td class="bad">structのタグを変える → <b>APIのJSONキーも変わる</b> → フロントエンドが壊れる<br>（両方のタグを併記している構造体なので、片方だけ変えられない）</td>
+                <td class="good"><span class="k">repository/user_record.go</span> + mapper の2ファイル。<b>APIは1文字も変わらない</b></td>
+              </tr>
+              <tr>
+                <td><b>APIレスポンスに「登録日からの経過日数」を追加</b></td>
+                <td class="bad">DBに列を足すか、structに <span class="k">gorm:"-"</span> のフィールドを足す（DBモデルが表示用の項目を持ち始める）</td>
+                <td class="good"><span class="k">handler/dto.go</span> の1ファイル。Response DTOで計算する</td>
+              </tr>
+              <tr>
+                <td><b>「退会済みユーザーは名前を変更できない」ルールを追加</b></td>
+                <td class="bad">handlerに <span class="k">if u.Status == "withdrawn"</span> を追加 → <b>バッチ・管理画面・CSV取込にも同じifを追加</b>（4箇所）</td>
+                <td class="good"><span class="k">domain/user.go</span> の <span class="k">ChangeName()</span> に3行。全入り口に自動反映</td>
+              </tr>
+              <tr>
+                <td><b>内部管理用のフラグ <span class="k">is_test_account</span> を追加</b></td>
+                <td class="bad"><b class="text-rose-400">JSONに勝手に出る</b>（<span class="k">json:"-"</span> を書き忘れると外部に漏洩）</td>
+                <td class="good">record に足すだけ。Response DTOに書かなければ出ない（<b>デフォルトで安全</b>）</td>
+              </tr>
+              <tr>
+                <td><b>MySQL → PostgreSQL に移行</b></td>
+                <td class="bad">全レイヤーのタグとクエリを確認（実際には移行しないことが多い）</td>
+                <td class="good"><span class="k">repository/</span> 配下のみ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-indigo-300">最も価値が出るのは3行目と4行目</b>。<b class="text-slate-100">「ルールの追加」と「内部項目の隠蔽」は実務で頻繁に発生し、MVCでは必ず事故る</b>。逆に1行目・5行目（DB移行）は稀なので、これを理由にDDDを推すのは説得力が弱い。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="MVCで実際に起きる漏洩事故" data-tone="bad"><script type="text/plain">
+// MVCの構造体（handler / service / db で共用）
+type User struct {
+    ID           uint      `gorm:"primaryKey"    json:"id"`
+    Name         string    `gorm:"size:100"      json:"name"`
+    Email        string    `gorm:"size:255"      json:"email"`
+@@-    PasswordHash string    `gorm:"size:255"      json:"password_hash"` // ★ 漏洩
+@@-    InternalMemo string    `gorm:"type:text"     json:"internal_memo"` // ★ 社内メモが顧客に見える
+@@-    IsTestUser   bool      `gorm:"default:false" json:"is_test_user"`  // ★ 内部フラグ
+@@-    DeletedAt    gorm.DeletedAt                                          // ★ 論理削除の実装詳細
+}
+
+// GET /users/1 のレスポンス:
+// {
+//   "id": 1, "name": "田中", "email": "a@b.c",
+//   "password_hash": "$2a$10$...",   ★ 致命的
+//   "internal_memo": "クレーム対応中。要注意顧客",  ★ 致命的
+//   "is_test_user": false
+// }
+
+// ★ 対策として json:"-" を書くが、
+//   「新しいフィールドを足すとき、json:"-" を書き忘れる」のを防げない。
+//   → デフォルトが「公開」なので、忘れると漏洩する（fail-open）
+//
+// ★ DDDでは Response DTO に「書いたものだけ」が出る。
+//   → デフォルトが「非公開」なので、忘れても漏洩しない（fail-safe）
+//   ★ これがDTOを分ける最大の実務的価値。DRY違反ではなく、安全設計。
+</script></div>
+      <div class="cb" data-lang="go" data-cap="DDDの Response DTO — 出すものを1つずつ選ぶ" data-tone="good"><script type="text/plain">
+// handler/dto.go
+type userResponse struct {
+    ID    string `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+    // ★ ここに書かないものは出ない。
+    //   PasswordHash / InternalMemo / IsTestUser を書く機会がない
+}
+
+func newUserResponse(u *domain.User) userResponse {
+    return userResponse{
+        ID:    string(u.ID()),
+        Name:  u.Name(),
+        Email: u.Email(),
+    }
+}
+
+// ★ さらに: 用途別に複数のDTOを持てる
+type userDetailResponse struct { // 管理画面用（内部情報を含む）
+    ID           string `json:"id"`
+    Name         string `json:"name"`
+    Email        string `json:"email"`
+    InternalMemo string `json:"internal_memo"` // ★ 管理画面だけに出す
+    IsTestUser   bool   `json:"is_test_user"`
+}
+// → 「顧客向けAPI」と「管理画面API」でレスポンスを分けられる。
+//   MVCの共用structでは、これができない（1つの型に json タグは1組だけ）
+</script></div>
+    </section>
+
+    <section id="ch9" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">09</span> コストを数字で見る</h2>
+      <p class="lede">「認知負荷が高い」のような主観ではなく、<b class="text-emerald-400">測れる数字で見積もる</b>。移行を提案するときも、断るときも、数字がなければ議論にならない。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">1リソース（CRUD一式）を実装するコストの比較</text>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="62" fill="#94a3b8">項目</text>
+            <text x="380" y="62" fill="#fbbf24">MVC</text>
+            <text x="560" y="62" fill="#38bdf8">DDD</text>
+            <text x="740" y="62" fill="#f472b6">倍率</text>
+            <text x="850" y="62" fill="#94a3b8">備考</text>
+            <line x1="30" y1="70" x2="1010" y2="70" stroke="#475569" stroke-width="1.5"/>
+
+            <text x="40" y="94" fill="#e2e8f0">ファイル数</text>
+            <text x="380" y="94" fill="#fde68a">2</text>
+            <text x="560" y="94" fill="#7dd3fc">11</text>
+            <text x="740" y="94" fill="#f9a8d4">5.5x</text>
+            <text x="850" y="94" fill="#94a3b8" font-size="9">テスト込み</text>
+
+            <text x="40" y="118" fill="#e2e8f0">構造体の数</text>
+            <text x="380" y="118" fill="#fde68a">1</text>
+            <text x="560" y="118" fill="#7dd3fc">5〜6</text>
+            <text x="740" y="118" fill="#f9a8d4">5x</text>
+            <text x="850" y="118" fill="#94a3b8" font-size="9">Request/Response/Input/Entity/record</text>
+
+            <text x="40" y="142" fill="#e2e8f0">プロダクションコード行数</text>
+            <text x="380" y="142" fill="#fde68a">100</text>
+            <text x="560" y="142" fill="#7dd3fc">250</text>
+            <text x="740" y="142" fill="#f9a8d4">2.5x</text>
+            <text x="850" y="142" fill="#94a3b8" font-size="9">CRUD 4操作分</text>
+
+            <text x="40" y="166" fill="#e2e8f0">テストコード行数</text>
+            <text x="380" y="166" fill="#fde68a">0〜50</text>
+            <text x="560" y="166" fill="#7dd3fc">250</text>
+            <text x="740" y="166" fill="#f9a8d4">5x+</text>
+            <text x="850" y="166" fill="#4ade80" font-size="9">★ 書けるようになったのは価値（コストではない）</text>
+
+            <text x="40" y="190" fill="#e2e8f0">初回実装時間</text>
+            <text x="380" y="190" fill="#fde68a">2〜3時間</text>
+            <text x="560" y="190" fill="#7dd3fc">1〜1.5日</text>
+            <text x="740" y="190" fill="#f9a8d4">3〜4x</text>
+            <text x="850" y="190" fill="#94a3b8" font-size="9">習熟していれば2x程度に縮む</text>
+
+            <text x="40" y="214" fill="#e2e8f0">2回目以降の変更時間</text>
+            <text x="380" y="214" fill="#f87171">1〜4時間（範囲が読めない）</text>
+            <text x="560" y="214" fill="#4ade80">15〜30分</text>
+            <text x="740" y="214" fill="#4ade80">0.2x</text>
+            <text x="850" y="214" fill="#4ade80" font-size="9">★ ここで逆転する</text>
+
+            <text x="40" y="238" fill="#e2e8f0">レビュー時間（初回）</text>
+            <text x="380" y="238" fill="#fde68a">15分</text>
+            <text x="560" y="238" fill="#7dd3fc">45分</text>
+            <text x="740" y="238" fill="#f9a8d4">3x</text>
+            <text x="850" y="238" fill="#94a3b8" font-size="9">層が多いので追う時間が増える</text>
+
+            <text x="40" y="262" fill="#e2e8f0">新メンバーの理解時間</text>
+            <text x="380" y="262" fill="#4ade80">30分</text>
+            <text x="560" y="262" fill="#f87171">2〜3日</text>
+            <text x="740" y="262" fill="#f9a8d4">大</text>
+            <text x="850" y="262" fill="#f87171" font-size="9">★ 最も見落とされるコスト</text>
+
+            <text x="40" y="286" fill="#e2e8f0">バグの調査時間</text>
+            <text x="380" y="286" fill="#f87171">長い（どこにルールがあるか探す）</text>
+            <text x="560" y="286" fill="#4ade80">短い（層で当たりが付く）</text>
+            <text x="740" y="286" fill="#4ade80">0.3x</text>
+            <text x="850" y="286" fill="#94a3b8" font-size="9">—</text>
+            <line x1="30" y1="298" x2="1010" y2="298" stroke="#475569" stroke-width="1"/>
+
+            <rect x="30" y="312" width="480" height="135" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="1.5"/>
+            <text x="46" y="336" fill="#fecaca" font-size="12" font-weight="bold">見落とされがちなコスト</text>
+            <text x="46" y="360" fill="#fca5a5">・mapper の保守（カラム追加で往復2箇所を編集）</text>
+            <text x="46" y="378" fill="#fca5a5">・「なぜ型が5個あるのか」の説明を毎回する</text>
+            <text x="46" y="396" fill="#fca5a5">・移行期の混在（MVC と DDD が同居する認知負荷）</text>
+            <text x="46" y="414" fill="#fca5a5">・新メンバーのオンボーディング（2〜3日）</text>
+            <text x="46" y="432" fill="#fbbf24">★ 「とりあえず動く」からの後追いリファクタは、遅れるほど高くなる</text>
+
+            <rect x="530" y="312" width="480" height="135" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="546" y="336" fill="#dcfce7" font-size="12" font-weight="bold">回収されるポイント</text>
+            <text x="546" y="360" fill="#bbf7d0">・変更が3回来た時点で、時間コストは逆転する</text>
+            <text x="546" y="378" fill="#bbf7d0">・入り口が2つ以上あれば、ルールの重複実装を防げる</text>
+            <text x="546" y="396" fill="#bbf7d0">・情報漏洩の事故を1回防げば、それだけで元が取れる</text>
+            <text x="546" y="414" fill="#bbf7d0">・単体テストが1msで回るので、開発中のループが速い</text>
+            <text x="546" y="432" fill="#4ade80">★ 逆に「変更が来ない機能」では永久に回収されない</text>
+          </g>
+        </svg>
+        <p class="figcap">図9-1 コストの実測感覚。初回は3〜4倍、2回目以降の変更で逆転する。</p>
+      </div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ 損益分岐点はどこか</p>
+        <div class="kv">
+          <div class="kvi"><p>ざっくりした試算</p><p>初回の追加コストが<b class="text-slate-100">約8時間</b>、1回の変更で節約できる時間が<b class="text-slate-100">約2時間</b>とすると、<b class="text-emerald-400">4回変更が来れば元が取れる</b>。実務では「1つの機能に年3〜5回の変更」は普通なので、<b class="text-slate-100">1〜1.5年で回収</b>される計算になる。</p></div>
+          <div class="kvi"><p>回収されないケース</p><p>①<b class="text-rose-400">半年後にサービスが終わる</b> ②<b class="text-rose-400">その機能に誰も変更を要求しない</b>（マスタCRUD・お知らせ管理）③<b class="text-rose-400">チームが1人で、全部頭に入っている</b>（他人が読む便益が発生しない）</p></div>
+          <div class="kvi"><p>回収が速いケース</p><p>①状態遷移がある（予約・注文・承認フロー）②<b class="text-emerald-400">お金・在庫を扱う</b>（事故のコストが高い）③外部システムと連携する（相手の仕様変更が来る）④入り口が複数ある</p></div>
+          <div class="kvi"><p>この試算の使い方</p><p><b class="text-slate-100">「DDDにすべきか」の議論を、感情論から数字の議論に変える</b>ためのもの。数字自体はチームの習熟度で大きく変わるので、<b class="text-emerald-400">自分のチームで最初の1機能を実装して実測する</b>のが最も確実。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch10" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">10</span> 採用判断のフレーム</h2>
+      <p class="lede">結論。<b class="text-emerald-400">プロジェクト単位ではなく、機能単位で判断する</b>。同じシステムの中に「DDDの機能」と「MVCの機能」が共存するのが正しい状態。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">機能を3分類して、投資を配分する</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="20" y="50" width="330" height="400" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="185" y="76" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">Core（DDDを全部使う）</text>
+            <text x="34" y="102" fill="#86efac">該当する機能:</text>
+            <text x="34" y="122" fill="#e2e8f0" font-size="9.5">・予約の作成・変更・キャンセル</text>
+            <text x="34" y="140" fill="#e2e8f0" font-size="9.5">・在庫の確保と解放</text>
+            <text x="34" y="158" fill="#e2e8f0" font-size="9.5">・料金計算・キャンセル料</text>
+            <text x="34" y="176" fill="#e2e8f0" font-size="9.5">・課金・返金</text>
+            <text x="34" y="194" fill="#e2e8f0" font-size="9.5">・外部OTAとの連携</text>
+            <text x="34" y="220" fill="#86efac">特徴:</text>
+            <text x="34" y="238" fill="#bbf7d0" font-size="9.5">・不変条件が3つ以上</text>
+            <text x="34" y="254" fill="#bbf7d0" font-size="9.5">・状態遷移がある</text>
+            <text x="34" y="270" fill="#bbf7d0" font-size="9.5">・入り口が複数（API/Worker/バッチ）</text>
+            <text x="34" y="286" fill="#bbf7d0" font-size="9.5">・並行実行される</text>
+            <text x="34" y="302" fill="#bbf7d0" font-size="9.5">・間違うとお金/信頼を失う</text>
+            <text x="34" y="328" fill="#86efac">使う道具:</text>
+            <text x="34" y="346" fill="#4ade80" font-size="9.5">Entity / VO / Aggregate / Repository /</text>
+            <text x="34" y="362" fill="#4ade80" font-size="9.5">Domain Service / UseCase / DTO / mapper /</text>
+            <text x="34" y="378" fill="#4ade80" font-size="9.5">楽観ロック / 単体+統合テスト</text>
+            <text x="34" y="404" fill="#fbbf24" font-size="9.5">コード量: 機能あたり 400〜1500行</text>
+            <text x="34" y="422" fill="#fbbf24" font-size="9.5">投資回収: 確実（変更が毎月来る）</text>
+            <text x="34" y="442" fill="#4ade80" font-size="9.5">★ ここに全力を投入する</text>
+
+            <rect x="360" y="50" width="330" height="400" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="525" y="76" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">Supporting（部分的に使う）</text>
+            <text x="374" y="102" fill="#fcd34d">該当する機能:</text>
+            <text x="374" y="122" fill="#e2e8f0" font-size="9.5">・ゲスト情報の管理</text>
+            <text x="374" y="140" fill="#e2e8f0" font-size="9.5">・プラン（商品）のCRUD</text>
+            <text x="374" y="158" fill="#e2e8f0" font-size="9.5">・清掃タスクの割当</text>
+            <text x="374" y="176" fill="#e2e8f0" font-size="9.5">・レポート出力</text>
+            <text x="374" y="202" fill="#fcd34d">特徴:</text>
+            <text x="374" y="220" fill="#fde68a" font-size="9.5">・不変条件が1〜2個</text>
+            <text x="374" y="236" fill="#fde68a" font-size="9.5">・入り口は1つ（管理画面）</text>
+            <text x="374" y="252" fill="#fde68a" font-size="9.5">・間違っても後から直せる</text>
+            <text x="374" y="278" fill="#fcd34d">使う道具:</text>
+            <text x="374" y="296" fill="#fde68a" font-size="9.5">・VOは必要な分だけ（Email・電話番号）</text>
+            <text x="374" y="312" fill="#fde68a" font-size="9.5">・Entityは作るがメソッドは少数</text>
+            <text x="374" y="328" fill="#fde68a" font-size="9.5">・Repositoryは作る（テストのため）</text>
+            <text x="374" y="344" fill="#f87171" font-size="9.5">・Domain Service / Event は作らない</text>
+            <text x="374" y="360" fill="#f87171" font-size="9.5">・record と Entity を分けない（gormタグ併用）</text>
+            <text x="374" y="386" fill="#fbbf24" font-size="9.5">コード量: 機能あたり 150〜400行</text>
+            <text x="374" y="404" fill="#fbbf24" font-size="9.5">投資回収: 部分的</text>
+            <text x="374" y="428" fill="#fde68a" font-size="9.5">★ 「Entityはあるがmapperはない」という</text>
+            <text x="374" y="444" fill="#fde68a" font-size="9.5">　 中間形を許容するのが実務的</text>
+
+            <rect x="700" y="50" width="320" height="400" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="860" y="76" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">Generic（MVCのまま）</text>
+            <text x="714" y="102" fill="#fca5a5">該当する機能:</text>
+            <text x="714" y="122" fill="#e2e8f0" font-size="9.5">・設備マスタ（Wi-Fi/駐車場）</text>
+            <text x="714" y="140" fill="#e2e8f0" font-size="9.5">・お知らせ・FAQ</text>
+            <text x="714" y="158" fill="#e2e8f0" font-size="9.5">・管理ユーザーの一覧</text>
+            <text x="714" y="176" fill="#e2e8f0" font-size="9.5">・監査ログの閲覧</text>
+            <text x="714" y="194" fill="#e2e8f0" font-size="9.5">・CSVエクスポート</text>
+            <text x="714" y="220" fill="#fca5a5">特徴:</text>
+            <text x="714" y="238" fill="#fecaca" font-size="9.5">・不変条件が実質ゼロ</text>
+            <text x="714" y="254" fill="#fecaca" font-size="9.5">・状態遷移なし</text>
+            <text x="714" y="270" fill="#fecaca" font-size="9.5">・「テーブルの行を編集する」だけ</text>
+            <text x="714" y="296" fill="#fca5a5">使う道具:</text>
+            <text x="714" y="314" fill="#f87171" font-size="9.5">handler + GORM を直接。以上。</text>
+            <text x="714" y="332" fill="#94a3b8" font-size="9.5">Entity/VO/UseCase/mapper は作らない</text>
+            <text x="714" y="358" fill="#4ade80" font-size="9.5">コード量: 機能あたり 40〜80行</text>
+            <text x="714" y="376" fill="#f87171" font-size="9.5">投資回収: しない（純損失）</text>
+            <text x="714" y="402" fill="#fbbf24" font-size="9.5">★ ここにDDDを適用すると5倍に膨らみ、</text>
+            <text x="714" y="418" fill="#fbbf24" font-size="9.5">　 何の見返りもない</text>
+            <text x="714" y="440" fill="#4ade80" font-size="9.5">★ ただし「なぜMVCなのか」をADRに書く</text>
+          </g>
+        </svg>
+        <p class="figcap">図10-1 3分類（DDDの Distillation）。投資はCoreに集中させ、Genericには払わない。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 分類のためのスコアシート（実務で使う）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>質問</th><th>Yes の点数</th></tr></thead>
+            <tbody>
+              <tr><td>1. 不変条件（常に真であるべきルール）が3つ以上あるか</td><td>+2</td></tr>
+              <tr><td>2. 状態遷移があり、遷移の可否にルールがあるか</td><td>+2</td></tr>
+              <tr><td>3. 入り口が2つ以上あるか（API / Worker / バッチ / 管理画面 / CSV）</td><td>+2</td></tr>
+              <tr><td>4. 並行実行・重複リクエストがあり得るか</td><td>+2</td></tr>
+              <tr><td>5. お金・在庫・法的義務が関わるか</td><td>+2</td></tr>
+              <tr><td>6. 外部システムと連携するか</td><td>+1</td></tr>
+              <tr><td>7. 過去1年で仕様変更が3回以上あった（または今後見込まれる）か</td><td>+1</td></tr>
+              <tr><td>8. 複数人・複数チームが同じコードを触るか</td><td>+1</td></tr>
+              <tr><td>9. 内部情報（原価・仕入値・内部メモ）を含むか</td><td>+1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="kv mt-3">
+          <div class="kvi"><p>0〜2点 → Generic</p><p>handler + GORM 直結。<b class="text-emerald-400">Entity も UseCase も作らない</b>。ADRに理由を残す。</p></div>
+          <div class="kvi"><p>3〜5点 → Supporting</p><p>Entity + Repository + 必要なVOだけ。<b class="text-slate-300">record と Entity は分けない（gormタグ併用でよい）</b>。</p></div>
+          <div class="kvi"><p>6〜9点 → 準Core</p><p>Entity + VO + Repository + UseCase + mapper。トランザクション境界を明示する。</p></div>
+          <div class="kvi"><p>10点以上 → Core</p><p>全部 + 楽観ロック + 冪等性 + 統合テスト + 突合バッチ。<b class="text-lime-400">予約Webhookは12点</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 「統一しないこと」のコストと対処</p>
+        <div class="kv">
+          <div class="kvi"><p>統一しないコスト</p><p><b class="text-amber-400">「なぜここは層があって、ここはないのか」を毎回説明する必要がある</b>。新メンバーは混乱し、レビュー基準がファイルごとに変わる。</p></div>
+          <div class="kvi"><p>対処1: ディレクトリで物理的に分ける</p><p><span class="k">internal/reservation/</span>（Clean）と <span class="k">internal/master/</span>（CRUD）を分ける。<b class="text-emerald-400">「どこにあるか」で「どう書くか」が分かる状態にする</b>。</p></div>
+          <div class="kvi"><p>対処2: ADRに書く</p><p><span class="k">docs/adr/0012-crud-without-ddd.md</span>「マスタ系CRUDは不変条件が単一かつ入り口が管理画面のみであるため、handler + GORM の2層とする。ルールが2つ以上になった時点で通常の層構成に移行する」</p></div>
+          <div class="kvi"><p>対処3: パターンを2〜3種類に集約する</p><p><b class="text-rose-400">毎ファイル違うのは規律がない</b>。<b class="text-slate-100">「Core形」「CRUD形」の2種類だけ</b>にして、それ以外を作らない。Supporting は「Core形の一部を省いたもの」として扱う。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch11" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">11</span> 段階的移行の実務手順</h2>
+      <p class="lede">結論。<b class="text-rose-400">全面書き換え（Big Rewrite）はしない</b>。<b class="text-emerald-400">境界を決めて共存させ、新規機能から適用する</b>。既存コードは「変更要求が来た機能」だけを移行する。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="500" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">移行の5フェーズ（各フェーズで動く状態を保つ）</text>
+          <defs><marker id="d11" markerWidth="10" markerHeight="10" refX="4" refY="9" orient="auto"><path d="M0,0 L8,0 L4,10 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="40" y="50" width="960" height="76" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="56" y="74" fill="#bae6fd" font-size="12" font-weight="bold">Phase 1: 境界を決める（コードを1行も書かない）</text>
+            <text x="56" y="96" fill="#e0f2fe">・既存機能を Core / Supporting / Generic に分類する（ch10のスコアシート）</text>
+            <text x="56" y="116" fill="#e0f2fe">・ディレクトリ構成を決める（<tspan font-weight="bold">internal/&lt;context&gt;/ 以下は新方式、既存は触らない</tspan>）・ADRを書く</text>
+            <line x1="520" y1="128" x2="520" y2="142" stroke="#4ade80" stroke-width="2" marker-end="url(#d11)"/>
+
+            <rect x="40" y="144" width="960" height="76" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="56" y="168" fill="#fef3c7" font-size="12" font-weight="bold">Phase 2: 新規機能を1つ、新方式で作る（パイロット）</text>
+            <text x="56" y="190" fill="#fde68a">・最小のCore機能を選ぶ（状態遷移が2つ程度）。既存コードに触らないので安全</text>
+            <text x="56" y="210" fill="#fde68a">・★ ここで実装時間・レビュー時間・行数を<tspan font-weight="bold">実測する</tspan>（ch9の数字を自分のチームで得る）</text>
+            <line x1="520" y1="222" x2="520" y2="236" stroke="#4ade80" stroke-width="2" marker-end="url(#d11)"/>
+
+            <rect x="40" y="238" width="960" height="76" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="56" y="262" fill="#dcfce7" font-size="12" font-weight="bold">Phase 3: チームで振り返り、テンプレート化する</text>
+            <text x="56" y="284" fill="#bbf7d0">・「型が5個あるのは分かるが、mapperが辛い」等の実感を集める → 省略する層を決める</text>
+            <text x="56" y="304" fill="#bbf7d0">・<tspan font-weight="bold">コードジェネレータかテンプレートを用意する</tspan>（mapperの手書きが最も嫌われるので、生成する）</text>
+            <line x1="520" y1="316" x2="520" y2="330" stroke="#4ade80" stroke-width="2" marker-end="url(#d11)"/>
+
+            <rect x="40" y="332" width="960" height="76" rx="8" fill="#164e63" stroke="#22d3ee" stroke-width="2"/>
+            <text x="56" y="356" fill="#cffafe" font-size="12" font-weight="bold">Phase 4: 変更要求が来た既存機能だけを移行する（Strangler Fig）</text>
+            <text x="56" y="378" fill="#a5f3fc">・「触る機会があるもの」だけ移行する。1年間PRが来ていない機能は移行しない</text>
+            <text x="56" y="398" fill="#a5f3fc">・★ Characterization Test を先に書く（現在の挙動を固定する）→ その後にリファクタ</text>
+            <line x1="520" y1="410" x2="520" y2="424" stroke="#4ade80" stroke-width="2" marker-end="url(#d11)"/>
+
+            <rect x="40" y="426" width="960" height="66" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="56" y="450" fill="#dcfce7" font-size="12" font-weight="bold">Phase 5: 恒常状態（移行の「完了」を目指さない）</text>
+            <text x="56" y="472" fill="#bbf7d0">・Core は新方式、Generic は MVC のまま。<tspan font-weight="bold">これが最終形</tspan>。「全部移行した」は目標ではない</text>
+            <text x="56" y="488" fill="#86efac">・CIで依存ルールを強制する（depguard）→ 新しいコードが古い方式に戻らないようにする</text>
+          </g>
+        </svg>
+        <p class="figcap">図11-1 5フェーズ。「移行完了」を目標にしないのが重要。Genericは永久にMVCのままでよい。</p>
+      </div>
+
+      <div class="cb" data-lang="text" data-cap="共存させるディレクトリ構成（実務例）" data-tone="good"><script type="text/plain">
+internal/
+├── reservation/          # ★ 新方式（Core）— Clean + DDD
+│   ├── domain/
+│   ├── usecase/
+│   ├── repository/
+│   └── handler/
+├── inventory/            # ★ 新方式（Core）
+│   └── ...
+├── master/               # ★ 旧方式のまま（Generic）— handler + GORM
+│   ├── facility.go           model + handler が同じファイル
+│   ├── notice.go
+│   └── faq.go
+├── legacy/               # ★ 移行待ち（触らない）
+│   ├── models/
+│   ├── services/
+│   └── controllers/
+└── platform/             # 両方から使う技術基盤
+    ├── txmanager/
+    └── logging/
+
+★ ルール（ADRに明記 + CIで強制）
+  1. 新規機能は internal/<context>/ に作る（Core形）
+  2. マスタ系CRUDは internal/master/ に作る（CRUD形）
+  3. internal/legacy/ には新しいコードを追加しない（既存の修正のみ）
+  4. 新方式のコードから legacy を import してはいけない
+     → 必要なら「新方式側でinterfaceを定義し、diでlegacyのアダプタを注入」
+  5. legacy → 新方式 の import は許可（移行の過渡期として）
+
+★ .golangci.yml で 4 を強制する
+linters-settings:
+  depguard:
+    rules:
+      new-code:
+        files: ["**/internal/reservation/**", "**/internal/inventory/**"]
+        deny:
+          - pkg: "stayflow/internal/legacy/**"
+            desc: "新方式のコードからlegacyを直接importしないでください。interfaceを定義してdiで注入してください"
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="共存の実装 — 新方式から旧コードを使う（アダプタで隔離）" data-tone="good"><script type="text/plain">
+// ===== 新方式側: 必要な能力だけをinterfaceで宣言する =====
+// internal/reservation/usecase/process_webhook.go
+package usecase
+
+// 旧コードの型（legacy.User など）を一切使わない。
+// 予約Contextの語彙だけでinterfaceを定義する。
+type guestFinder interface {
+    FindGuestName(ctx context.Context, guestID string) (string, error)
+}
+
+type ProcessWebhookUseCase struct {
+    reservations domain.ReservationRepository
+    guests       guestFinder // ← 実装は legacy でもよい
+}
+
+// ===== di側: アダプタで翻訳する =====
+// internal/di/legacy_adapter.go
+package di
+
+type legacyGuestAdapter struct {
+    svc *legacy.GuestService // 旧コード
+}
+
+func (a *legacyGuestAdapter) FindGuestName(ctx context.Context, guestID string) (string, error) {
+    u, err := a.svc.GetUser(ctx, guestID) // 旧コードの呼び出し
+    if err != nil {
+        // 旧コードのエラーを新方式の語彙に翻訳する
+        if errors.Is(err, legacy.ErrNotFound) {
+            return "", fmt.Errorf("%w: guest=%s", domain.ErrGuestNotFound, guestID)
+        }
+        return "", fmt.Errorf("legacy guest service: %w", err)
+    }
+    return u.Name, nil
+}
+
+// ★ この形の価値:
+//   1. 新方式のコードは legacy を知らない → 後で legacy を消すとき無変更
+//   2. アダプタ1ファイルが「移行の残り」を可視化する
+//      （アダプタが5個あれば、移行すべき依存が5個ある）
+//   3. アダプタのテストを書けば、旧コードの挙動を固定できる
+//
+// ★ これは腐敗防止層（Anticorruption Layer）の適用。
+//   「外部システム」を「自社の古いコード」に読み替えただけ。
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ 移行の7つの実務ルール</p>
+        <ol>
+          <li><b class="text-teal-300">全面書き換えをしない</b> — Big Rewrite は歴史的にほぼ失敗する。<b class="text-slate-100">動いているコードには価値がある</b></li>
+          <li><b class="text-teal-300">Characterization Test を先に書く</b> — 現在の挙動を固定してからリファクタする（詳細: software-design-micro.html ch59）</li>
+          <li><b class="text-teal-300">リファクタと機能追加を同じPRに混ぜない</b> — 壊れたとき原因が特定できない</li>
+          <li><b class="text-teal-300">「触らない」判断も設計判断</b> — 1年間PRが来ていないコードの移行は投資回収されない</li>
+          <li><b class="text-teal-300">mapperは生成する</b> — 手書きのmapperが移行の最大の不満要因。<b class="text-slate-100">goverter / copygen などのコード生成、または簡単な自作テンプレート</b>で解決する</li>
+          <li><b class="text-teal-300">移行の完了を目標にしない</b> — Generic は永久にMVCでよい。<b class="text-rose-400">「全部移行する」を目標にすると必ず途中で力尽きる</b></li>
+          <li><b class="text-teal-300">CIで方向を強制する</b> — 人の意識では守れない。depguard で「新方式から旧方式へのimport」を禁止する</li>
+        </ol>
+      </div>
+
+      <div class="step goog">
+        <p class="step-h">Part 2 のまとめ</p>
+        <ol>
+          <li><b class="text-lime-300">DDDは1リソースで型5個 + mapper 4個</b>。これが正確なコスト</li>
+          <li><b class="text-lime-300">買っているのは「変更の局所化」と「デフォルト非公開（fail-safe）」</b></li>
+          <li><b class="text-lime-300">初回は3〜4倍、変更4回目で逆転する</b>。数字で議論する</li>
+          <li><b class="text-lime-300">プロジェクト単位ではなく機能単位で判断する</b>（Core / Supporting / Generic）</li>
+          <li><b class="text-lime-300">共存が正しい最終形</b>。ディレクトリで物理的に分け、ADRに書き、CIで強制する</li>
+          <li><b class="text-lime-300">移行は「変更要求が来た機能」から</b>。全面書き換えはしない</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="cheat" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">付</span> チェックリスト / レビュー観点</h2>
+
+      <div class="step rev">
+        <p class="step-h">update処理のレビューチェックリスト</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>確認すること</th><th>NGのサイン</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>クライアントは「命令」を送っているか</td><td class="bad">全フィールドを含むPUT / statusを直接送れる</td></tr>
+              <tr><td>2</td><td>Entityにメソッドがあるか</td><td class="bad">フィールドだけのstruct（貧血モデル）</td></tr>
+              <tr><td>3</td><td>usecaseに業務判定のifがないか</td><td class="bad">if文が3つ以上 / 四則演算がある</td></tr>
+              <tr><td>4</td><td>トランザクション境界がusecaseにあるか</td><td class="bad">repositoryの中でcommit / handlerでTxを張る</td></tr>
+              <tr><td>5</td><td>Txの中に外部通信がないか</td><td class="bad">HTTP / メール / Queue publish が含まれる</td></tr>
+              <tr><td>6</td><td>楽観ロックが効いているか</td><td class="bad">version条件なしのUPDATE / RowsAffectedを見ていない</td></tr>
+              <tr><td>7</td><td>競合時のリトライに上限があるか</td><td class="bad">無限リトライ / リトライ回数の記録がない</td></tr>
+              <tr><td>8</td><td>「送られなかったフィールド」の扱いが明確か</td><td class="bad"><span class="k">db.Save(struct)</span> で全カラム更新している</td></tr>
+              <tr><td>9</td><td>Entityの単体テストがあるか</td><td class="bad">DBを立てないと1つもテストが通らない</td></tr>
+              <tr><td>10</td><td>Response DTOで出す項目を選んでいるか</td><td class="bad">EntityやDBモデルを直接JSONにしている</td></tr>
+              <tr><td>11</td><td>Mapperのround-tripテストがあるか</td><td class="bad">カラム追加でmapperの片方だけ直せる状態</td></tr>
+              <tr><td>12</td><td>この機能の分類（Core/Supporting/Generic）が決まっているか</td><td class="bad">「なんとなくDDD」「なんとなくMVC」</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">1画面チートシート</p>
+        <div class="cb" data-lang="go" data-cap="update処理の型（これをコピーして始める）"><script type="text/plain">
+// ===== usecase: 順序 + Tx境界 + 認可 だけ =====
+func (u *ChangeXxxUseCase) Execute(ctx context.Context, actor Actor, id domain.ID, cmd Command) error {
+    return u.tx.Run(ctx, func(ctx context.Context) error {
+        e, err := u.repo.FindByID(ctx, id)          // ① get
+        if err != nil {
+            return fmt.Errorf("find: %w", err)
+        }
+        if !actor.CanEdit(e) {                       // 認可（usecaseの責務）
+            return domain.ErrForbidden
+        }
+        if err := e.DoSomething(cmd.Value); err != nil { // ② domain に依頼
+            return err                               //    検証も不変条件もこの中
+        }
+        if err := u.repo.Save(ctx, e); err != nil {   // ③ save（楽観ロック）
+            return fmt.Errorf("save: %w", err)
+        }
+        return nil
+    })
+}
+
+// ===== entity: 不変条件 + 状態遷移 =====
+func (e *Entity) DoSomething(v string) error {
+    if e.status.IsTerminal() { return ErrNotEditable }  // 状態による可否
+    if v == "" { return ErrInvalidValue }               // 入力の妥当性
+    if e.value == v { return nil }                      // 変更なし = 冪等
+    e.value = v
+    return nil
+}
+
+// ===== repository: SQL + 楽観ロック =====
+func (r *repo) Save(ctx context.Context, e *domain.Entity) error {
+    rec := toRecord(e)
+    res := r.conn(ctx).Model(&record{}).
+        Where("id = ? AND version = ?", rec.ID, rec.Version).
+        Updates(map[string]any{"value": rec.Value, "version": rec.Version + 1})
+    if res.Error != nil { return fmt.Errorf("update: %w", res.Error) }
+    if res.RowsAffected == 0 { return domain.ErrConflict }
+    return nil
+}
+</script></div>
+      </div>
+
+      <div class="step zoom">
+        <p class="step-h">関連ノート</p>
+        <ul>
+          <li><b>software-design-micro.html</b> — 理論の全体像。<b class="text-sky-400">Part 3（Entity/VO/Aggregate/ifの置き場）・Part 4（UseCase）・Part 5（Tx境界5方式・楽観ロック）・Part 9（レガシー解体）</b></li>
+          <li><b>go-language-basics.html</b> — ポインタレシーバとEntityの状態変更、ゼロ値とVOの関係</li>
+          <li><b>transaction-system-design.html</b> — Lost Update / 分離レベル / MVCC の理論。楽観ロックが必要な理由の根拠</li>
+          <li><b>data-models.html</b> — Aggregateの形とDBモデルの選択（リレーショナル / ドキュメント）</li>
+          <li><b>Implementing Domain-Driven Design</b>（Vaughn Vernon）— Aggregate設計の4原則。version をAggregateに持たせる議論の原典</li>
+          <li><b>Working Effectively with Legacy Code</b>（Michael Feathers）— Phase 4 の Characterization Test の原典</li>
+        </ul>
+      </div>
+    </section>
+    <footer class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono leading-relaxed">
+      図解DDD実践 — update処理の設計と、MVCからの移行コスト<br>
+      Part 1: update処理の設計（アンチパターン / get→domain→save / 命令と状態 / Tx境界 / 楽観ロック / DBアクセス2回の評価）<br>
+      Part 2: MVC→DDDの移行コスト（型5個+mapper4個 / 変更の局所化 / コストの実測 / Core-Supporting-Generic / 段階的移行5フェーズ）<br>
+      付録: レビューチェックリスト12項目 / update処理のテンプレート<br>
+      <span class="text-slate-600">関連ノート: software-design-micro.html（理論の全体像 Part 3-5） / go-language-basics.html / transaction-system-design.html（Lost Update） / data-models.html</span>
+    </footer>
+
+  </main>
+</div>
+<button id="topBtn" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-500 text-slate-950 w-12 h-12 shadow-lg font-bold text-lg z-40" aria-label="先頭へ戻る">↑</button>
+
+<script>
+/* =========================================================
+   1. コードブロックのシンタックスハイライト（自前・依存なし）
+   div.cb[data-lang][data-cap][data-tone] の中に置いた
+   script[type=text/plain] のテキストを読み、色付けした pre に差し替える。
+   行頭の @@- / @@+ / @@! / @@* で行単位の強調を付ける。
+   ========================================================= */
+(function () {
+  const LANGS = {
+    go: {
+      kw: ['func','if','else','for','range','return','var','const','type','struct','interface',
+           'map','chan','go','defer','select','switch','case','default','break','continue',
+           'fallthrough','package','import','goto'],
+      cn: ['nil','true','false','iota'],
+      ty: ['string','int','int8','int16','int32','int64','uint','uint8','uint16','uint32','uint64',
+           'float32','float64','bool','byte','rune','error','any','uintptr','complex64','complex128'],
+      lineComment: '//'
+    },
+    sql: {
+      kw: ['SELECT','FROM','WHERE','UPDATE','SET','INSERT','INTO','VALUES','DELETE','JOIN','LEFT',
+           'RIGHT','INNER','OUTER','ON','AND','OR','NOT','NULL','ORDER','BY','GROUP','HAVING','LIMIT',
+           'OFFSET','BEGIN','COMMIT','ROLLBACK','CREATE','TABLE','INDEX','UNIQUE','PRIMARY','KEY',
+           'FOR','SHARE','LOCK','IN','AS','WITH','RETURNING','CASE','WHEN','THEN','END','EXISTS','ASC','DESC'],
+      cn: ['TRUE','FALSE'],
+      ty: ['INT','BIGINT','VARCHAR','TEXT','DATE','DATETIME','TIMESTAMP','DECIMAL','BOOLEAN'],
+      lineComment: '--',
+      upper: true
+    },
+    ts: {
+      kw: ['const','let','var','function','return','if','else','for','while','do','switch','case',
+           'default','break','continue','new','class','extends','import','export','from','as','async',
+           'await','try','catch','finally','throw','typeof','instanceof','in','of','delete','void',
+           'yield','interface','type','enum','implements','public','private','protected','readonly',
+           'static','abstract','declare','namespace','satisfies','keyof','infer','is','asserts','get','set'],
+      cn: ['null','undefined','true','false','this','super','NaN','Infinity'],
+      ty: ['string','number','boolean','any','unknown','never','void','object','symbol','bigint',
+           'Array','Promise','Record','Partial','Pick','Omit','Readonly','Map','Set','Date','JSON','Math'],
+      lineComment: '//'
+    },
+    json: { kw: [], cn: ['true','false','null'], ty: [], lineComment: '//' },
+    bash: { kw: ['if','then','fi','for','do','done','export','echo','cd','function'], cn: [], ty: [], lineComment: '#' },
+    text: { kw: [], cn: [], ty: [], lineComment: '#' }
+  };
+  LANGS.tsx = LANGS.ts; LANGS.js = LANGS.ts; LANGS.jsx = LANGS.ts;
+  LANGS.yaml = LANGS.text; LANGS.yml = LANGS.text; LANGS.sh = LANGS.bash;
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function highlightLine(line, spec) {
+    // トークン: 行コメント / 文字列 / 数値 / 識別子 / 記号
+    const cm = spec.lineComment === '--' ? '--' : (spec.lineComment === '#' ? '#' : '\\/\\/');
+    const re = new RegExp(
+      '(' + cm + '.*$)' +                                      // 1 comment
+      '|("(?:\\\\.|[^"\\\\])*"|`[^`]*`|\'(?:\\\\.|[^\'\\\\])*\')' + // 2 string
+      '|(\\b0[xX][0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?\\b)' +   // 3 number
+      '|([A-Za-z_][A-Za-z0-9_]*)' +                            // 4 ident
+      '|([{}()\\[\\].,;:=+\\-*/%<>!&|^~?]+)',                   // 5 punct
+      'g'
+    );
+    let out = '', last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) out += esc(line.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) { out += '<span class="t-cm">' + esc(m[1]) + '</span>'; }
+      else if (m[2]) { out += '<span class="t-st">' + esc(m[2]) + '</span>'; }
+      else if (m[3]) { out += '<span class="t-nu">' + esc(m[3]) + '</span>'; }
+      else if (m[4]) {
+        const w = m[4];
+        const key = spec.upper ? w.toUpperCase() : w;
+        const next = line.slice(last).match(/^\s*\(/);
+        if (spec.kwSet.has(key)) out += '<span class="t-kw">' + esc(w) + '</span>';
+        else if (spec.cnSet.has(key)) out += '<span class="t-cn">' + esc(w) + '</span>';
+        else if (spec.tySet.has(key)) out += '<span class="t-ty">' + esc(w) + '</span>';
+        else if (next) out += '<span class="t-fn">' + esc(w) + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="t-id">' + esc(w) + '</span>';
+        else out += esc(w);
+      }
+      else { out += '<span class="t-pn">' + esc(m[5]) + '</span>'; }
+    }
+    if (last < line.length) out += esc(line.slice(last));
+    return out;
+  }
+
+  function render(block) {
+    const src = block.querySelector('script[type="text/plain"]');
+    if (!src) return;
+    const lang = (block.dataset.lang || 'go').toLowerCase();
+    const spec = Object.assign({}, LANGS[lang] || LANGS.text);
+    spec.kwSet = new Set(spec.kw); spec.cnSet = new Set(spec.cn); spec.tySet = new Set(spec.ty);
+
+    const raw = src.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    const html = raw.split('\n').map((line) => {
+      let cls = '';
+      const mk = line.slice(0, 3);
+      if (mk === '@@-') { cls = 'ln-bad'; line = line.slice(3); }
+      else if (mk === '@@+') { cls = 'ln-good'; line = line.slice(3); }
+      else if (mk === '@@!') { cls = 'ln-warn'; line = line.slice(3); }
+      else if (mk === '@@*') { cls = 'ln-focus'; line = line.slice(3); }
+      const body = lang === 'text' ? highlightLine(line, spec) : highlightLine(line, spec);
+      return '<span class="ln ' + cls + '">' + (body || '&nbsp;') + '</span>';
+    }).join('\n');
+
+    const bar = document.createElement('div');
+    bar.className = 'cb-bar';
+    const cap = block.dataset.cap ? '<span class="cb-cap">' + esc(block.dataset.cap) + '</span>' : '';
+    bar.innerHTML = '<span class="cb-lang">' + esc(lang) + '</span>' + cap;
+    const copy = document.createElement('button');
+    copy.textContent = 'copy';
+    copy.style.cssText = 'margin-left:auto;color:#64748b;border:1px solid #334155;border-radius:5px;padding:1px 7px;font-size:10px;cursor:pointer;background:transparent';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(raw.replace(/^@@[-+!*]/gm, '')).then(() => {
+        copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1200);
+      });
+    });
+    bar.appendChild(copy);
+
+    const pre = document.createElement('pre');
+    pre.innerHTML = html;
+    block.insertBefore(pre, src);
+    block.insertBefore(bar, pre);
+    src.remove();
+  }
+
+  document.querySelectorAll('.cb').forEach(render);
+})();
+
+/* =========================================================
+   2. 目次・スクロール連動・トップへ戻る
+   ========================================================= */
+(function () {
+  const toc = document.getElementById('toc');
+  const btn = document.getElementById('tocBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('hidden');
+      toc.classList.toggle('block');
+    });
+  }
+  const links = [...document.querySelectorAll('#tocNav a')];
+  links.forEach((a) => {
+    a.addEventListener('click', () => {
+      if (window.innerWidth < 1024) { toc.classList.add('hidden'); toc.classList.remove('block'); }
+    });
+  });
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => l.classList.remove('active'));
+        const active = links.find((l) => l.getAttribute('href') === '#' + e.target.id);
+        if (active) {
+          active.classList.add('active');
+          const r = active.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            active.scrollIntoView({ block: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach((s) => observer.observe(s));
+
+  const topBtn = document.getElementById('topBtn');
+  window.addEventListener('scroll', () => {
+    topBtn.classList.toggle('hidden', window.scrollY < 600);
+  });
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>

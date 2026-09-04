@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解技術ノート</title>
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1b1a18; --muted: #6b6862;
+    --card: #ffffff; --line: #e5e1da; --accent: #b8562f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161513; --fg: #ecebe8; --muted: #9a958c;
+      --card: #201f1c; --line: #34322d; --accent: #e08a5f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 56px 20px 96px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 40px; }
+  h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); margin: 44px 0 16px; font-weight: 600;
+  }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .card {
+    display: block; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px; text-decoration: none; color: inherit;
+    transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+  .card p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+  .meta { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line);
+            font-size: 12px; color: var(--muted); }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>図解技術ノート</h1>
+      <p>システム設計・分散システム・言語基礎を図で分解した個人ノート（全19本）</p>
+    </header>
+    <section>
+      <h2>System Design 大全</h2>
+      <div class="grid">
+      <a class="card" href="database-system-design-ddia.html">
+        <h3>図解Database</h3>
+        <p>DDIAで学ぶシステム設計の土台</p>
+        <span class="meta">0.3 MB</span>
+      </a>
+      <a class="card" href="data-models.html">
+        <h3>図解データモデル選定</h3>
+        <p>リレーショナル / ドキュメント / グラフ</p>
+        <span class="meta">0.1 MB</span>
+      </a>
+      <a class="card" href="replication-system-design.html">
+        <h3>図解Replication</h3>
+        <p>システム設計のための レプリケーション大全</p>
+        <span class="meta">0.6 MB</span>
+      </a>
+      <a class="card" href="partitioning-system-design.html">
+        <h3>図解Partitioning</h3>
+        <p>システム設計のための 分割・シャーディング大全</p>
+        <span class="meta">0.6 MB</span>
+      </a>
+      <a class="card" href="transaction-system-design.html">
+        <h3>図解Transactions</h3>
+        <p>システム設計のための トランザクション大全</p>
+        <span class="meta">0.7 MB</span>
+      </a>
+      <a class="card" href="consistency-consensus-design.html">
+        <h3>図解Consistency &amp; Consensus</h3>
+        <p>分散した世界で「1つの真実」をどう作るか</p>
+        <span class="meta">0.6 MB</span>
+      </a>
+      <a class="card" href="distributed-systems-design.html">
+        <h3>図解Distributed Systems</h3>
+        <p>システム設計のための 分散システム大全</p>
+        <span class="meta">1.0 MB</span>
+      </a>
+      <a class="card" href="cache-system-design.html">
+        <h3>図解Cache</h3>
+        <p>システム設計のための キャッシュ大全</p>
+        <span class="meta">0.6 MB</span>
+      </a>
+      <a class="card" href="messaging-event-driven-design.html">
+        <h3>図解Messaging &amp; Event Driven</h3>
+        <p>システム設計のための 非同期処理大全</p>
+        <span class="meta">0.7 MB</span>
+      </a>
+      <a class="card" href="batch-stream-processing-design.html">
+        <h3>図解Batch &amp; Stream Processing</h3>
+        <p>システム設計のための データ処理大全</p>
+        <span class="meta">0.5 MB</span>
+      </a>
+      <a class="card" href="system-design-examples.html">
+        <h3>図解System Design Examples</h3>
+        <p>10サービスを14観点で解く</p>
+        <span class="meta">0.4 MB</span>
+      </a>
+      </div>
+    </section>
+    <section>
+      <h2>設計・アーキテクチャ</h2>
+      <div class="grid">
+      <a class="card" href="software-design-micro.html">
+        <h3>図解Software Design</h3>
+        <p>1つの箱の中を、1行のifまで設計する</p>
+        <span class="meta">1.0 MB</span>
+      </a>
+      <a class="card" href="ddd-practice.html">
+        <h3>図解DDD実践</h3>
+        <p>update処理の設計と、MVCからの移行コスト</p>
+        <span class="meta">0.1 MB</span>
+      </a>
+      <a class="card" href="authentication-identity-design.html">
+        <h3>図解Authentication</h3>
+        <p>サーバーはなぜ user_id=123 だと分かるのか</p>
+        <span class="meta">1.0 MB</span>
+      </a>
+      </div>
+    </section>
+    <section>
+      <h2>言語・フレームワーク</h2>
+      <div class="grid">
+      <a class="card" href="go-language-basics.html">
+        <h3>図解Go言語の基礎</h3>
+        <p>値・ポインタ・ゼロ値・nil・出力</p>
+        <span class="meta">0.2 MB</span>
+      </a>
+      <a class="card" href="react-frontend-design.html">
+        <h3>図解React/Next.js設計</h3>
+        <p>状態の分類・フォーム・サーバー境界</p>
+        <span class="meta">0.2 MB</span>
+      </a>
+      <a class="card" href="react-state-map.html">
+        <h3>Next.js / React 基礎</h3>
+        <span class="meta">0.3 MB</span>
+      </a>
+      </div>
+    </section>
+    <section>
+      <h2>インフラ・運用</h2>
+      <div class="grid">
+      <a class="card" href="deploy-infra-basics.html">
+        <h3>図解デプロイ基盤</h3>
+        <p>ローカルから本番DBまでの地図</p>
+        <span class="meta">0.5 MB</span>
+      </a>
+      </div>
+    </section>
+    <section>
+      <h2>アルゴリズム</h2>
+      <div class="grid">
+      <a class="card" href="leetcode-patterns.html">
+        <h3>図解アルゴリズムパターン</h3>
+        <p>問題を見た瞬間にパターン判定する</p>
+        <span class="meta">0.2 MB</span>
+      </a>
+      </div>
+    </section>
+    <footer>
+      <a href="https://github.com/sawada-naoya">github.com/sawada-naoya</a>
+    </footer>
+  </div>
+</body>
+</html>

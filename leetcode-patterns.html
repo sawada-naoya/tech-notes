@@ -1,0 +1,2975 @@
+<!doctype html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解アルゴリズムパターン — 問題を見た瞬間にパターン判定する</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] } } }
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .chapter { @apply scroll-mt-20 mb-20 pb-8 border-b border-slate-800; }
+    .ch-h { @apply text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3 mb-4 leading-tight; }
+    .ch-n { @apply shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-slate-800 text-sky-400 font-mono text-lg; }
+    .part-h { @apply mt-24 mb-10 rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-950 px-6 py-7 scroll-mt-20; }
+    .part-h p.eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.25em] text-sky-400 mb-2; }
+    .part-h h2 { @apply text-2xl sm:text-4xl font-bold text-slate-50 leading-tight mb-3; }
+    .part-h p.sub { @apply text-slate-400 leading-relaxed max-w-3xl; }
+    .lede { @apply text-slate-400 mb-6 leading-relaxed; }
+    .metaphor { @apply rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 text-amber-100 leading-relaxed; }
+    .metaphor b { @apply text-amber-300; }
+    .step { @apply rounded-xl border px-5 py-4 mb-4; }
+    .step-h { @apply font-mono text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2; }
+    /* 10ステップの色分け */
+    .prob { @apply border-rose-500/40 bg-rose-500/5; }
+    .prob .step-h { @apply text-rose-400; }
+    .naive { @apply border-orange-500/40 bg-orange-500/5; }
+    .naive .step-h { @apply text-orange-400; }
+    .why { @apply border-amber-500/40 bg-amber-500/5; }
+    .why .step-h { @apply text-amber-400; }
+    .principle { @apply border-teal-500/40 bg-teal-500/5; }
+    .principle .step-h { @apply text-teal-400; }
+    .sol { @apply border-emerald-500/40 bg-emerald-500/5; }
+    .sol .step-h { @apply text-emerald-400; }
+    .ba { @apply border-sky-500/40 bg-sky-500/5; }
+    .ba .step-h { @apply text-sky-400; }
+    .impact { @apply border-indigo-500/40 bg-indigo-500/5; }
+    .impact .step-h { @apply text-indigo-400; }
+    .trade { @apply border-violet-500/40 bg-violet-500/5; }
+    .trade .step-h { @apply text-violet-400; }
+    .over { @apply border-dashed border-slate-500 bg-slate-800/40; }
+    .over .step-h { @apply text-slate-300; }
+    .rev { @apply border-fuchsia-500/40 bg-fuchsia-500/5; }
+    .rev .step-h { @apply text-fuchsia-400; }
+    /* 補助ブロック */
+    .zoom { @apply border-cyan-500/40 bg-cyan-500/5; }
+    .zoom .step-h { @apply text-cyan-400; }
+    .goog { @apply border-lime-500/40 bg-lime-500/5; }
+    .goog .step-h { @apply text-lime-400; }
+    .note { @apply border-slate-600 bg-slate-900; }
+    .note .step-h { @apply text-slate-400; }
+    .step p { @apply text-slate-300 leading-relaxed; }
+    .step ul { @apply list-disc pl-5 space-y-1.5 text-slate-300; }
+    .step ol { @apply list-decimal pl-5 space-y-1.5 text-slate-300; }
+    .step ul ul, .step ol ul { @apply mt-1.5; }
+    .fig { @apply my-4 rounded-xl border border-slate-700 bg-slate-900 p-3 overflow-x-auto; }
+    .fig svg { @apply w-full h-auto min-w-[700px]; }
+    .figcap { @apply mt-2 text-xs text-slate-400 font-mono px-1; }
+    .tbl { @apply my-3 overflow-x-auto rounded-xl border border-slate-700; }
+    .tbl table { @apply w-full text-sm border-collapse min-w-[640px]; }
+    .tbl th { @apply bg-slate-800 text-left px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400; }
+    .tbl td { @apply border-t border-slate-800 px-3 py-2 align-top text-slate-300; }
+    .tbl tr:hover td { @apply bg-slate-800/40; }
+    .k { @apply font-mono text-[13px] px-1.5 py-0.5 rounded bg-slate-800 text-sky-300; }
+    .good { @apply text-emerald-400 font-semibold; }
+    .bad { @apply text-rose-400 font-semibold; }
+    .warn { @apply text-amber-400 font-semibold; }
+    .toc-a { @apply block px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition; }
+    .toc-a.active { @apply bg-sky-500/15 text-sky-300 font-semibold; }
+    .toc-grp { @apply px-3 pt-4 pb-1 font-mono text-[10px] uppercase tracking-widest text-slate-500; }
+    .qa { @apply rounded-xl border border-slate-700 bg-slate-900 mb-3 overflow-hidden; }
+    .qa summary { @apply cursor-pointer px-5 py-4 font-semibold text-slate-100 hover:bg-slate-800/60 flex gap-3 items-start; }
+    .qa .ans { @apply px-5 pb-5 pt-1 text-slate-300 leading-relaxed border-t border-slate-800; }
+    .kv { @apply grid sm:grid-cols-2 gap-3 my-3; }
+    .kvi { @apply rounded-xl border border-slate-700 bg-slate-900 p-4; }
+    .kvi > p:first-child { @apply font-mono text-[11px] text-sky-400 mb-1; }
+    .kvi > p:last-child { @apply text-sm text-slate-300 leading-relaxed; }
+    .flow { @apply my-4 rounded-xl border border-slate-700 bg-[#0b1220] p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-slate-300 whitespace-pre; }
+  }
+</style>
+<style>
+  /* ===== コードブロック（自前ハイライタ） ===== */
+  .cb { margin: 0.9rem 0; border-radius: 0.75rem; border: 1px solid #334155; background: #0b1220; overflow: hidden; }
+  .cb-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.8rem; background: #111c31; border-bottom: 1px solid #1f2c45;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.04em; }
+  .cb-lang { color: #7dd3fc; text-transform: uppercase; font-weight: 700; }
+  .cb-cap { color: #94a3b8; }
+  .cb[data-tone="bad"] { border-color: rgba(244,63,94,.45); }
+  .cb[data-tone="bad"] .cb-bar { background: rgba(244,63,94,.10); border-bottom-color: rgba(244,63,94,.3); }
+  .cb[data-tone="bad"] .cb-cap { color: #fda4af; }
+  .cb[data-tone="good"] { border-color: rgba(16,185,129,.45); }
+  .cb[data-tone="good"] .cb-bar { background: rgba(16,185,129,.10); border-bottom-color: rgba(16,185,129,.3); }
+  .cb[data-tone="good"] .cb-cap { color: #6ee7b7; }
+  .cb[data-tone="warn"] { border-color: rgba(245,158,11,.45); }
+  .cb[data-tone="warn"] .cb-bar { background: rgba(245,158,11,.10); border-bottom-color: rgba(245,158,11,.3); }
+  .cb[data-tone="warn"] .cb-cap { color: #fcd34d; }
+  .cb pre { margin: 0; padding: 0.85rem 0.9rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.65; color: #cbd5e1; white-space: pre; }
+  .cb .ln { display: block; padding: 0 0.9rem; margin: 0 -0.9rem; }
+  .cb .ln-bad { background: rgba(244,63,94,.13); box-shadow: inset 3px 0 0 #f43f5e; }
+  .cb .ln-good { background: rgba(16,185,129,.13); box-shadow: inset 3px 0 0 #10b981; }
+  .cb .ln-warn { background: rgba(245,158,11,.13); box-shadow: inset 3px 0 0 #f59e0b; }
+  .cb .ln-focus { background: rgba(56,189,248,.13); box-shadow: inset 3px 0 0 #38bdf8; }
+  .t-cm { color: #64748b; }
+  .t-st { color: #86efac; }
+  .t-kw { color: #f472b6; }
+  .t-cn { color: #e879f9; }
+  .t-ty { color: #38bdf8; }
+  .t-id { color: #7dd3fc; }
+  .t-fn { color: #fde047; }
+  .t-nu { color: #fb923c; }
+  .t-pn { color: #94a3b8; }
+  .t-tag { color: #f9a8d4; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased">
+
+<div class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+  <button id="tocBtn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-mono text-slate-300">☰ 目次</button>
+  <span class="text-sm font-bold text-slate-100 truncate">図解アルゴリズムパターン</span>
+</div>
+
+<div class="lg:grid lg:grid-cols-[300px_minmax(0,1fr)]">
+
+  <aside id="toc" class="hidden lg:block lg:sticky lg:top-0 lg:h-screen overflow-y-auto border-r border-slate-800 bg-slate-900/60 px-3 py-6">
+    <div class="px-3 mb-4">
+      <p class="font-mono text-[10px] uppercase tracking-widest text-sky-400">Algorithm Patterns · Go · 図解</p>
+      <p class="text-lg font-bold text-slate-100 leading-tight mt-1">図解アルゴリズムパターン</p>
+      <p class="text-xs text-slate-500 mt-1">問題を見た瞬間にパターン判定する</p>
+    </div>
+    <nav id="tocNav">
+      <a class="toc-a" href="#intro">00 はじめに — 判定の問題</a>
+      <a class="toc-a" href="#decide">00.5 判定表（キーワード → パターン）</a>
+
+      <div class="toc-grp">Part 1 配列・文字列</div>
+      <a class="toc-a" href="#ch1">01 Two Pointers 型1（両端から）</a>
+      <a class="toc-a" href="#ch2">02 Two Pointers 型2（fast/slow）</a>
+      <a class="toc-a" href="#ch3">03 Two Pointers 型3（2文字列走査）</a>
+      <a class="toc-a" href="#ch4">04 Sliding Window</a>
+      <a class="toc-a" href="#ch5">05 Prefix / Suffix 積</a>
+
+      <div class="toc-grp">Part 2 探索</div>
+      <a class="toc-a" href="#ch6">06 Binary Search</a>
+      <a class="toc-a" href="#ch7">07 BFS（幅優先）</a>
+      <a class="toc-a" href="#ch8">08 DFS 3パターン</a>
+      <a class="toc-a" href="#ch9">09 BST Search</a>
+
+      <div class="toc-grp">Part 3 データ構造</div>
+      <a class="toc-a" href="#ch10">10 HashMap</a>
+      <a class="toc-a" href="#ch11">11 Queue（時間窓）</a>
+      <a class="toc-a" href="#ch12">12 Linked List</a>
+
+      <div class="toc-grp">Part 4 数値・選択</div>
+      <a class="toc-a" href="#ch13">13 Bit Manipulation</a>
+      <a class="toc-a" href="#ch14">14 Greedy</a>
+
+      <div class="toc-grp">Part 5 次に覚える5つ</div>
+      <a class="toc-a" href="#ch15">15 Heap / Priority Queue</a>
+      <a class="toc-a" href="#ch16">16 Monotonic Stack</a>
+      <a class="toc-a" href="#ch17">17 Backtracking</a>
+      <a class="toc-a" href="#ch18">18 Union Find</a>
+      <a class="toc-a" href="#ch19">19 DP（動的計画法）</a>
+
+      <div class="toc-grp">付録</div>
+      <a class="toc-a" href="#cheat">計算量 / Goのイディオム / 誤り集</a>
+    </nav>
+  </aside>
+
+  <main class="min-w-0 px-4 sm:px-8 lg:px-12 py-10 max-w-[1180px]">
+
+    <header class="mb-14">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-sky-400 mb-3">LeetCode · Go · パターン判定 · 図解版</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-50 leading-tight mb-5">図解アルゴリズムパターン<br><span class="text-slate-400 text-2xl sm:text-3xl">問題を見た瞬間にパターン判定する</span></h1>
+      <p class="text-slate-400 max-w-3xl leading-relaxed">目指す状態は1つ。<b class="text-emerald-400">問題文を読んだ瞬間に「これは○○パターン」と判定できること</b>。<br>
+      コーディング面接で落ちる原因は「アルゴリズムを知らない」ことではなく、<b class="text-slate-200">「知っているパターンを、目の前の問題に結び付けられない」</b>ことである。だからこの教材は<b class="text-emerald-400">「問題文のどの言葉が、どのパターンのシグナルか」</b>を中心に構成する。</p>
+      <div class="mt-6 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張1</p><p class="text-sm text-slate-300"><b class="text-slate-100">パターンは20個もない</b>。実務的な面接で出るのは14〜19個。それぞれに<b class="text-emerald-400">「判定シグナル」と「テンプレート」</b>を1組で覚える。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張2</p><p class="text-sm text-slate-300">テンプレートの暗記より<b class="text-slate-100">「成立条件」の理解</b>が重要。<b class="text-rose-400">Two Pointers 型1 は「ソート済み」が前提</b>。前提を確認せず適用すると、偶然当たるだけで保証がない。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張3</p><p class="text-sm text-slate-300"><b class="text-slate-100">同じ問題に複数のパターンが使える</b>ことが多い。「2値の和=k」はTwo PointersでもHashMapでも解ける。<b class="text-emerald-400">計算量で選ぶ理由を言えること</b>が評価される。</p></div>
+      </div>
+    </header>
+
+    <section id="intro" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00</span> はじめに — これは「判定」の問題</h2>
+      <p class="lede">結論。<b class="text-emerald-400">アルゴリズム問題を解く作業は、3ステップに分解できる</b>。多くの人が詰まるのは1番目であり、そこは<b class="text-slate-200">才能ではなくパターン認識の訓練</b>で解決する。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">3ステップ — どこで詰まっているかを特定する</text>
+          <defs><marker id="la" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="300" height="240" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2.5"/>
+            <text x="180" y="80" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">① 判定（最も難しい）</text>
+            <text x="46" y="106" fill="#fca5a5">「これは何パターンか？」</text>
+            <text x="46" y="132" fill="#e2e8f0">詰まる症状:</text>
+            <text x="46" y="152" fill="#fecaca">・そもそも何をすればいいか分からない</text>
+            <text x="46" y="170" fill="#fecaca">・全探索しか思いつかない</text>
+            <text x="46" y="188" fill="#fecaca">・答えを見ると「知っていた」と思う</text>
+            <text x="46" y="214" fill="#4ade80">対策:</text>
+            <text x="46" y="234" fill="#bbf7d0">★ 判定シグナルを覚える（本教材の中心）</text>
+            <text x="46" y="252" fill="#bbf7d0">「両端から」「連続する」「最短」</text>
+            <text x="46" y="270" fill="#bbf7d0">「ソート済み」「重複」「自分以外」</text>
+            <text x="46" y="288" fill="#fbbf24">→ 問題文の言葉とパターンを紐付ける</text>
+
+            <line x1="334" y1="175" x2="364" y2="175" stroke="#4ade80" stroke-width="2" marker-end="url(#la)"/>
+
+            <rect x="370" y="55" width="300" height="240" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="520" y="80" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">② テンプレート適用</text>
+            <text x="386" y="106" fill="#fcd34d">「この形をどう書くか？」</text>
+            <text x="386" y="132" fill="#e2e8f0">詰まる症状:</text>
+            <text x="386" y="152" fill="#fde68a">・境界条件を間違える（&lt;= と &lt;）</text>
+            <text x="386" y="170" fill="#fde68a">・無限ループする</text>
+            <text x="386" y="188" fill="#fde68a">・off-by-one エラー</text>
+            <text x="386" y="214" fill="#4ade80">対策:</text>
+            <text x="386" y="234" fill="#bbf7d0">★ テンプレートを「手で」書いて覚える</text>
+            <text x="386" y="252" fill="#bbf7d0">同じパターンを3回書けば定着する</text>
+            <text x="386" y="272" fill="#fbbf24">→ 5問解くより、1問を3回書く方が速い</text>
+
+            <line x1="674" y1="175" x2="704" y2="175" stroke="#4ade80" stroke-width="2" marker-end="url(#la)"/>
+
+            <rect x="710" y="55" width="300" height="240" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="860" y="80" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">③ 検証・最適化</text>
+            <text x="726" y="106" fill="#86efac">「これで正しいか？速いか？」</text>
+            <text x="726" y="132" fill="#e2e8f0">確認すること:</text>
+            <text x="726" y="152" fill="#bbf7d0">・空配列 / 1要素 / 全部同じ値</text>
+            <text x="726" y="170" fill="#bbf7d0">・最大値 / 最小値 / 負の数</text>
+            <text x="726" y="188" fill="#bbf7d0">・計算量（時間・空間）を口に出す</text>
+            <text x="726" y="214" fill="#4ade80">面接で評価される点:</text>
+            <text x="726" y="234" fill="#bbf7d0">★ 自分でエッジケースを挙げる</text>
+            <text x="726" y="252" fill="#bbf7d0">★ 「O(n log n) ですが、HashMapなら</text>
+            <text x="742" y="270" fill="#bbf7d0">　 O(n) にできます」と言える</text>
+            <text x="726" y="290" fill="#fbbf24">→ ここが「解けた」と「評価される」の差</text>
+
+            <rect x="30" y="315" width="980" height="50" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="46" y="337" fill="#bae6fd" font-size="11.5">★ 学習の順序: ①の訓練 &gt;&gt; ②の暗記 &gt; ③の練習。<b>①ができないと②③に進めない</b>。</text>
+            <text x="46" y="356" fill="#e0f2fe" font-size="11">そして①の訓練とは「問題を解く」ことではなく「問題文のシグナルを言語化すること」。解いた問題を必ず「何がシグナルだったか」で振り返る。</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-1 3ステップ。①判定が最も難しく、最も訓練で改善する。</p>
+      </div>
+    </section>
+
+    <section id="decide" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00.5</span> 判定表 — キーワード → パターン</h2>
+      <p class="lede"><b class="text-emerald-400">この表が本教材の最重要ページ</b>。問題文に現れる言葉から、パターンを引く。<b class="text-slate-200">迷ったらここに戻る</b>。</p>
+
+      <div class="step note">
+        <p class="step-h">問題文のキーワードから引く判定表</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>問題文の言葉・状況</th><th>パターン</th><th>章</th></tr></thead>
+            <tbody>
+              <tr><td><b>「ソート済み配列」+「2値の和/差」</b></td><td>Two Pointers 型1（両端）または HashMap</td><td>ch1 / ch10</td></tr>
+              <tr><td>「回文か判定」「両端から」「文字を交換」</td><td>Two Pointers 型1</td><td>ch1</td></tr>
+              <tr><td><b>「条件を満たす要素を前に集める」「in-placeで除去」</b></td><td>Two Pointers 型2（fast/slow）</td><td>ch2</td></tr>
+              <tr><td>「ゼロを末尾へ移動」「重複を除いた長さを返す」</td><td>Two Pointers 型2</td><td>ch2</td></tr>
+              <tr><td><b>「sはtの部分列（subsequence）か」</b></td><td>Two Pointers 型3（2文字列走査）</td><td>ch3</td></tr>
+              <tr><td><b>「連続する部分配列/部分文字列」+「最大/最小」</b></td><td>Sliding Window</td><td>ch4</td></tr>
+              <tr><td>「長さkのウィンドウ」「重複のない最長部分文字列」</td><td>Sliding Window</td><td>ch4</td></tr>
+              <tr><td><b>「自分以外の全要素の積/和」+「除算禁止」</b></td><td>Prefix / Suffix</td><td>ch5</td></tr>
+              <tr><td>「区間の和を何度も問われる」</td><td>Prefix Sum（累積和）</td><td>ch5</td></tr>
+              <tr><td><b>「ソート済み」+「探索」/ O(log n) の要求</b></td><td>Binary Search</td><td>ch6</td></tr>
+              <tr><td><b>「最小の最大値」「最大の最小値」「〜できる最小のX」</b></td><td>答えで二分探索（Binary Search on Answer）</td><td>ch6</td></tr>
+              <tr><td><b>「最短経路」「最少ステップ」「最小の手数」</b></td><td>BFS（一択）</td><td>ch7</td></tr>
+              <tr><td>「レベルごとに処理」「同時に広がる」（腐ったみかん）</td><td>BFS（レベル順）</td><td>ch7</td></tr>
+              <tr><td>「島の数」「連結成分の数」「塗りつぶし」</td><td>BFS または DFS（どちらでもよい）</td><td>ch7 / ch8</td></tr>
+              <tr><td><b>「木の深さ/高さ」「全ノードを訪問」</b></td><td>DFS パターン③（木DFS・再帰）</td><td>ch8</td></tr>
+              <tr><td>「全パスを列挙」「存在するか」</td><td>DFS</td><td>ch8</td></tr>
+              <tr><td><b>「二分探索木（BST）で探す/挿入」</b></td><td>BST Search（DFS/BFSではない）</td><td>ch9</td></tr>
+              <tr><td><b>「出現回数」「アナグラム」「〜が存在するか O(1)」</b></td><td>HashMap</td><td>ch10</td></tr>
+              <tr><td>「2つの配列の差分」「重複除去」</td><td>HashMap / Set</td><td>ch10</td></tr>
+              <tr><td><b>「直近Nms以内」「直近N件」</b></td><td>Queue</td><td>ch11</td></tr>
+              <tr><td><b>「連結リスト」（<span class="k">head[i]</span> が使えない）</b></td><td>Linked List（prev/curr/next）</td><td>ch12</td></tr>
+              <tr><td><b>「各数の1ビット数」「1つだけ1回出現」</b></td><td>Bit Manipulation</td><td>ch13</td></tr>
+              <tr><td>「O(1)空間」の制約 + 重複のキャンセル</td><td>XOR</td><td>ch13</td></tr>
+              <tr><td><b>「最大何個置けるか」+ 順番に判定できる</b></td><td>Greedy</td><td>ch14</td></tr>
+              <tr><td><b>「上位k個」「k番目に大きい」「常に最小を取り出す」</b></td><td>Heap / Priority Queue</td><td>ch15</td></tr>
+              <tr><td><b>「次に大きい要素」「直近の小さい要素」</b></td><td>Monotonic Stack</td><td>ch16</td></tr>
+              <tr><td><b>「全組み合わせ」「全順列」「条件を満たす全パターン」</b></td><td>Backtracking</td><td>ch17</td></tr>
+              <tr><td><b>「グループが同じか」「連結されているか」（動的に増える）</b></td><td>Union Find</td><td>ch18</td></tr>
+              <tr><td><b>「何通り」「最大/最小の合計」+ 選択の連続</b></td><td>DP</td><td>ch19</td></tr>
+              <tr><td>「重複する部分問題がある」（再帰が同じ計算を繰り返す）</td><td>DP（メモ化 or ボトムアップ）</td><td>ch19</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">データ構造から引く判定（もう1つの入口）</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="235" height="180" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="147" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">配列 / 文字列</text>
+            <text x="44" y="100" fill="#e0f2fe">ソート済み？</text>
+            <text x="60" y="116" fill="#7dd3fc" font-size="9.5">Yes → Two Pointers / Binary Search</text>
+            <text x="60" y="132" fill="#7dd3fc" font-size="9.5">No  → HashMap / Sliding Window</text>
+            <text x="44" y="156" fill="#e0f2fe">連続部分？</text>
+            <text x="60" y="172" fill="#7dd3fc" font-size="9.5">Yes → Sliding Window / Prefix Sum</text>
+            <text x="44" y="196" fill="#e0f2fe">in-placeで整える？</text>
+            <text x="60" y="212" fill="#7dd3fc" font-size="9.5">Yes → Two Pointers 型2</text>
+
+            <rect x="275" y="50" width="235" height="180" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="392" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">木 / グラフ</text>
+            <text x="289" y="100" fill="#bbf7d0">最短距離を求める？</text>
+            <text x="305" y="116" fill="#86efac" font-size="9.5">Yes → BFS（一択）</text>
+            <text x="289" y="140" fill="#bbf7d0">全部を訪問するだけ？</text>
+            <text x="305" y="156" fill="#86efac" font-size="9.5">Yes → DFS（実装が簡単）</text>
+            <text x="289" y="180" fill="#bbf7d0">BSTか？</text>
+            <text x="305" y="196" fill="#86efac" font-size="9.5">Yes → 順序で枝刈り（visited不要）</text>
+            <text x="289" y="216" fill="#fbbf24" font-size="9.5">連結性を動的に管理 → Union Find</text>
+
+            <rect x="520" y="50" width="235" height="180" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="637" y="74" fill="#ede9fe" font-size="12" font-weight="bold" text-anchor="middle">「順序」が鍵</text>
+            <text x="534" y="100" fill="#ddd6fe">常に最大/最小を取り出す？</text>
+            <text x="550" y="116" fill="#c4b5fd" font-size="9.5">Yes → Heap</text>
+            <text x="534" y="140" fill="#ddd6fe">「次に大きい要素」？</text>
+            <text x="550" y="156" fill="#c4b5fd" font-size="9.5">Yes → Monotonic Stack</text>
+            <text x="534" y="180" fill="#ddd6fe">古いものから捨てる？</text>
+            <text x="550" y="196" fill="#c4b5fd" font-size="9.5">Yes → Queue</text>
+            <text x="534" y="216" fill="#c4b5fd" font-size="9.5">直近のものから処理 → Stack</text>
+
+            <rect x="765" y="50" width="245" height="180" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="887" y="74" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">「選択」の問題</text>
+            <text x="779" y="100" fill="#fde68a">今の最善を選べば全体最善？</text>
+            <text x="795" y="116" fill="#fcd34d" font-size="9.5">Yes → Greedy</text>
+            <text x="795" y="130" fill="#f87171" font-size="9">（成立するかの証明が必要）</text>
+            <text x="779" y="154" fill="#fde68a">全パターンを列挙する？</text>
+            <text x="795" y="170" fill="#fcd34d" font-size="9.5">Yes → Backtracking</text>
+            <text x="779" y="194" fill="#fde68a">部分問題が重複する？</text>
+            <text x="795" y="210" fill="#fcd34d" font-size="9.5">Yes → DP</text>
+
+            <rect x="30" y="250" width="980" height="180" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="46" y="276" fill="#dcfce7" font-size="12.5" font-weight="bold">制約から逆算する（面接での強力なテクニック）</text>
+            <text x="46" y="302" fill="#bbf7d0">n ≤ 10        → 全探索・順列（O(n!) でも通る）→ Backtracking</text>
+            <text x="46" y="322" fill="#bbf7d0">n ≤ 20        → ビット全探索（O(2^n)）</text>
+            <text x="46" y="342" fill="#bbf7d0">n ≤ 500       → O(n³) が通る → 3重ループ・Floyd-Warshall</text>
+            <text x="46" y="362" fill="#bbf7d0">n ≤ 5,000     → O(n²) が通る → 2重ループ・DP（2次元）</text>
+            <text x="46" y="382" fill="#bbf7d0">n ≤ 10⁶       → O(n log n) まで → ソート・Binary Search・Heap</text>
+            <text x="46" y="402" fill="#bbf7d0">n ≤ 10⁸       → O(n) のみ → Two Pointers・HashMap・Sliding Window</text>
+            <text x="46" y="422" fill="#4ade80">★ 「O(1)空間」の制約 → HashMapが使えない → Two Pointers / XOR / in-place操作を疑う</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-2 制約から逆算する。「nの上限」を見た瞬間に、許される計算量が決まる。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part1">
+      <p class="eyebrow">Part 1</p>
+      <h2>配列・文字列</h2>
+      <p class="sub">最も出題頻度が高い領域。<b class="text-emerald-400">Two Pointers（3型）・Sliding Window・Prefix/Suffix</b>の5つで、配列問題の7割がカバーできる。<b class="text-rose-400">重要なのは各パターンの「成立条件」</b> — 特にTwo Pointers 型1の「ソート済み」を確認せずに適用するのが最も多い誤り。</p>
+    </div>
+
+    <section id="ch1" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">01</span> Two Pointers 型1 — 両端から内側へ</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">ソート済み配列・回文・合計系・文字交換</b>。<b class="text-rose-400">成立条件を2つ満たす必要がある</b>ので、まずそこを確認する。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">型1: 両端から寄せる（sum = k を探す）</text>
+          <defs>
+            <marker id="lc1a" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker>
+            <marker id="lc1b" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f87171"/></marker>
+          </defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="62" fill="#7dd3fc">nums = [1, 3, 4, 6, 9]（ソート済み）  target k = 10</text>
+
+            <!-- step1 -->
+            <text x="40" y="94" fill="#94a3b8">Step 1</text>
+            <g>
+              <rect x="120" y="80" width="50" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="145" y="100" fill="#bbf7d0" text-anchor="middle">1</text>
+              <rect x="175" y="80" width="50" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="200" y="100" fill="#cbd5e1" text-anchor="middle">3</text>
+              <rect x="230" y="80" width="50" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="255" y="100" fill="#cbd5e1" text-anchor="middle">4</text>
+              <rect x="285" y="80" width="50" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="310" y="100" fill="#cbd5e1" text-anchor="middle">6</text>
+              <rect x="340" y="80" width="50" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="365" y="100" fill="#bbf7d0" text-anchor="middle">9</text>
+            </g>
+            <text x="145" y="128" fill="#4ade80" font-size="9.5" text-anchor="middle">left</text>
+            <text x="365" y="128" fill="#4ade80" font-size="9.5" text-anchor="middle">right</text>
+            <text x="420" y="100" fill="#e2e8f0">1 + 9 = 10 == k → 見つかった！</text>
+            <text x="420" y="118" fill="#86efac" font-size="9.5">両方を内側へ（left++, right--）</text>
+
+            <!-- step2 -->
+            <text x="40" y="174" fill="#94a3b8">Step 2</text>
+            <g>
+              <rect x="120" y="160" width="50" height="30" rx="4" fill="#1e293b" stroke="#334155"/><text x="145" y="180" fill="#475569" text-anchor="middle">1</text>
+              <rect x="175" y="160" width="50" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="200" y="180" fill="#fde68a" text-anchor="middle">3</text>
+              <rect x="230" y="160" width="50" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="255" y="180" fill="#cbd5e1" text-anchor="middle">4</text>
+              <rect x="285" y="160" width="50" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="310" y="180" fill="#fde68a" text-anchor="middle">6</text>
+              <rect x="340" y="160" width="50" height="30" rx="4" fill="#1e293b" stroke="#334155"/><text x="365" y="180" fill="#475569" text-anchor="middle">9</text>
+            </g>
+            <text x="200" y="208" fill="#fbbf24" font-size="9.5" text-anchor="middle">left</text>
+            <text x="310" y="208" fill="#fbbf24" font-size="9.5" text-anchor="middle">right</text>
+            <text x="420" y="180" fill="#e2e8f0">3 + 6 = 9 &lt; k → 合計が足りない</text>
+            <text x="420" y="198" fill="#fde68a" font-size="9.5">★ 小さい側を上げる（left++ のみ）</text>
+
+            <!-- step3 -->
+            <text x="40" y="254" fill="#94a3b8">Step 3</text>
+            <g>
+              <rect x="120" y="240" width="50" height="30" rx="4" fill="#1e293b" stroke="#334155"/><text x="145" y="260" fill="#475569" text-anchor="middle">1</text>
+              <rect x="175" y="240" width="50" height="30" rx="4" fill="#1e293b" stroke="#334155"/><text x="200" y="260" fill="#475569" text-anchor="middle">3</text>
+              <rect x="230" y="240" width="50" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="255" y="260" fill="#bae6fd" text-anchor="middle">4</text>
+              <rect x="285" y="240" width="50" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="310" y="260" fill="#bae6fd" text-anchor="middle">6</text>
+              <rect x="340" y="240" width="50" height="30" rx="4" fill="#1e293b" stroke="#334155"/><text x="365" y="260" fill="#475569" text-anchor="middle">9</text>
+            </g>
+            <text x="255" y="288" fill="#38bdf8" font-size="9.5" text-anchor="middle">left</text>
+            <text x="310" y="288" fill="#38bdf8" font-size="9.5" text-anchor="middle">right</text>
+            <text x="420" y="260" fill="#e2e8f0">4 + 6 = 10 == k → 見つかった！</text>
+            <text x="420" y="278" fill="#7dd3fc" font-size="9.5">left++, right-- → left &gt;= right で終了</text>
+
+            <rect x="30" y="310" width="980" height="100" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="334" fill="#fecaca" font-size="12" font-weight="bold">★ 型1が成立する2つの前提（取り違え注意）</text>
+            <text x="46" y="358" fill="#fca5a5">1. <tspan font-weight="bold">配列がソート済みであること</tspan>。未ソートのまま両端から寄せると正当性は崩壊する（偶然当たることはあっても保証なし）</text>
+            <text x="46" y="382" fill="#fca5a5">2. <tspan font-weight="bold">当たらなかったら「片側だけ」動かすこと</tspan></text>
+            <text x="62" y="400" fill="#e2e8f0">sum &lt; k → left++（小さい側を上げる）／ sum &gt; k → right--（大きい側を下げる）／ <tspan fill="#f87171">両方同時に動かすと、まだ使えるペアを飛ばす</tspan></text>
+          </g>
+        </svg>
+        <p class="figcap">図1-1 型1の動き。「片側だけ動かす」理由は、飛ばしたペアが後で使えるかもしれないから。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実例: reverseVowels — 母音だけを両端から交換する" data-tone="good"><script type="text/plain">
+func reverseVowels(s string) string {
+    isVowel := func(c byte) bool {
+        return strings.ContainsRune("aeiouAEIOU", rune(c))
+    }
+    r := []byte(s) // ★ Goの文字列はimmutableなので[]byteに変換する
+
+    left, right := 0, len(r)-1
+
+    for left < right {
+        // 母音でなければ内側に寄せる
+        for left < right && !isVowel(r[left]) {
+            left++
+        }
+        for left < right && !isVowel(r[right]) {
+            right--
+        }
+        // 両端が母音なので交換
+        r[left], r[right] = r[right], r[left]
+        left++
+        right--
+    }
+    return string(r)
+}
+
+// ★ ポイント:
+//   ・内側のforにも left < right の条件が必要（範囲外アクセスを防ぐ）
+//   ・この問題はソート不要（「両端から対応付ける」型なので前提が違う）
+//   ★ 型1には2種類ある:
+//     (a) 「両端の対応」型（回文・文字交換）→ ソート不要
+//     (b) 「合計/差を探す」型（Two Sum）  → ★ ソート必須
+//   混同しないこと。
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Max Number of K-Sum Pairs (1679) — ソートして両端から" data-tone="good"><script type="text/plain">
+func maxOperations(nums []int, k int) int {
+@@+    sort.Ints(nums) // ★ 型1(b)の前提。これを忘れると答えが合わない
+    left, right := 0, len(nums)-1
+    count := 0
+    for left < right {
+        switch sum := nums[left] + nums[right]; {
+        case sum == k:
+            count++
+            left++
+            right--
+        case sum < k:
+@@+            left++   // ★ 片側だけ
+        default:
+@@+            right--  // ★ 片側だけ
+        }
+    }
+    return count
+}
+// 計算量: O(n log n)（ソートが支配的）/ 空間 O(1)（in-placeソート）
+// ★ この問題は HashMap で O(n) にできる（ch10）。面接では両方言えると強い
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="よくある誤り4つ" data-tone="bad"><script type="text/plain">
+@@-if nums[left] + nums[right] = k { ... }   // ★ = は代入。比較は ==（Goではコンパイルエラー）
+
+@@-nums := nums[left:right]                  // ★ 新しいローカル変数を作って捨てるだけ。無意味
+                                             //   （:= は新規宣言。既存を変えたいなら = ）
+
+@@-} else { left++; right-- }                // ★ 両方動かす → 取りこぼし
+                                             //   sum < k のとき right-- すると、
+                                             //   right がまだ他の left と組める可能性を捨てている
+
+@@-// そもそも sort.Ints(nums) を呼んでいない    // ★ 型1(b)の大前提を満たさない
+                                             //   テストケースが偶然ソート済みだと通ってしまう（最悪）
+</script></div>
+
+      <div class="step note">
+        <p class="step-h">補足 — Two Pointers か HashMap か</p>
+        <p><b class="text-slate-100">「2値の和 = k のペア数」系は、ソート不要の HashMap 補数カウント（O(n)）の方が定石</b>。Two Pointers はソートコストの分 O(n log n) になる。<b class="text-emerald-400">ただし Two Pointers は O(1) 空間</b>なので、「O(1)空間」の制約があるなら Two Pointers。<b class="text-slate-300">面接では「両方あります。制約次第でこちらを選びます」と言えるのが最良</b>。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ（型1）</p>
+        <ul>
+          <li>「<b class="text-slate-100">両端から</b>」「前後から」「2つの値を比較」という言葉</li>
+          <li><b class="text-slate-100">ソート済み配列</b>で合計・差を求める問題</li>
+          <li>回文（palindrome）の判定</li>
+          <li>「対応する要素を交換する」（母音・大文字小文字）</li>
+          <li>実例問題: <b>Two Sum II (167), Valid Palindrome (125), reverseVowels (345), Max Number of K-Sum Pairs (1679), Container With Most Water (11)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch2" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">02</span> Two Pointers 型2 — fast/slow（読み書きの分離）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">条件を満たす要素を前に集める・満たさない要素を後ろに追いやる</b>。<b class="text-slate-200">left が「書き込み位置」、right が「読み取り位置」</b>という役割分担が本質。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">型2: Move Zeroes — 非ゼロを前に集める</text>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="60" fill="#7dd3fc">nums = [0, 1, 0, 3, 12]  → 目標 [1, 3, 12, 0, 0]</text>
+
+            <!-- rows -->
+            <text x="40" y="92" fill="#94a3b8">right=0</text>
+            <g>
+              <rect x="130" y="78" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="153" y="97" fill="#fca5a5" text-anchor="middle">0</text>
+              <rect x="180" y="78" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="203" y="97" fill="#cbd5e1" text-anchor="middle">1</text>
+              <rect x="230" y="78" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="253" y="97" fill="#cbd5e1" text-anchor="middle">0</text>
+              <rect x="280" y="78" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="303" y="97" fill="#cbd5e1" text-anchor="middle">3</text>
+              <rect x="330" y="78" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="353" y="97" fill="#cbd5e1" text-anchor="middle">12</text>
+            </g>
+            <text x="400" y="90" fill="#e2e8f0">nums[0]=0 → ゼロなのでスキップ</text>
+            <text x="400" y="106" fill="#94a3b8" font-size="9.5">left=0（動かない）/ right だけ進む</text>
+
+            <text x="40" y="142" fill="#94a3b8">right=1</text>
+            <g>
+              <rect x="130" y="128" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="153" y="147" fill="#bbf7d0" text-anchor="middle">1</text>
+              <rect x="180" y="128" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="203" y="147" fill="#fca5a5" text-anchor="middle">0</text>
+              <rect x="230" y="128" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="253" y="147" fill="#cbd5e1" text-anchor="middle">0</text>
+              <rect x="280" y="128" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="303" y="147" fill="#cbd5e1" text-anchor="middle">3</text>
+              <rect x="330" y="128" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="353" y="147" fill="#cbd5e1" text-anchor="middle">12</text>
+            </g>
+            <text x="400" y="140" fill="#e2e8f0">nums[1]=1 → 非ゼロ！ nums[0] と swap</text>
+            <text x="400" y="156" fill="#86efac" font-size="9.5">left=0 に書き込み → left++（1になる）</text>
+
+            <text x="40" y="192" fill="#94a3b8">right=3</text>
+            <g>
+              <rect x="130" y="178" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="153" y="197" fill="#bbf7d0" text-anchor="middle">1</text>
+              <rect x="180" y="178" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="203" y="197" fill="#bbf7d0" text-anchor="middle">3</text>
+              <rect x="230" y="178" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="253" y="197" fill="#fca5a5" text-anchor="middle">0</text>
+              <rect x="280" y="178" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="303" y="197" fill="#fca5a5" text-anchor="middle">0</text>
+              <rect x="330" y="178" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="353" y="197" fill="#cbd5e1" text-anchor="middle">12</text>
+            </g>
+            <text x="400" y="190" fill="#e2e8f0">nums[3]=3 → nums[1] と swap</text>
+            <text x="400" y="206" fill="#86efac" font-size="9.5">left=2 になる（次の書き込み位置）</text>
+
+            <text x="40" y="242" fill="#94a3b8">終了</text>
+            <g>
+              <rect x="130" y="228" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="153" y="247" fill="#bbf7d0" text-anchor="middle">1</text>
+              <rect x="180" y="228" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="203" y="247" fill="#bbf7d0" text-anchor="middle">3</text>
+              <rect x="230" y="228" width="46" height="28" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="253" y="247" fill="#bbf7d0" text-anchor="middle">12</text>
+              <rect x="280" y="228" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="303" y="247" fill="#fca5a5" text-anchor="middle">0</text>
+              <rect x="330" y="228" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171"/><text x="353" y="247" fill="#fca5a5" text-anchor="middle">0</text>
+            </g>
+            <text x="400" y="245" fill="#4ade80">完成。left の左側が「確定領域」になっている</text>
+
+            <rect x="30" y="280" width="980" height="105" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="304" fill="#dcfce7" font-size="12" font-weight="bold">型2の本質: 2つのポインタの「役割」が違う</text>
+            <text x="46" y="328" fill="#bbf7d0">left  = <tspan font-weight="bold">書き込み位置</tspan>（条件を満たす要素を置く場所）。条件を満たしたときだけ進む</text>
+            <text x="46" y="348" fill="#bbf7d0">right = <tspan font-weight="bold">読み取り位置</tspan>（配列を1回走査する）。毎回必ず進む</text>
+            <text x="46" y="372" fill="#4ade80">★ 不変条件: 「nums[0..left-1] は確定した結果」。この不変条件を意識するとバグらない</text>
+          </g>
+        </svg>
+        <p class="figcap">図2-1 型2の動き。「leftの左側は確定済み」という不変条件が正しさの根拠。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート: Move Zeroes (283)" data-tone="good"><script type="text/plain">
+func moveZeroes(nums []int) {
+@@+    left := 0  // 書き込み位置（ゼロ以外を置く場所）
+
+    for right := 0; right < len(nums); right++ {
+        if nums[right] != 0 { // ゼロでなければ前に持ってくる
+            nums[left], nums[right] = nums[right], nums[left]
+            left++
+        }
+        // ゼロはスキップ。right だけ進み、left は動かない
+    }
+    // 結果: [1,3,12,0,0] のようにゼロが後ろに集まる
+}
+// 計算量: O(n) 時間 / O(1) 空間
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="同じ型の別問題: Remove Duplicates from Sorted Array (26)" data-tone="good"><script type="text/plain">
+func removeDuplicates(nums []int) int {
+    if len(nums) == 0 {
+        return 0
+    }
+@@+    left := 0 // 「確定した最後の要素」の位置
+
+    for right := 1; right < len(nums); right++ {
+        if nums[right] != nums[left] { // 新しい値を見つけた
+            left++
+            nums[left] = nums[right]
+        }
+    }
+    return left + 1 // 長さを返す
+}
+
+// ★ 型2のバリエーション（微妙な違いに注意）:
+//   Move Zeroes: left は「次の書き込み位置」（0始まり）
+//   Remove Dup : left は「最後に確定した位置」（0始まり、長さは left+1）
+//   → どちらの定義を選ぶかで、初期値と戻り値が変わる
+//   ★ 「left が何を指すか」を最初に決めて、コメントに書くとバグらない
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ（型2）</p>
+        <ul>
+          <li>「<b class="text-slate-100">ゼロを末尾に移動</b>」「<b class="text-slate-100">重複を除いた配列を返す</b>」「in-placeで除去」</li>
+          <li>「新しい配列を作らずに（O(1)空間で）整える」という制約</li>
+          <li>left が「書き込み位置」、right が「読み取り位置」として役割が分かれている</li>
+          <li>実例問題: <b>Move Zeroes (283), Remove Duplicates from Sorted Array (26), Remove Element (27), Sort Colors (75)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch3" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">03</span> Two Pointers 型3 — 2文字列同時走査</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">2つの文字列を別々のポインタで走査する</b>。<b class="text-slate-200">片方は常に進み、もう片方は条件を満たしたときだけ進む</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 330" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="330" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">型3: Is Subsequence — "abc" は "ahbgdc" の部分列か</text>
+          <g font-family="monospace" font-size="11">
+            <text x="40" y="66" fill="#94a3b8">s = "abc"（探す側・条件を満たしたときだけ進む）</text>
+            <text x="40" y="86" fill="#94a3b8">t = "ahbgdc"（探される側・常に進む）</text>
+
+            <!-- t の文字列 -->
+            <g>
+              <rect x="120" y="110" width="46" height="32" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="143" y="132" fill="#bbf7d0" text-anchor="middle">a</text>
+              <rect x="170" y="110" width="46" height="32" rx="4" fill="#1e293b" stroke="#475569"/><text x="193" y="132" fill="#64748b" text-anchor="middle">h</text>
+              <rect x="220" y="110" width="46" height="32" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="243" y="132" fill="#bbf7d0" text-anchor="middle">b</text>
+              <rect x="270" y="110" width="46" height="32" rx="4" fill="#1e293b" stroke="#475569"/><text x="293" y="132" fill="#64748b" text-anchor="middle">g</text>
+              <rect x="320" y="110" width="46" height="32" rx="4" fill="#1e293b" stroke="#475569"/><text x="343" y="132" fill="#64748b" text-anchor="middle">d</text>
+              <rect x="370" y="110" width="46" height="32" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="393" y="132" fill="#bbf7d0" text-anchor="middle">c</text>
+            </g>
+            <text x="143" y="162" fill="#4ade80" font-size="9.5" text-anchor="middle">ti=0 ✓</text>
+            <text x="193" y="162" fill="#64748b" font-size="9.5" text-anchor="middle">ti=1</text>
+            <text x="243" y="162" fill="#4ade80" font-size="9.5" text-anchor="middle">ti=2 ✓</text>
+            <text x="293" y="162" fill="#64748b" font-size="9.5" text-anchor="middle">ti=3</text>
+            <text x="343" y="162" fill="#64748b" font-size="9.5" text-anchor="middle">ti=4</text>
+            <text x="393" y="162" fill="#4ade80" font-size="9.5" text-anchor="middle">ti=5 ✓</text>
+
+            <text x="460" y="120" fill="#e2e8f0" font-size="10.5">ti=0: t[0]='a' == s[0]='a' → si++（si=1）</text>
+            <text x="460" y="138" fill="#94a3b8" font-size="10.5">ti=1: t[1]='h' != s[1]='b' → si はそのまま</text>
+            <text x="460" y="156" fill="#e2e8f0" font-size="10.5">ti=2: t[2]='b' == s[1]='b' → si++（si=2）</text>
+            <text x="460" y="174" fill="#94a3b8" font-size="10.5">ti=3,4: 一致しない</text>
+            <text x="460" y="192" fill="#e2e8f0" font-size="10.5">ti=5: t[5]='c' == s[2]='c' → si++（si=3）</text>
+            <text x="460" y="214" fill="#4ade80" font-size="10.5" font-weight="bold">si == len(s) → true（s を最後まで消費できた）</text>
+
+            <rect x="30" y="240" width="980" height="80" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="264" fill="#bae6fd" font-size="12" font-weight="bold">型3の本質: 「順序を保ちながら一致を探す」</text>
+            <text x="46" y="288" fill="#e0f2fe">・部分列（subsequence）= 順序は保つが、連続でなくてよい　★ 部分文字列（substring）= 連続が必要（→ Sliding Window）</text>
+            <text x="46" y="310" fill="#7dd3fc">・終了条件は「si が s を消費し切ったか」。ti が先に尽きたら false</text>
+          </g>
+        </svg>
+        <p class="figcap">図3-1 型3の動き。「部分列」と「部分文字列」の区別が判定の鍵。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート: Is Subsequence (392)" data-tone="good"><script type="text/plain">
+func isSubsequence(s string, t string) bool {
+    si, ti := 0, 0
+
+    for si < len(s) && ti < len(t) {
+        if s[si] == t[ti] {
+            si++  // ★ 一致したときだけ s のポインタを進める
+        }
+        ti++      // ★ t は常に進む
+    }
+
+    return si == len(s)  // s を最後まで消費できたか
+}
+// 計算量: O(len(t)) 時間 / O(1) 空間
+
+// ★ 発展問題: 「s が大量にあり、t は固定」の場合
+//   毎回 O(len(t)) だと遅い → t の各文字の出現位置を事前に index 化し、
+//   Binary Search で「次の位置」を引く → O(len(s) log len(t))
+//   ★ 面接で「もし s が10000個来たら？」と聞かれたときの答え
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ（型3）</p>
+        <ul>
+          <li>「<b class="text-slate-100">s は t の subsequence（部分列）か</b>」→ この型一択</li>
+          <li>「順序を保ちながら一致を探す」「片方だけ進む」</li>
+          <li>2つの<b class="text-slate-100">ソート済み</b>配列のマージ・共通要素の抽出（同じ型の変形）</li>
+          <li>実例問題: <b>Is Subsequence (392), Merge Sorted Array (88), Intersection of Two Arrays II (350)</b></li>
+        </ul>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">Two Pointers 共通の判定ヒント（3型まとめ）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>型</th><th>ポインタの動き</th><th>シグナル</th><th>前提</th></tr></thead>
+            <tbody>
+              <tr><td><b>型1(a) 両端の対応</b></td><td>両端 → 内側（両方動く）</td><td>回文・文字交換</td><td>なし</td></tr>
+              <tr><td><b>型1(b) 合計を探す</b></td><td>両端 → 内側（片側だけ動く）</td><td>「2値の和/差 = k」</td><td class="bad"><b>ソート済み必須</b></td></tr>
+              <tr><td><b>型2 fast/slow</b></td><td>両方左から（役割が違う）</td><td>「前に集める」「in-place除去」</td><td>なし</td></tr>
+              <tr><td><b>型3 2文字列走査</b></td><td>別々の列を進む</td><td>「部分列か」「マージ」</td><td>型3の一部でソート済みが必要</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch4" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">04</span> Sliding Window</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">部分配列・部分文字列の最大最小、条件を満たす「連続」部分</b>。<b class="text-slate-200">「連続」という言葉が最強のシグナル</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">窓を「伸ばす」と「縮める」の2動作だけ</text>
+          <defs><marker id="lc4" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#fbbf24"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="60" fill="#7dd3fc">arr = [2, 1, 5, 1, 3, 2]  target: 合計 &lt;= 8 の最長の連続部分</text>
+
+            <!-- 状態1 -->
+            <text x="40" y="94" fill="#94a3b8">right=2</text>
+            <g>
+              <rect x="120" y="80" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="143" y="99" fill="#fde68a" text-anchor="middle">2</text>
+              <rect x="170" y="80" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="193" y="99" fill="#fde68a" text-anchor="middle">1</text>
+              <rect x="220" y="80" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="243" y="99" fill="#fde68a" text-anchor="middle">5</text>
+              <rect x="270" y="80" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="293" y="99" fill="#64748b" text-anchor="middle">1</text>
+              <rect x="320" y="80" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="343" y="99" fill="#64748b" text-anchor="middle">3</text>
+              <rect x="370" y="80" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="393" y="99" fill="#64748b" text-anchor="middle">2</text>
+            </g>
+            <text x="440" y="99" fill="#e2e8f0">窓の合計 = 8 ≦ 8 → OK。長さ3を記録</text>
+
+            <!-- 状態2 -->
+            <text x="40" y="144" fill="#94a3b8">right=3</text>
+            <g>
+              <rect x="120" y="130" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171" stroke-width="2"/><text x="143" y="149" fill="#fca5a5" text-anchor="middle">2</text>
+              <rect x="170" y="130" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171" stroke-width="2"/><text x="193" y="149" fill="#fca5a5" text-anchor="middle">1</text>
+              <rect x="220" y="130" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171" stroke-width="2"/><text x="243" y="149" fill="#fca5a5" text-anchor="middle">5</text>
+              <rect x="270" y="130" width="46" height="28" rx="4" fill="#450a0a" stroke="#f87171" stroke-width="2"/><text x="293" y="149" fill="#fca5a5" text-anchor="middle">1</text>
+              <rect x="320" y="130" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="343" y="149" fill="#64748b" text-anchor="middle">3</text>
+              <rect x="370" y="130" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="393" y="149" fill="#64748b" text-anchor="middle">2</text>
+            </g>
+            <text x="440" y="149" fill="#f87171">窓の合計 = 9 &gt; 8 → ★ 縮める（left を進める）</text>
+
+            <!-- 状態3 -->
+            <text x="40" y="194" fill="#94a3b8">縮めた後</text>
+            <g>
+              <rect x="120" y="180" width="46" height="28" rx="4" fill="#1e293b" stroke="#334155"/><text x="143" y="199" fill="#475569" text-anchor="middle">2</text>
+              <rect x="170" y="180" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="193" y="199" fill="#fde68a" text-anchor="middle">1</text>
+              <rect x="220" y="180" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="243" y="199" fill="#fde68a" text-anchor="middle">5</text>
+              <rect x="270" y="180" width="46" height="28" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="293" y="199" fill="#fde68a" text-anchor="middle">1</text>
+              <rect x="320" y="180" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="343" y="199" fill="#64748b" text-anchor="middle">3</text>
+              <rect x="370" y="180" width="46" height="28" rx="4" fill="#1e293b" stroke="#475569"/><text x="393" y="199" fill="#64748b" text-anchor="middle">2</text>
+            </g>
+            <text x="440" y="199" fill="#4ade80">窓の合計 = 7 ≦ 8 → OK。長さ3</text>
+            <line x1="143" y1="216" x2="185" y2="216" stroke="#fbbf24" stroke-width="2" marker-end="url(#lc4)"/>
+            <text x="143" y="234" fill="#fbbf24" font-size="9">left が進んだ</text>
+
+            <rect x="30" y="250" width="980" height="160" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="46" y="276" fill="#dcfce7" font-size="12.5" font-weight="bold">Sliding Window の骨格（2動作 + 1記録）</text>
+            <text x="46" y="302" fill="#bbf7d0">① 伸ばす: right を1つ進め、その要素を「窓の状態」に加える（合計・カウント・出現マップ）</text>
+            <text x="46" y="324" fill="#bbf7d0">② 縮める: 条件を破っている間、left を進めて要素を「窓の状態」から取り除く</text>
+            <text x="46" y="346" fill="#bbf7d0">③ 記録: 条件を満たしている状態で、結果（最大長・最小長・カウント）を更新する</text>
+            <text x="46" y="374" fill="#fbbf24">★ 最大の落とし穴: ②と③の順序。「最長を求める」なら縮めた後に記録、「最短を求める」なら縮める前に記録</text>
+            <text x="46" y="396" fill="#fde68a">★ もう1つ: 固定長ウィンドウ（size k）の場合は②が「if (right-left+1 &gt; k)」の1回だけになる（whileでなくif）</text>
+          </g>
+        </svg>
+        <p class="figcap">図4-1 Sliding Windowの2動作。「最長」と「最短」で記録のタイミングが逆になる点が最も間違えやすい。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート①: 可変長・最長を求める" data-tone="good"><script type="text/plain">
+// 「条件を満たす最長の連続部分」の長さを求める
+func longestWindow(arr []int, target int) int {
+    left := 0
+    windowSum := 0   // 窓内の状態（合計・カウント・mapなど問題次第）
+    result := 0
+
+    for right := 0; right < len(arr); right++ {
+@@+        windowSum += arr[right]              // ① 伸ばす
+
+@@+        for windowSum > target {              // ② 条件を破っている間、縮める
+            windowSum -= arr[left]
+            left++
+        }
+
+@@+        result = max(result, right-left+1)     // ③ 記録（縮めた後 = 条件を満たしている状態）
+    }
+    return result
+}
+// 計算量: O(n)（left と right がそれぞれ最大n回進むだけ。合計2n）
+// ★ 「2重ループなのにO(n)」の理由: left は戻らないので、
+//   全体を通して left が進む回数は最大 n 回
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート②: 可変長・最短を求める（記録の位置が違う）" data-tone="good"><script type="text/plain">
+// 「合計が target 以上になる最短の連続部分」の長さ
+func shortestWindow(arr []int, target int) int {
+    left := 0
+    windowSum := 0
+    result := math.MaxInt
+
+    for right := 0; right < len(arr); right++ {
+        windowSum += arr[right]              // ① 伸ばす
+
+@@+        for windowSum >= target {             // ② 条件を「満たしている間」縮める
+@@+            result = min(result, right-left+1) // ③ ★ 縮める前に記録
+            windowSum -= arr[left]
+            left++
+        }
+    }
+    if result == math.MaxInt {
+        return 0
+    }
+    return result
+}
+// ★ テンプレート①と②の違い:
+//   ①最長: for は「条件を破っている間」縮める → ループの外で記録
+//   ②最短: for は「条件を満たしている間」縮める → ループの中で記録
+//   ★ ここを取り違えると、答えが1つズレる or 全く違う値になる
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート③: 固定長ウィンドウ（Maximum Average Subarray I - 643）" data-tone="good"><script type="text/plain">
+func findMaxAverage(nums []int, k int) float64 {
+    windowSum := 0
+    // 最初の k 個を入れる
+    for i := 0; i < k; i++ {
+        windowSum += nums[i]
+    }
+    best := windowSum
+
+    // 1つ足して1つ引く（窓をスライドさせる）
+    for right := k; right < len(nums); right++ {
+@@+        windowSum += nums[right] - nums[right-k]
+        best = max(best, windowSum)
+    }
+    return float64(best) / float64(k)
+}
+// ★ 固定長は「足して引く」だけ。while による縮小が不要なので最も簡単
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート④: 出現マップを持つ窓（Longest Substring Without Repeating Characters - 3）" data-tone="good"><script type="text/plain">
+func lengthOfLongestSubstring(s string) int {
+    left := 0
+@@+    lastIndex := make(map[byte]int) // 文字 → 最後に出た位置
+    result := 0
+
+    for right := 0; right < len(s); right++ {
+        c := s[right]
+@@+        if idx, ok := lastIndex[c]; ok && idx >= left {
+@@+            left = idx + 1 // ★ 重複した文字の「次」まで一気にジャンプする
+        }
+        lastIndex[c] = right
+        result = max(result, right-left+1)
+    }
+    return result
+}
+// ★ ポイント: left を1つずつ進めるのではなく、一気にジャンプできる
+//   （idx >= left の確認が必要 — 窓の外の古い記録を無視するため）
+// 計算量: O(n) 時間 / O(min(n, 文字種)) 空間
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">連続する</b>〇〇の最大・最小」← 最強のシグナル</li>
+          <li>「条件を満たす部分文字列（substring）」← <b class="text-amber-400">substring は連続、subsequence は非連続（→ 型3 / DP）</b></li>
+          <li>「長さ k のウィンドウ」（固定長）</li>
+          <li>「最大でk回まで変更できる」（窓内の違反回数を数える）</li>
+          <li>実例問題: <b>Maximum Average Subarray I (643), Longest Substring Without Repeating Characters (3), Max Consecutive Ones III (1004), Minimum Size Subarray Sum (209), Permutation in String (567)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch5" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">05</span> Prefix / Suffix（累積）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「自分以外の全要素の積/和」・除算禁止・O(n)制約</b>、そして<b class="text-slate-200">「区間の和を何度も問われる」</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">Product Except Self — 左の積 × 右の積</text>
+          <g font-family="monospace" font-size="11">
+            <text x="60" y="70" fill="#94a3b8">nums</text>
+            <g>
+              <rect x="180" y="52" width="70" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="215" y="72" fill="#e2e8f0" text-anchor="middle">1</text>
+              <rect x="255" y="52" width="70" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="290" y="72" fill="#e2e8f0" text-anchor="middle">2</text>
+              <rect x="330" y="52" width="70" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="365" y="72" fill="#e2e8f0" text-anchor="middle">3</text>
+              <rect x="405" y="52" width="70" height="30" rx="4" fill="#1e293b" stroke="#475569"/><text x="440" y="72" fill="#e2e8f0" text-anchor="middle">4</text>
+            </g>
+
+            <text x="60" y="122" fill="#38bdf8">左の積</text>
+            <text x="60" y="138" fill="#7dd3fc" font-size="9">（i より左の全積）</text>
+            <g>
+              <rect x="180" y="104" width="70" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="215" y="124" fill="#bae6fd" text-anchor="middle">1</text>
+              <rect x="255" y="104" width="70" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="290" y="124" fill="#bae6fd" text-anchor="middle">1</text>
+              <rect x="330" y="104" width="70" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="365" y="124" fill="#bae6fd" text-anchor="middle">2</text>
+              <rect x="405" y="104" width="70" height="30" rx="4" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/><text x="440" y="124" fill="#bae6fd" text-anchor="middle">6</text>
+            </g>
+            <text x="500" y="124" fill="#7dd3fc" font-size="9.5">1 / 1 / 1×2 / 1×2×3</text>
+
+            <text x="60" y="174" fill="#fbbf24">右の積</text>
+            <text x="60" y="190" fill="#fde68a" font-size="9">（i より右の全積）</text>
+            <g>
+              <rect x="180" y="156" width="70" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="215" y="176" fill="#fde68a" text-anchor="middle">24</text>
+              <rect x="255" y="156" width="70" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="290" y="176" fill="#fde68a" text-anchor="middle">12</text>
+              <rect x="330" y="156" width="70" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="365" y="176" fill="#fde68a" text-anchor="middle">4</text>
+              <rect x="405" y="156" width="70" height="30" rx="4" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/><text x="440" y="176" fill="#fde68a" text-anchor="middle">1</text>
+            </g>
+            <text x="500" y="176" fill="#fde68a" font-size="9.5">2×3×4 / 3×4 / 4 / 1</text>
+
+            <text x="60" y="226" fill="#4ade80">answer</text>
+            <text x="60" y="242" fill="#86efac" font-size="9">（左 × 右）</text>
+            <g>
+              <rect x="180" y="208" width="70" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/><text x="215" y="228" fill="#bbf7d0" text-anchor="middle">24</text>
+              <rect x="255" y="208" width="70" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/><text x="290" y="228" fill="#bbf7d0" text-anchor="middle">12</text>
+              <rect x="330" y="208" width="70" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/><text x="365" y="228" fill="#bbf7d0" text-anchor="middle">8</text>
+              <rect x="405" y="208" width="70" height="30" rx="4" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/><text x="440" y="228" fill="#bbf7d0" text-anchor="middle">6</text>
+            </g>
+            <text x="500" y="228" fill="#86efac" font-size="9.5">1×24 / 1×12 / 2×4 / 6×1</text>
+
+            <rect x="30" y="262" width="980" height="105" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="286" fill="#fecaca" font-size="12" font-weight="bold">なぜ除算を使わないのか</text>
+            <text x="46" y="310" fill="#fca5a5">total = 全部の積、answer[i] = total / nums[i] は一見正しいが:</text>
+            <text x="46" y="332" fill="#fecaca">・nums[i] = 0 のときゼロ除算になる　・ゼロが2個以上あると全部0になるべきだが、判定が複雑化する</text>
+            <text x="46" y="354" fill="#4ade80">・そして多くの問題文で「除算を使わずに」と明記されている → ★ 累積積が意図された解法</text>
+          </g>
+        </svg>
+        <p class="figcap">図5-1 累積積。「左からの累積」と「右からの累積」の2パスで解く。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="Product of Array Except Self (238) — O(1)追加空間" data-tone="good"><script type="text/plain">
+func productExceptSelf(nums []int) []int {
+    n := len(nums)
+    result := make([]int, n)
+
+    // ① 左からの累積積を result に入れる
+    result[0] = 1
+    for i := 1; i < n; i++ {
+        result[i] = result[i-1] * nums[i-1]
+    }
+
+    // ② 右からの累積積を right 変数1つで管理しながら掛ける（追加配列不要）
+@@+    right := 1
+    for i := n - 1; i >= 0; i-- {
+        result[i] *= right
+        right *= nums[i]
+    }
+
+    return result
+}
+// 計算量: O(n) 時間 / O(1) 追加空間（result は出力なので数えない）
+// ★ 「right 変数1つで右側の累積を持つ」のが、追加空間をO(1)にする鍵
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="もう1つの必修: Prefix Sum（累積和）— 区間和を O(1) で答える" data-tone="good"><script type="text/plain">
+// 「区間 [l, r] の和」を何度も問われる場合
+type NumArray struct {
+    prefix []int // prefix[i] = nums[0..i-1] の和
+}
+
+func Constructor(nums []int) NumArray {
+@@+    prefix := make([]int, len(nums)+1) // ★ 長さ n+1 にすると境界処理が消える
+    for i, v := range nums {
+        prefix[i+1] = prefix[i] + v
+    }
+    return NumArray{prefix: prefix}
+}
+
+func (a *NumArray) SumRange(left, right int) int {
+@@+    return a.prefix[right+1] - a.prefix[left] // ★ 引き算だけでO(1)
+}
+// 前処理 O(n) / クエリ O(1)
+//
+// ★ prefix の長さを n+1 にする理由:
+//   prefix[0] = 0 という「空の区間」を用意すると、
+//   left=0 のときの特別扱いが不要になる（off-by-oneが消える）
+//
+// ★ 発展: 2次元の累積和（部分行列の和）も同じ発想
+//   sum(r1,c1,r2,c2) = P[r2+1][c2+1] - P[r1][c2+1] - P[r2+1][c1] + P[r1][c1]
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">自分以外の〇〇</b>を求めよ」かつ<b class="text-slate-100">除算禁止</b> → 累積積</li>
+          <li>「<b class="text-slate-100">区間の和</b>を何度も問われる」→ 累積和（前処理してO(1)で答える）</li>
+          <li>「累積和 + HashMap」で「和がkになる部分配列の個数」が解ける（Subarray Sum Equals K - 560）← <b class="text-emerald-400">頻出の組み合わせ</b></li>
+          <li>実例問題: <b>Product of Array Except Self (238), Range Sum Query (303), Subarray Sum Equals K (560), Find Pivot Index (724)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part2">
+      <p class="eyebrow">Part 2</p>
+      <h2>探索</h2>
+      <p class="sub"><b class="text-emerald-400">Binary Search / BFS / DFS / BST</b>。この4つで探索系の問題をカバーする。<b class="text-rose-400">最も多い混同は「BSTの探索にグラフDFSのコードを持ち込む」</b>こと。木・グラフ・BSTは似て見えるが、テンプレートが違う。</p>
+    </div>
+
+    <section id="ch6" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">06</span> Binary Search</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">ソート済み配列での検索</b>、そして<b class="text-slate-200">「答えで二分探索」</b>（こちらの方が面接では難しく、差が付く）。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2種類のBinary Search</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="150" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">① 配列の中を探す（基本形）</text>
+            <text x="46" y="100" fill="#e0f2fe">「ソート済み配列の中から target を探せ」</text>
+            <text x="46" y="122" fill="#7dd3fc">探索空間 = 配列のインデックス [0, n-1]</text>
+            <text x="46" y="144" fill="#7dd3fc">判定 = arr[mid] と target の比較</text>
+            <text x="46" y="170" fill="#4ade80">シグナル: 「ソート済み」+「探せ」/ O(log n)の要求</text>
+            <text x="46" y="190" fill="#94a3b8" font-size="9.5">実例: Binary Search (704), Search Insert Position (35)</text>
+
+            <rect x="530" y="50" width="480" height="150" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">② 答えで二分探索（応用形・差が付く）</text>
+            <text x="546" y="100" fill="#bbf7d0">「条件を満たす最小のX を求めよ」</text>
+            <text x="546" y="122" fill="#86efac">探索空間 = 答えの候補範囲 [lo, hi]</text>
+            <text x="546" y="144" fill="#86efac">判定 = 「X で条件を満たせるか」を返す関数</text>
+            <text x="546" y="170" fill="#4ade80">シグナル: 「<tspan font-weight="bold">最小の最大値</tspan>」「<tspan font-weight="bold">最大の最小値</tspan>」</text>
+            <text x="546" y="190" fill="#94a3b8" font-size="9.5">実例: Koko Eating Bananas (875), Split Array Largest Sum (410)</text>
+
+            <rect x="30" y="220" width="980" height="165" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="244" fill="#fef3c7" font-size="12" font-weight="bold">Binary Search で間違える4箇所（ここだけ注意すれば書ける）</text>
+            <text x="46" y="270" fill="#fde68a">1. <tspan font-weight="bold">mid の計算</tspan>: mid := lo + (hi-lo)/2　★ (lo+hi)/2 はオーバーフローの危険（Goのintでは実際上稀だが、慣習として）</text>
+            <text x="46" y="292" fill="#fde68a">2. <tspan font-weight="bold">ループ条件</tspan>: lo &lt;= hi（閉区間）か lo &lt; hi（半開区間）か。★ どちらかに統一する。混ぜると無限ループ</text>
+            <text x="46" y="314" fill="#fde68a">3. <tspan font-weight="bold">更新</tspan>: lo = mid + 1 / hi = mid - 1（閉区間）★ hi = mid にすると無限ループする組み合わせがある</text>
+            <text x="46" y="336" fill="#fde68a">4. <tspan font-weight="bold">戻り値</tspan>: 見つからないとき -1 か、挿入位置 lo か。★ 問題文をよく読む</text>
+            <text x="46" y="364" fill="#4ade80">★ 覚え方: 「閉区間 [lo, hi] + lo &lt;= hi + mid±1」の組み合わせを1つ暗記し、それ以外を書かない</text>
+          </g>
+        </svg>
+        <p class="figcap">図6-1 2種類のBinary Search。②「答えで二分探索」が面接で差が付く部分。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート①: 基本形（閉区間で統一する）" data-tone="good"><script type="text/plain">
+func binarySearch(arr []int, target int) int {
+    lo, hi := 0, len(arr)-1  // ★ 閉区間 [lo, hi]
+
+    for lo <= hi {           // ★ 閉区間なので <=
+@@+        mid := lo + (hi-lo)/2 // オーバーフロー対策
+        switch {
+        case arr[mid] == target:
+            return mid
+        case arr[mid] < target:
+            lo = mid + 1     // ★ mid は候補から外す
+        default:
+            hi = mid - 1     // ★ mid は候補から外す
+        }
+    }
+    return -1                // 見つからない
+    // ★ ここで return lo にすると「挿入位置」になる（Search Insert Position）
+}
+// 計算量: O(log n) 時間 / O(1) 空間
+
+// ★ Goの標準ライブラリを使う手もある（面接では自分で書くことを求められる）
+//   sort.SearchInts(arr, target)  → target 以上の最初の位置を返す
+//   idx := sort.SearchInts(arr, target)
+//   if idx < len(arr) && arr[idx] == target { /* 見つかった */ }
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート②: 答えで二分探索（Koko Eating Bananas 875）" data-tone="good"><script type="text/plain">
+// 問題: piles[i] 本のバナナの山がある。h 時間以内に全部食べたい。
+//       1時間に k 本食べられるとき、必要な最小の k はいくつか。
+
+func minEatingSpeed(piles []int, h int) int {
+@@+    // ★ Step 1: 探索空間を「答えの候補範囲」にする
+    lo, hi := 1, 0
+    for _, p := range piles {
+        hi = max(hi, p) // 最大の山を1時間で食べられれば必ず間に合う
+    }
+
+@@+    // ★ Step 2: 「速度 k で h 時間以内に終わるか」の判定関数を書く
+    canFinish := func(k int) bool {
+        hours := 0
+        for _, p := range piles {
+            hours += (p + k - 1) / k // 切り上げ除算
+            if hours > h {
+                return false          // 早期リターン（オーバーフロー防止にもなる）
+            }
+        }
+        return hours <= h
+    }
+
+@@+    // ★ Step 3: 「条件を満たす最小の値」を二分探索で見つける
+    for lo < hi {              // ★ 半開区間 [lo, hi)。答えは必ず存在する前提
+        mid := lo + (hi-lo)/2
+        if canFinish(mid) {
+            hi = mid           // ★ mid も候補に残す（もっと小さいかもしれない）
+        } else {
+            lo = mid + 1       // mid では無理 → もっと速く
+        }
+    }
+    return lo
+}
+// 計算量: O(n log(max(piles)))
+
+// ★ 「答えで二分探索」の判定シグナル:
+//   ・「〜できる最小/最大のX を求めよ」
+//   ・「最小の最大値」「最大の最小値」（minimize the maximum）
+//   ・X を決めると「できる/できない」が単調に判定できる
+//     （X が大きければ必ずできる、小さければできない = 単調性）
+//   ★ この「単調性」がないと二分探索は使えない。必ず確認する
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="変形: 外部APIで判定する（Guess Number Higher or Lower 374）" data-tone="good"><script type="text/plain">
+// 配列ではなく guess(mid) の返り値で範囲を絞る
+func guessNumber(n int) int {
+    low, high := 1, n
+    for {
+        mid := low + (high-low)/2
+        result := guess(mid)
+        switch result {
+        case 0:
+            return mid       // 正解
+        case -1:
+            high = mid - 1   // ★ mid が大きすぎる → 上限を下げる
+        default:
+            low = mid + 1    // mid が小さすぎる → 下限を上げる
+        }
+    }
+}
+
+// ★ よくある誤り:
+//   ・n を1ずつ増減させる → バイナリサーチではなく線形探索（O(n)）
+//   ・switch + case func guess(n) == -1 のような書き方は Go では無効
+//     （case には式の値を書く。条件式を書きたいなら switch { case cond: }）
+//   ・guess の返り値の意味を逆に取る（-1 は「mid が高すぎる」= high を下げる）
+//   ・lo <= hi ループの後に return -1 を付ける → 必ず答えが存在する問題では不要
+//     （そして到達不能コードになり、コンパイラに「missing return」と言われる形にする）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li><b class="text-slate-100">ソート済み配列で「〇〇を探せ」</b> → 基本形</li>
+          <li><b class="text-slate-100">「最小の最大値」「最大の最小値」「〜できる最小のX」</b> → 答えで二分探索</li>
+          <li><b class="text-slate-100">O(log n) を要求されている</b> → ほぼ二分探索（または木・Heap）</li>
+          <li>「回転したソート済み配列」→ 二分探索の変形（どちら側がソート済みか判定する）</li>
+          <li>実例問題: <b>Binary Search (704), Search Insert Position (35), Find Minimum in Rotated Sorted Array (153), Guess Number (374), Koko Eating Bananas (875), Find Peak Element (162)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch7" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">07</span> BFS（幅優先探索）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">最短経路・最少ステップ・レベル順の探索・グリッドの探索</b>。<b class="text-rose-400">「最短」という言葉が出たらBFS一択</b>（DFSでは最短が保証されない）。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">BFSは「同心円状に広がる」— だから最短が保証される</text>
+          <g font-family="monospace" font-size="10.5">
+            <!-- グリッド -->
+            <text x="40" y="60" fill="#94a3b8">グリッド上のBFS（数字 = 開始点からの距離）</text>
+            <g>
+              <rect x="60" y="75" width="42" height="42" rx="3" fill="#450a0a" stroke="#f87171" stroke-width="2"/><text x="81" y="102" fill="#fecaca" text-anchor="middle">0</text>
+              <rect x="105" y="75" width="42" height="42" rx="3" fill="#3f2d0a" stroke="#fbbf24"/><text x="126" y="102" fill="#fde68a" text-anchor="middle">1</text>
+              <rect x="150" y="75" width="42" height="42" rx="3" fill="#0c4a6e" stroke="#38bdf8"/><text x="171" y="102" fill="#bae6fd" text-anchor="middle">2</text>
+              <rect x="195" y="75" width="42" height="42" rx="3" fill="#1e293b" stroke="#64748b"/><text x="216" y="102" fill="#94a3b8" text-anchor="middle">3</text>
+
+              <rect x="60" y="120" width="42" height="42" rx="3" fill="#3f2d0a" stroke="#fbbf24"/><text x="81" y="147" fill="#fde68a" text-anchor="middle">1</text>
+              <rect x="105" y="120" width="42" height="42" rx="3" fill="#0c4a6e" stroke="#38bdf8"/><text x="126" y="147" fill="#bae6fd" text-anchor="middle">2</text>
+              <rect x="150" y="120" width="42" height="42" rx="3" fill="#1e293b" stroke="#334155"/><text x="171" y="147" fill="#475569" text-anchor="middle">■</text>
+              <rect x="195" y="120" width="42" height="42" rx="3" fill="#1e293b" stroke="#64748b"/><text x="216" y="147" fill="#94a3b8" text-anchor="middle">4</text>
+
+              <rect x="60" y="165" width="42" height="42" rx="3" fill="#0c4a6e" stroke="#38bdf8"/><text x="81" y="192" fill="#bae6fd" text-anchor="middle">2</text>
+              <rect x="105" y="165" width="42" height="42" rx="3" fill="#1e293b" stroke="#64748b"/><text x="126" y="192" fill="#94a3b8" text-anchor="middle">3</text>
+              <rect x="150" y="165" width="42" height="42" rx="3" fill="#1e293b" stroke="#64748b"/><text x="171" y="192" fill="#94a3b8" text-anchor="middle">4</text>
+              <rect x="195" y="165" width="42" height="42" rx="3" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="216" y="192" fill="#bbf7d0" text-anchor="middle">5</text>
+            </g>
+            <text x="60" y="230" fill="#f87171" font-size="9.5">赤=開始 / ■=壁 / 緑=ゴール（最短5歩）</text>
+
+            <text x="290" y="60" fill="#94a3b8">キューの中身（レベルごとに処理される）</text>
+            <text x="290" y="86" fill="#fecaca">距離0: [ (0,0) ]</text>
+            <text x="290" y="108" fill="#fde68a">距離1: [ (0,1), (1,0) ]</text>
+            <text x="290" y="130" fill="#bae6fd">距離2: [ (0,2), (1,1), (2,0) ]</text>
+            <text x="290" y="152" fill="#94a3b8">距離3: [ (0,3), (2,1) ]</text>
+            <text x="290" y="174" fill="#94a3b8">距離4: [ (1,3), (2,2) ]</text>
+            <text x="290" y="196" fill="#bbf7d0">距離5: [ (2,3) ] ← ゴール到達</text>
+            <text x="290" y="226" fill="#4ade80" font-size="9.5">★ 「距離が小さい順」に処理されるので、</text>
+            <text x="290" y="242" fill="#4ade80" font-size="9.5">　 最初にゴールに触った時が最短</text>
+
+            <rect x="600" y="50" width="410" height="200" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="616" y="74" fill="#fecaca" font-size="12" font-weight="bold">なぜDFSでは最短にならないか</text>
+            <text x="616" y="98" fill="#fca5a5">DFSは「行けるところまで深く進む」</text>
+            <text x="616" y="120" fill="#e2e8f0">→ 遠回りの経路で先にゴールに着くことがある</text>
+            <text x="616" y="142" fill="#e2e8f0">→ 全経路を調べれば最短は分かるが、</text>
+            <text x="632" y="158" fill="#e2e8f0">　 それは指数時間になる</text>
+            <text x="616" y="184" fill="#4ade80">BFSは「距離1の全部 → 距離2の全部 → …」</text>
+            <text x="616" y="204" fill="#bbf7d0">→ 最初に到達した時が必ず最短（辺の重みが等しい場合）</text>
+            <text x="616" y="228" fill="#fbbf24">★ 辺に重みがあるなら Dijkstra（BFS + Heap）</text>
+
+            <rect x="30" y="270" width="980" height="140" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="294" fill="#dcfce7" font-size="12" font-weight="bold">BFSで間違える3箇所</text>
+            <text x="46" y="320" fill="#bbf7d0">1. <tspan font-weight="bold">visited のマーク位置</tspan>: ★ queueに入れる「時」にマークする。取り出す時ではない</text>
+            <text x="62" y="338" fill="#f87171">　 取り出す時にマークすると、同じノードが複数回queueに入る（指数的に膨らむ）</text>
+            <text x="46" y="362" fill="#bbf7d0">2. <tspan font-weight="bold">レベル（距離）の管理</tspan>: 距離を記録したいなら ①ノードと一緒に距離を持つ ②レベルごとにまとめて処理する</text>
+            <text x="46" y="386" fill="#bbf7d0">3. <tspan font-weight="bold">dequeue のコスト</tspan>: Goで queue = queue[1:] は O(1) だが、元の配列が解放されない（メモリリーク的挙動）</text>
+            <text x="62" y="404" fill="#fde68a">　 → 大規模なら head インデックスを持つか container/list を使う。★ 面接では queue[1:] で十分</text>
+          </g>
+        </svg>
+        <p class="figcap">図7-1 BFSは同心円状に広がる。「queueに入れる時にvisitedをマークする」が最重要。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート①: グラフのBFS" data-tone="good"><script type="text/plain">
+func bfs(graph map[int][]int, start int) map[int]int {
+    dist := map[int]int{start: 0}   // ★ visited と距離を兼ねる
+    queue := []int{start}
+
+    for len(queue) > 0 {
+        node := queue[0]
+        queue = queue[1:]           // dequeue
+
+        for _, next := range graph[node] {
+@@+            if _, seen := dist[next]; !seen {  // ★ 未訪問なら
+@@+                dist[next] = dist[node] + 1     // ★ 入れる時に距離を確定
+                queue = append(queue, next)
+            }
+        }
+    }
+    return dist
+}
+// 計算量: O(V + E) 時間 / O(V) 空間
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート②: グリッドのBFS（Number of Islands 200 / Rotting Oranges 994）" data-tone="good"><script type="text/plain">
+// ★ グリッド問題の定型: 4方向の差分配列を用意する
+var dirs = [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} // 上下左右
+// 8方向なら: {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}}
+
+func orangesRotting(grid [][]int) int {
+    rows, cols := len(grid), len(grid[0])
+    queue := [][2]int{}
+    fresh := 0
+
+    // ★ 多点スタート: 腐ったみかん全部を最初にqueueに入れる
+    for r := 0; r < rows; r++ {
+        for c := 0; c < cols; c++ {
+            switch grid[r][c] {
+            case 2:
+                queue = append(queue, [2]int{r, c})
+            case 1:
+                fresh++
+            }
+        }
+    }
+    if fresh == 0 {
+        return 0
+    }
+
+    minutes := 0
+@@+    for len(queue) > 0 && fresh > 0 {
+@@+        // ★ レベルごとに処理する（この「1分」で腐るもの全部）
+@@+        levelSize := len(queue)
+@@+        for i := 0; i < levelSize; i++ {
+            cur := queue[0]
+            queue = queue[1:]
+            for _, d := range dirs {
+                nr, nc := cur[0]+d[0], cur[1]+d[1]
+                // ★ 境界チェックを先に、値のチェックを後に（順序が重要）
+                if nr < 0 || nr >= rows || nc < 0 || nc >= cols {
+                    continue
+                }
+                if grid[nr][nc] != 1 {
+                    continue
+                }
+                grid[nr][nc] = 2  // ★ visitedの代わりにgridを書き換える（省メモリ）
+                fresh--
+                queue = append(queue, [2]int{nr, nc})
+            }
+        }
+        minutes++
+    }
+
+    if fresh > 0 {
+        return -1  // 腐らせられないみかんが残った
+    }
+    return minutes
+}
+
+// ★ このテンプレートの再利用ポイント:
+//   ・dirs 配列（4方向 / 8方向）
+//   ・境界チェック → 値チェック の順序
+//   ・grid を書き換えて visited を省略する（追加空間 O(1)）
+//   ・多点スタート（複数の起点を最初にqueueに入れる）
+//   ・レベルごとの処理（levelSize を先に取る）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li><b class="text-slate-100">「最短経路」「最少ステップ」「最小の手数」</b> → BFS一択</li>
+          <li><b class="text-slate-100">「同時に広がる」「N分後にどうなるか」</b> → BFS（レベル順）</li>
+          <li>グリッド（2次元配列）の探索 → BFS または DFS</li>
+          <li>「島の数」「連結成分の数」→ どちらでもよい（DFSの方が短く書ける）</li>
+          <li>実例問題: <b>Number of Islands (200), Rotting Oranges (994), Word Ladder (127), Binary Tree Level Order Traversal (102), 01 Matrix (542)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch8" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">08</span> DFS 3パターン</h2>
+      <p class="lede"><b class="text-rose-400">DFSには「グラフ用」と「木用」の2系統がある。混同が最も多い</b>。<b class="text-emerald-400">木には閉路がないので visited が不要で、ループも書かない</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">グラフDFS と 木DFS の決定的な違い</text>
+          <defs><marker id="lc8" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L8,2.5 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="330" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="265" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">グラフ（閉路がありうる）</text>
+            <circle cx="150" cy="120" r="20" fill="#1a0a0a" stroke="#f87171" stroke-width="1.5"/><text x="150" y="125" fill="#fecaca" text-anchor="middle">A</text>
+            <circle cx="250" cy="120" r="20" fill="#1a0a0a" stroke="#f87171" stroke-width="1.5"/><text x="250" y="125" fill="#fecaca" text-anchor="middle">B</text>
+            <circle cx="350" cy="120" r="20" fill="#1a0a0a" stroke="#f87171" stroke-width="1.5"/><text x="350" y="125" fill="#fecaca" text-anchor="middle">C</text>
+            <circle cx="250" cy="200" r="20" fill="#1a0a0a" stroke="#f87171" stroke-width="1.5"/><text x="250" y="205" fill="#fecaca" text-anchor="middle">D</text>
+            <line x1="170" y1="120" x2="228" y2="120" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#lc8)"/>
+            <line x1="270" y1="120" x2="328" y2="120" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#lc8)"/>
+            <line x1="342" y1="137" x2="268" y2="192" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#lc8)"/>
+            <line x1="235" y1="185" x2="160" y2="137" stroke="#f87171" stroke-width="1.5" marker-end="url(#lc8)"/>
+            <text x="175" y="180" fill="#f87171" font-size="9">★ 閉路（A→B→C→D→A）</text>
+            <text x="46" y="248" fill="#f87171">visited が必須:</text>
+            <text x="46" y="268" fill="#fca5a5">・ないと A→B→C→D→A→B→… で無限ループ</text>
+            <text x="46" y="290" fill="#f87171">ループ（for range graph[node]）が必要:</text>
+            <text x="46" y="310" fill="#fca5a5">・隣接ノードの数が可変（0〜N個）</text>
+            <text x="46" y="336" fill="#fbbf24">テンプレート: パターン①（再帰）/ ②（スタック）</text>
+            <text x="46" y="360" fill="#fde68a" font-size="9.5">用途: 連結成分・到達可能性・トポロジカルソート・閉路検出</text>
+
+            <rect x="530" y="50" width="480" height="330" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">木（閉路がない・子は最大2つ）</text>
+            <circle cx="770" cy="110" r="20" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/><text x="770" y="115" fill="#bbf7d0" text-anchor="middle">3</text>
+            <circle cx="700" cy="170" r="20" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/><text x="700" y="175" fill="#bbf7d0" text-anchor="middle">9</text>
+            <circle cx="840" cy="170" r="20" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/><text x="840" y="175" fill="#bbf7d0" text-anchor="middle">20</text>
+            <circle cx="800" cy="230" r="20" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/><text x="800" y="235" fill="#bbf7d0" text-anchor="middle">15</text>
+            <circle cx="890" cy="230" r="20" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/><text x="890" y="235" fill="#bbf7d0" text-anchor="middle">7</text>
+            <line x1="755" y1="126" x2="713" y2="155" stroke="#4ade80" stroke-width="1.5"/>
+            <line x1="785" y1="126" x2="827" y2="155" stroke="#4ade80" stroke-width="1.5"/>
+            <line x1="828" y1="186" x2="812" y2="214" stroke="#4ade80" stroke-width="1.5"/>
+            <line x1="855" y1="186" x2="878" y2="214" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="546" y="272" fill="#4ade80">visited は不要:</text>
+            <text x="546" y="292" fill="#bbf7d0">・親から子へ一方通行。同じノードに2度来ない</text>
+            <text x="546" y="314" fill="#4ade80">ループも不要:</text>
+            <text x="546" y="334" fill="#bbf7d0">・Left と Right の2つを直接再帰で呼ぶだけ</text>
+            <text x="546" y="358" fill="#fbbf24">テンプレート: パターン③（木DFS・再帰）★ ツリー問題はこれ一択</text>
+          </g>
+        </svg>
+        <p class="figcap">図8-1 グラフと木の違い。木問題にグラフDFSのコードを持ち込むのが最も多い誤り。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="パターン①: グラフDFS（再帰）" data-tone="good"><script type="text/plain">
+// 閉路があるので visited が必要
+visited := make(map[int]bool)
+
+@@+var dfs func(node int)   // ★ Goで再帰クロージャを書くときは先に宣言する
+dfs = func(node int) {
+    visited[node] = true          // ★ 訪問済みにしてから
+    for _, next := range graph[node] {
+        if !visited[next] {       // 未訪問なら再帰
+            dfs(next)
+        }
+    }
+}
+dfs(start)
+
+// ★ Goの注意点: var dfs func(int) を先に書かないと、
+//   dfs := func(...) { dfs(...) } は「dfs が未定義」でコンパイルエラーになる
+//   （:= の右辺では左辺の変数がまだ使えない）
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="パターン②: グラフDFS（スタック・再帰なし）" data-tone="good"><script type="text/plain">
+// 再帰が深すぎてスタックオーバーフローする場合の代替。動作は①と同じ
+stack := []int{start}
+visited := make(map[int]bool)
+
+for len(stack) > 0 {
+@@+    node := stack[len(stack)-1]
+@@+    stack = stack[:len(stack)-1]  // pop
+    if visited[node] {
+        continue                   // ★ pop後にチェックする（重複pushを許す方式）
+    }
+    visited[node] = true
+    for _, next := range graph[node] {
+        stack = append(stack, next)
+    }
+}
+
+// ★ ①（再帰）との違い:
+//   ・訪問順序が変わる（スタックなので最後に入れたものから）
+//   ・「重複してpushされる」ので、pop後に visited をチェックする
+//   ・Goのデフォルトgoroutineスタックは動的に伸びるので、
+//     実際に再帰でオーバーフローするのは数十万段のレベル
+//   ★ 面接では①（再帰）で書く方が読みやすい
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="パターン③: 木DFS（再帰）← ツリー問題はこれ" data-tone="good"><script type="text/plain">
+// LeetCodeで与えられる TreeNode の定義
+type TreeNode struct {
+    Val   int
+    Left  *TreeNode
+    Right *TreeNode
+}
+
+// 「この木の深さ」= 1 + max(左の深さ, 右の深さ)
+// という再帰的定義が、そのままコードになる
+func maxDepth(root *TreeNode) int {
+@@+    // ベースケース: nilに到達したら0を返す
+    // 再帰の終端。ここがないと無限ループ（nil参照でpanic）
+    if root == nil {
+        return 0
+    }
+
+    // 左右のサブツリーを再帰で先に解く（後順処理 = post-order）
+    left := maxDepth(root.Left)
+    right := maxDepth(root.Right)
+
+    // 深い方に自分（1）を足して返す
+    // 呼び出し元がさらに+1して積み上がる
+    return max(left, right) + 1
+}
+// 計算量: O(n) 時間 / O(h) 空間（h = 木の高さ = 再帰の深さ）
+
+// ★ 木DFSの読み方:
+//   1. if root == nil { return ベース値 } → 必ず最初に書く
+//   2. 左右を再帰で先に解く → 子の結果を使って親の答えを作る
+//   3. ループは書かない。再帰が自動で全ノードを巡回する
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="よくある誤り（木DFS）" data-tone="bad"><script type="text/plain">
+@@-// ✗ forループで根から歩こうとする
+@@-for root != nil {
+@@-    if root.Val > target {
+@@-        root = root.Left   // ★ 分岐したとき「両方」を追えない
+@@-    } else {
+@@-        root = root.Right  // ★ 片方を捨てているので、全探索にならない
+@@-    }
+@@-}
+// → これが正しいのは BST の探索だけ（ch9）。
+//   「全ノードを見る」問題では、必ず両方を再帰で呼ぶ必要がある
+
+@@-// ✗ root.val（小文字）→ コンパイルエラー
+@@-root.val   // NG（Goのstructフィールドは大文字＝exported）
+root.Val     // OK
+
+@@-// ✗ ベースケースを書き忘れる
+@@-func maxDepth(root *TreeNode) int {
+@@-    return max(maxDepth(root.Left), maxDepth(root.Right)) + 1
+@@-}
+// → root が nil のときに root.Left で panic する
+
+// ★ 木DFSの3つの巡回順（使い分け）
+//   前順（pre-order）:  親 → 左 → 右   … コピー・シリアライズ・パスの構築
+//   中順（in-order）:   左 → 親 → 右   … ★ BSTでは昇順に並ぶ（重要）
+//   後順（post-order）: 左 → 右 → 親   … 子の結果を集約する（深さ・合計・削除）
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="応用: パスを集める（Path Sum II 113）— Backtrackingの入口" data-tone="good"><script type="text/plain">
+func pathSum(root *TreeNode, targetSum int) [][]int {
+    var result [][]int
+    var path []int
+
+    var dfs func(node *TreeNode, remain int)
+    dfs = func(node *TreeNode, remain int) {
+        if node == nil {
+            return
+        }
+@@+        path = append(path, node.Val)      // ① 選ぶ
+
+        if node.Left == nil && node.Right == nil && remain == node.Val {
+@@+            // ★ 葉に到達し、合計が一致 → 結果に「コピーを」追加する
+@@+            result = append(result, append([]int{}, path...))
+        } else {
+            dfs(node.Left, remain-node.Val)
+            dfs(node.Right, remain-node.Val)
+        }
+
+@@+        path = path[:len(path)-1]          // ③ 戻す（backtrack）
+    }
+    dfs(root, targetSum)
+    return result
+}
+
+// ★ 最重要の落とし穴: result に path をそのまま append してはいけない
+//   result = append(result, path)  ← ✗ path は同じ配列を指すので、
+//                                      後で書き換えられて全部同じ内容になる
+//   result = append(result, append([]int{}, path...))  ← ✓ コピーを作る
+//   （または slices.Clone(path)）
+// ★ これは go-language-basics.html ch1「浅いコピー」の話と同じ原理
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li><b class="text-slate-100">「木の深さ・高さ」「全ノードを訪問」</b> → パターン③（木DFS）一択</li>
+          <li><b class="text-slate-100">「全パスを列挙」「存在するか」</b> → DFS</li>
+          <li>グラフの全探索・連結成分 → パターン①②</li>
+          <li>BFSより実装が簡単なことが多い（<b class="text-emerald-400">最短でなければDFSでよい</b>）</li>
+          <li>実例問題: <b>Max Depth of Binary Tree (104), Path Sum (112/113), Clone Graph (133), Number of Islands (200), Invert Binary Tree (226), Same Tree (100)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch9" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">09</span> BST Search（二分探索木）</h2>
+      <p class="lede">BSTの核心: <b class="text-emerald-400">左 &lt; 親 &lt; 右 の順序保証を使って枝を切る</b>。<b class="text-rose-400">DFSやBFSは使わない</b>（全探索する必要がないのに全探索するのは無駄）。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 340" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="340" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">BSTで 2 を探す — 半分ずつ切り捨てる</text>
+          <g font-family="monospace" font-size="10.5">
+            <circle cx="300" cy="80" r="22" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2.5"/><text x="300" y="86" fill="#fde68a" text-anchor="middle">4</text>
+            <circle cx="220" cy="150" r="22" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2.5"/><text x="220" y="156" fill="#fde68a" text-anchor="middle">2</text>
+            <circle cx="380" cy="150" r="22" fill="#1e293b" stroke="#334155"/><text x="380" y="156" fill="#475569" text-anchor="middle">7</text>
+            <circle cx="170" cy="220" r="22" fill="#1e293b" stroke="#475569"/><text x="170" y="226" fill="#94a3b8" text-anchor="middle">1</text>
+            <circle cx="270" cy="220" r="22" fill="#1e293b" stroke="#475569"/><text x="270" y="226" fill="#94a3b8" text-anchor="middle">3</text>
+            <line x1="283" y1="97" x2="237" y2="133" stroke="#fbbf24" stroke-width="2.5"/>
+            <line x1="317" y1="97" x2="363" y2="133" stroke="#334155" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <line x1="205" y1="167" x2="185" y2="203" stroke="#475569" stroke-width="1.5"/>
+            <line x1="235" y1="167" x2="255" y2="203" stroke="#475569" stroke-width="1.5"/>
+
+            <text x="430" y="70" fill="#e2e8f0">Step 1: root = 4</text>
+            <text x="446" y="88" fill="#fde68a" font-size="9.5">2 &lt; 4 → 左に絞る（右の部分木を丸ごと捨てる）</text>
+            <text x="446" y="104" fill="#f87171" font-size="9.5">★ 7以下の部分木（7,8,9...）を1回で除外できた</text>
+            <text x="430" y="132" fill="#e2e8f0">Step 2: root = 2</text>
+            <text x="446" y="150" fill="#fde68a" font-size="9.5">2 == 2 → 見つかった！</text>
+            <text x="430" y="184" fill="#4ade80">訪問したノード数: 2個（全5ノード中）</text>
+            <text x="430" y="206" fill="#86efac" font-size="9.5">DFSで全探索したら最大5ノード見る必要があった</text>
+
+            <rect x="30" y="250" width="980" height="80" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="274" fill="#fecaca" font-size="12" font-weight="bold">BSTでやってはいけないこと</text>
+            <text x="46" y="298" fill="#fca5a5">・visited を用意する → 閉路がないので不要（グラフDFSのコードを流用した痕跡）</text>
+            <text x="46" y="318" fill="#fca5a5">・graph[node] で隣接を取る → ★ そんなものは存在しない。あるのは node.Left / node.Right だけ</text>
+          </g>
+        </svg>
+        <p class="figcap">図9-1 BSTの探索。順序保証があるので、片方の部分木を丸ごと捨てられる。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート: Search in a BST (700)" data-tone="good"><script type="text/plain">
+func searchBST(root *TreeNode, val int) *TreeNode {
+@@+    for root != nil {   // ★ BSTでは「ループで降りる」のが正しい（分岐しないので）
+        switch {
+        case root.Val == val:
+            return root
+        case val < root.Val:
+            root = root.Left   // 左に絞る
+        default:
+            root = root.Right  // 右に絞る
+        }
+    }
+    return nil
+}
+// 計算量: O(log n) 平均 / O(n) 最悪（木が偏った場合 = 連結リスト状）
+// 空間: O(1)（ループなので再帰スタックを使わない）
+
+// ★ 再帰で書くこともできる（好みの問題）
+func searchBSTRecursive(root *TreeNode, val int) *TreeNode {
+    if root == nil || root.Val == val {
+        return root
+    }
+    if val < root.Val {
+        return searchBSTRecursive(root.Left, val)
+    }
+    return searchBSTRecursive(root.Right, val)
+}
+// ★ こちらは O(log n) 空間（再帰スタック）。ループ版の方が省メモリ
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="BSTの重要な性質: 中順巡回すると昇順になる" data-tone="good"><script type="text/plain">
+// ★ この性質を知っていると解ける問題が一気に増える
+func inorder(root *TreeNode, out *[]int) {
+    if root == nil {
+        return
+    }
+    inorder(root.Left, out)      // 左
+@@+    *out = append(*out, root.Val) // 親（★ 左と右の間）
+    inorder(root.Right, out)     // 右
+}
+// BST [4,2,7,1,3] を中順巡回 → [1, 2, 3, 4, 7]（昇順！）
+
+// ★ この性質で解ける問題:
+//   ・Validate BST (98)             → 中順が昇順かを確認する
+//   ・Kth Smallest in BST (230)      → 中順でk番目を取る（全部走査せず早期リターン）
+//   ・BST to Sorted List             → 中順巡回そのまま
+//   ・Minimum Absolute Difference (783) → 中順で隣接する2値の差の最小
+
+// ★ Validate BST の落とし穴:
+//   「node.Left.Val < node.Val < node.Right.Val」を各ノードで確認するだけでは不十分。
+//   「左部分木の全ての値が node.Val より小さい」必要がある。
+//   → 上限・下限を再帰で渡す、または中順が昇順かを確認する
+func isValidBST(root *TreeNode) bool {
+    var prev *int
+    var check func(n *TreeNode) bool
+    check = func(n *TreeNode) bool {
+        if n == nil {
+            return true
+        }
+        if !check(n.Left) {
+            return false
+        }
+@@+        if prev != nil && *prev >= n.Val { // 中順で単調増加しているか
+            return false
+        }
+        v := n.Val
+        prev = &v
+        return check(n.Right)
+    }
+    return check(root)
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li><b class="text-slate-100">「BSTで〇〇を探せ/挿入せよ」</b> → DFS/BFSは使わない。BST性質で枝刈りする</li>
+          <li><span class="k">visited</span> は不要（閉路がない・順序保証がある）</li>
+          <li><b class="text-amber-400">DFSのグラフコードと混同しやすい</b> → <span class="k">graph[node]</span> は存在しない</li>
+          <li><b class="text-emerald-400">「k番目に小さい」「昇順で取り出す」→ 中順巡回</b></li>
+          <li>実例問題: <b>Search in a BST (700), Insert into a BST (701), Validate BST (98), Kth Smallest Element in a BST (230), Lowest Common Ancestor of a BST (235)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part3">
+      <p class="eyebrow">Part 3</p>
+      <h2>データ構造</h2>
+      <p class="sub"><b class="text-emerald-400">HashMap / Queue / Linked List</b>。「どのデータ構造を選ぶか」自体が解法になるパターン。<b class="text-rose-400">特に Linked List は配列のテンプレートが一切流用できない</b>ので、別物として覚える。</p>
+    </div>
+
+    <section id="ch10" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">10</span> HashMap</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">出現回数・「2つの値の組み合わせ」・O(1)検索</b>。<b class="text-slate-200">「O(n²) の2重ループを O(n) にする」ための最も一般的な道具</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="基本形①: 頻度カウント" data-tone="good"><script type="text/plain">
+freq := make(map[int]int)
+for _, v := range arr {
+@@+    freq[v]++  // ★ Goではキーがなくてもゼロ値0から始まるので、初期化が不要
+}
+
+// 文字列の場合（byte or rune）
+freqB := make(map[byte]int)
+for i := 0; i < len(s); i++ {
+    freqB[s[i]]++
+}
+// ★ 日本語などマルチバイト文字を扱うなら rune で回す
+for _, r := range s {   // range string は rune 単位
+    freqR[r]++
+}
+
+// ★ 小文字英字だけなら配列の方が速い（面接で言えると良い）
+var count [26]int
+for i := 0; i < len(s); i++ {
+    count[s[i]-'a']++
+}
+// → mapのハッシュ計算が不要。定数倍が数倍速い
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="基本形②: 補数を探す（Two Sum パターン）— O(n²) → O(n)" data-tone="good"><script type="text/plain">
+func twoSum(nums []int, target int) []int {
+@@+    seen := make(map[int]int) // 値 → インデックス
+
+    for i, v := range nums {
+        complement := target - v
+@@+        if j, ok := seen[complement]; ok {  // ★ 先に探す
+            return []int{j, i}
+        }
+@@+        seen[v] = i                          // ★ 後で自分を入れる
+    }
+    return nil
+}
+// 計算量: O(n) 時間 / O(n) 空間
+
+// ★ 順序が重要: 「先に探して、後で入れる」
+//   逆にすると、target = 2v のとき自分自身とペアを作ってしまう
+//   （例: nums=[3,2,4], target=6 で [0,0] を返してしまう）
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Max Number of K-Sum Pairs (1679) — 在庫方式" data-tone="good"><script type="text/plain">
+// 「補数が在庫にあれば消費して count++、なければ自分を在庫に積む」
+func maxOperations(nums []int, k int) int {
+@@+    need := make(map[int]int) // 「この値を待っている」個数
+    count := 0
+    for _, n := range nums {
+        if need[k-n] > 0 {
+            need[k-n]--   // 在庫から1つ消費
+            count++
+        } else {
+            need[n]++     // 自分を在庫に積む（「k-n が来たら成立する」）
+        }
+    }
+    return count
+}
+// 計算量: O(n) 時間 / O(n) 空間
+// ★ ソート不要。Two Pointers（型1）が O(n log n) なのに対してこちらは O(n)
+// ★ 「ペアを作って消費する」系はこの形が定石
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Find the Difference of Two Arrays (2215) — Set として使う" data-tone="good"><script type="text/plain">
+func findDifference(nums1 []int, nums2 []int) [][]int {
+@@+    set1 := make(map[int]struct{}, len(nums1)) // ★ 値が不要なら struct{}（省メモリ）
+    set2 := make(map[int]struct{}, len(nums2))
+    for _, v := range nums1 {
+        set1[v] = struct{}{}
+    }
+    for _, v := range nums2 {
+        set2[v] = struct{}{}
+    }
+
+@@+    // ★ 出力を空スライスで初期化する（nilだとJSONがnullになる / LeetCodeでも [] を期待される）
+    only1, only2 := []int{}, []int{}
+    for v := range set1 {
+        if _, ok := set2[v]; !ok {
+            only1 = append(only1, v)
+        }
+    }
+    for v := range set2 {
+        if _, ok := set1[v]; !ok {
+            only2 = append(only2, v)
+        }
+    }
+    return [][]int{only1, only2}
+}
+// ★ ポイント: mapのキーが一意であることを利用して、重複除去も同時に行っている
+// ★ 注意: map の range は順序が不定（Goの仕様）。順序が必要なら sort する
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Group Anagrams (49) — キーの作り方が本質" data-tone="good"><script type="text/plain">
+func groupAnagrams(strs []string) [][]string {
+    groups := make(map[string][]string)
+
+    for _, s := range strs {
+@@+        // ★ アナグラムの「正規形」をキーにする
+        b := []byte(s)
+        sort.Slice(b, func(i, j int) bool { return b[i] < b[j] })
+        key := string(b)
+        groups[key] = append(groups[key], s)
+    }
+
+    result := make([][]string, 0, len(groups))
+    for _, g := range groups {
+        result = append(result, g)
+    }
+    return result
+}
+// 計算量: O(n × k log k)（k = 文字列の平均長）
+
+// ★ 別のキーの作り方: 文字数のカウントを文字列化する（ソート不要 → O(n×k)）
+func keyByCount(s string) string {
+    var cnt [26]int
+    for i := 0; i < len(s); i++ {
+        cnt[s[i]-'a']++
+    }
+    return fmt.Sprint(cnt) // [1 0 2 0 ...] という文字列になる
+}
+// ★ 「グループ化」の問題は「何をキーにするか」が解法そのもの
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">〇〇が存在するか</b>」を高速に調べたい → HashMap（Set）</li>
+          <li>「<b class="text-slate-100">出現回数</b>を数える」「アナグラム」→ 頻度カウント</li>
+          <li><b class="text-slate-100">Two Sum の変形</b>（2値の組み合わせ）→ 補数を探す</li>
+          <li>「<b class="text-slate-100">グループ化</b>する」→ 「何をキーにするか」を考える</li>
+          <li><b class="text-emerald-400">2重ループ O(n²) が思い浮かんだら、HashMapで O(n) にできないか疑う</b></li>
+          <li>実例問題: <b>Two Sum (1), Valid Anagram (242), Group Anagrams (49), Find the Difference of Two Arrays (2215), Max Number of K-Sum Pairs (1679), Contains Duplicate (217), Subarray Sum Equals K (560)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch11" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">11</span> Queue（時間窓・スライディング記録）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">直近N件・直近Nms以内のカウント・古いものを先頭から捨てる</b>。<b class="text-slate-200">「値が単調増加する」ことが前提</b>（だから古いものは常に先頭にある）。</p>
+
+      <div class="cb" data-lang="go" data-cap="Number of Recent Calls (933)" data-tone="good"><script type="text/plain">
+type RecentCounter struct {
+    queue []int
+}
+
+func Constructor() RecentCounter {
+    return RecentCounter{}
+}
+
+func (this *RecentCounter) Ping(t int) int {
+    this.queue = append(this.queue, t)
+
+@@+    // 範囲外（t-3000より古い）を先頭から捨てる
+    for this.queue[0] < t-3000 {
+        this.queue = this.queue[1:]
+    }
+
+    return len(this.queue)
+}
+// 計算量: 各Pingは平均O(1)（各要素は1回入って1回出るだけ = 償却計算量）
+
+// ★ この解法が成立する前提:
+//   ・t が単調増加することが問題文で保証されている
+//   → 古いものは「常に先頭」にある（ソート不要）
+//   ★ もし t がランダムに来るなら、この解法は使えない（Heapが必要）
+
+// ★ queue[0] にアクセスする前に len(queue) > 0 の確認が不要な理由:
+//   直前に append しているので、必ず1要素以上ある
+//   ★ ただし一般的なコードでは必ず確認する習慣を持つ
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="発展: Sliding Window Maximum (239) — Monotonic Deque" data-tone="warn"><script type="text/plain">
+// 「長さkのウィンドウ内の最大値」を各位置で求める
+// ★ 素朴にやると O(n×k)。Monotonic Deque で O(n) にできる
+func maxSlidingWindow(nums []int, k int) []int {
+@@+    deque := []int{}  // インデックスを保持。値が単調減少するように保つ
+    result := []int{}
+
+    for i, v := range nums {
+        // ① 窓から外れた先頭を捨てる
+        if len(deque) > 0 && deque[0] <= i-k {
+            deque = deque[1:]
+        }
+        // ② 自分より小さい末尾を全部捨てる（★ もう最大値になれないから）
+@@+        for len(deque) > 0 && nums[deque[len(deque)-1]] <= v {
+            deque = deque[:len(deque)-1]
+        }
+        deque = append(deque, i)
+
+        // ③ 窓が完成したら、先頭（=最大値）を記録
+        if i >= k-1 {
+            result = append(result, nums[deque[0]])
+        }
+    }
+    return result
+}
+// 計算量: O(n)（各要素は1回入って1回出るだけ）
+
+// ★ Monotonic Deque の発想:
+//   「自分より小さい過去の値は、もう答えになれない」ので捨てる
+//   → deque の中は常に単調減少 → 先頭が最大値
+//   ★ この発想は Monotonic Stack（ch16）と同じ
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">直近〇〇ms以内</b>」「<b class="text-slate-100">直近〇件</b>」→ Queue一択</li>
+          <li>値が単調増加することが保証されている → 古いものは<b class="text-slate-100">常に先頭</b>にある</li>
+          <li>先頭から捨てて末尾に追加 = FIFO = Queue</li>
+          <li>「窓内の最大/最小」を効率よく求める → Monotonic Deque</li>
+          <li>実例問題: <b>Number of Recent Calls (933), Sliding Window Maximum (239), Moving Average from Data Stream (346)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch12" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">12</span> Linked List</h2>
+      <p class="lede"><b class="text-rose-400">配列のテンプレートが一切流用できない</b>。<span class="k">head[i]</span> でアクセスできず、<span class="k">len(head)</span> も使えない。<b class="text-emerald-400">prev / curr / next の3変数で1ステップずつ繋ぎ直す</b>のが基本形。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">反転（Reverse）— 3変数で1本ずつ向きを変える</text>
+          <defs><marker id="lc12" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L8,2.5 z" fill="#4ade80"/></marker>
+          <marker id="lc12r" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L8,2.5 z" fill="#f87171"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="62" fill="#94a3b8">初期状態: 1 → 2 → 3 → nil</text>
+            <g>
+              <rect x="130" y="76" width="54" height="34" rx="5" fill="#1e293b" stroke="#475569"/><text x="157" y="98" fill="#e2e8f0" text-anchor="middle">1</text>
+              <rect x="230" y="76" width="54" height="34" rx="5" fill="#1e293b" stroke="#475569"/><text x="257" y="98" fill="#e2e8f0" text-anchor="middle">2</text>
+              <rect x="330" y="76" width="54" height="34" rx="5" fill="#1e293b" stroke="#475569"/><text x="357" y="98" fill="#e2e8f0" text-anchor="middle">3</text>
+              <text x="420" y="98" fill="#64748b">nil</text>
+              <line x1="188" y1="93" x2="226" y2="93" stroke="#4ade80" stroke-width="1.5" marker-end="url(#lc12)"/>
+              <line x1="288" y1="93" x2="326" y2="93" stroke="#4ade80" stroke-width="1.5" marker-end="url(#lc12)"/>
+              <line x1="388" y1="93" x2="412" y2="93" stroke="#4ade80" stroke-width="1.5" marker-end="url(#lc12)"/>
+            </g>
+            <text x="130" y="128" fill="#f87171" font-size="9.5">prev=nil</text>
+            <text x="157" y="144" fill="#fbbf24" font-size="9.5" text-anchor="middle">curr</text>
+
+            <text x="40" y="182" fill="#94a3b8">1周目後: nil ← 1   2 → 3 → nil</text>
+            <g>
+              <text x="80" y="216" fill="#64748b">nil</text>
+              <rect x="130" y="196" width="54" height="34" rx="5" fill="#052e16" stroke="#4ade80" stroke-width="2"/><text x="157" y="218" fill="#bbf7d0" text-anchor="middle">1</text>
+              <rect x="230" y="196" width="54" height="34" rx="5" fill="#1e293b" stroke="#475569"/><text x="257" y="218" fill="#e2e8f0" text-anchor="middle">2</text>
+              <rect x="330" y="196" width="54" height="34" rx="5" fill="#1e293b" stroke="#475569"/><text x="357" y="218" fill="#e2e8f0" text-anchor="middle">3</text>
+              <text x="420" y="218" fill="#64748b">nil</text>
+              <line x1="126" y1="213" x2="102" y2="213" stroke="#f87171" stroke-width="1.5" marker-end="url(#lc12r)"/>
+              <line x1="288" y1="213" x2="326" y2="213" stroke="#4ade80" stroke-width="1.5" marker-end="url(#lc12)"/>
+              <line x1="388" y1="213" x2="412" y2="213" stroke="#4ade80" stroke-width="1.5" marker-end="url(#lc12)"/>
+            </g>
+            <text x="157" y="250" fill="#f87171" font-size="9.5" text-anchor="middle">prev</text>
+            <text x="257" y="250" fill="#fbbf24" font-size="9.5" text-anchor="middle">curr</text>
+            <text x="470" y="218" fill="#fde68a" font-size="9.5">★ next を先に保存しないと、2 への道が失われる</text>
+
+            <rect x="30" y="280" width="980" height="90" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="304" fill="#fecaca" font-size="12" font-weight="bold">配列のテンプレートを流用すると必ず失敗する</text>
+            <text x="46" y="328" fill="#fca5a5">left, right := 0, len(head)-1   → ★ len(head) はコンパイルエラー（*ListNode に len はない）</text>
+            <text x="46" y="348" fill="#fca5a5">head[left], head[right] = ...    → ★ インデックスアクセス不可</text>
+            <text x="46" y="366" fill="#4ade80">Two Pointersのテンプレートは<tspan font-weight="bold">配列専用</tspan>。リストノードにはポインタ操作が必要</text>
+          </g>
+        </svg>
+        <p class="figcap">図12-1 反転の動き。「next を先に保存する」のが唯一のコツ。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート: Reverse Linked List (206)" data-tone="good"><script type="text/plain">
+type ListNode struct {
+    Val  int
+    Next *ListNode
+}
+
+func reverseList(head *ListNode) *ListNode {
+    var prev *ListNode  // ★ nil から始める（反転後の末尾になる）
+    curr := head
+
+    for curr != nil {
+@@+        next := curr.Next  // ① 次を保存（これを忘れると道が消える）
+@@+        curr.Next = prev   // ② 向きを反転
+@@+        prev = curr        // ③ prev を進める
+@@+        curr = next        // ④ curr を進める
+    }
+    return prev  // ★ curr は nil になっているので、prev が新しい head
+}
+// 計算量: O(n) 時間 / O(1) 空間
+// ★ この4行の順序は変えられない。丸暗記する価値がある
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="Linked List の必修3パターン" data-tone="good"><script type="text/plain">
+// ---- ① Dummy Head（先頭の特別扱いを消す）----
+func removeElements(head *ListNode, val int) *ListNode {
+@@+    dummy := &ListNode{Next: head} // ★ 番兵ノード
+    curr := dummy
+    for curr.Next != nil {
+        if curr.Next.Val == val {
+            curr.Next = curr.Next.Next // 削除
+        } else {
+            curr = curr.Next
+        }
+    }
+@@+    return dummy.Next // ★ head 自体が削除されるケースも自然に処理できる
+}
+// ★ dummy を使わないと「先頭を削除する場合」の分岐が必要になる
+
+// ---- ② Fast/Slow ポインタ（中間点・循環検出）----
+func middleNode(head *ListNode) *ListNode {
+    slow, fast := head, head
+@@+    for fast != nil && fast.Next != nil {
+        slow = slow.Next        // 1歩
+        fast = fast.Next.Next   // 2歩
+    }
+    return slow // fast が終端に着いたとき、slow は中間
+}
+
+// 循環検出（Floyd's cycle detection）
+func hasCycle(head *ListNode) bool {
+    slow, fast := head, head
+    for fast != nil && fast.Next != nil {
+        slow = slow.Next
+        fast = fast.Next.Next
+@@+        if slow == fast { // ★ 循環があれば必ず出会う
+            return true
+        }
+    }
+    return false
+}
+
+// ---- ③ 2つのリストをマージ ----
+func mergeTwoLists(l1, l2 *ListNode) *ListNode {
+    dummy := &ListNode{}
+    curr := dummy
+    for l1 != nil && l2 != nil {
+        if l1.Val <= l2.Val {
+            curr.Next = l1
+            l1 = l1.Next
+        } else {
+            curr.Next = l2
+            l2 = l2.Next
+        }
+        curr = curr.Next
+    }
+@@+    // ★ 残りを繋ぐ（どちらか一方は必ず nil）
+    if l1 != nil {
+        curr.Next = l1
+    } else {
+        curr.Next = l2
+    }
+    return dummy.Next
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>問題文に <span class="k">ListNode</span> が出てきたら、配列のテンプレートは全部捨てる</li>
+          <li>「反転」→ prev/curr/next の4行</li>
+          <li>「中間点」「循環検出」「後ろからk番目」→ Fast/Slow ポインタ</li>
+          <li>「先頭が変わりうる削除・挿入」→ <b class="text-emerald-400">Dummy Head</b>（分岐が消える）</li>
+          <li>実例問題: <b>Reverse Linked List (206), Merge Two Sorted Lists (21), Linked List Cycle (141), Middle of the Linked List (876), Remove Nth Node From End (19), Odd Even Linked List (328)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part4">
+      <p class="eyebrow">Part 4</p>
+      <h2>数値・選択</h2>
+      <p class="sub"><b class="text-emerald-400">Bit Manipulation</b> は「知らないと出てこない」系なので公式を暗記する。<b class="text-emerald-400">Greedy</b> は「成立するかの判断」が本質で、テンプレートは自明。</p>
+    </div>
+
+    <section id="ch13" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">13</span> Bit Manipulation</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">各ビットの状態を利用・DPで前の結果を再利用・O(1)空間の制約</b>。<b class="text-rose-400">「知らないと出てこない」ので公式として覚える</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2つの公式 — 右シフトDP と XORキャンセル</text>
+          <defs><marker id="lc13" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="180" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">公式1: ans[i] = ans[i&gt;&gt;1] + (i &amp; 1)</text>
+            <text x="46" y="100" fill="#7dd3fc">「i の1ビット数」を、既知の答えから作る</text>
+            <text x="46" y="126" fill="#e2e8f0">i=5 → 101（1が2個）</text>
+            <text x="62" y="144" fill="#94a3b8">↓ 右シフト（末尾ビットを捨てる）</text>
+            <text x="46" y="162" fill="#e2e8f0">i&gt;&gt;1 = 2 → 10（ans[2]=1 は既に計算済み）</text>
+            <text x="46" y="182" fill="#e2e8f0">i&amp;1 = 1（末尾ビットが1）</text>
+            <text x="46" y="204" fill="#4ade80">→ ans[5] = ans[2] + 1 = 1 + 1 = 2 ✓</text>
+            <text x="46" y="222" fill="#86efac" font-size="9.5">★ i&gt;&gt;1 &lt; i なので、必ず既に計算済み（DPが成立する）</text>
+
+            <rect x="530" y="50" width="480" height="180" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">公式2: a ^ a = 0、a ^ 0 = a</text>
+            <text x="546" y="100" fill="#86efac">XORは「同じものをキャンセルする」</text>
+            <text x="546" y="126" fill="#e2e8f0">nums = [4, 1, 2, 1, 2]</text>
+            <text x="546" y="146" fill="#e2e8f0">0 ^ 4 ^ 1 ^ 2 ^ 1 ^ 2</text>
+            <text x="546" y="166" fill="#bbf7d0">= 4 ^ (1^1) ^ (2^2)   ← 可換・結合なので並び替えできる</text>
+            <text x="546" y="186" fill="#bbf7d0">= 4 ^ 0 ^ 0 = 4 ✓</text>
+            <text x="546" y="212" fill="#4ade80">★ 順序・位置に依存しない（可換・結合律が成立）</text>
+
+            <rect x="30" y="250" width="980" height="160" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="274" fill="#fef3c7" font-size="12" font-weight="bold">ビット演算の基本操作（覚えておくと応用が効く）</text>
+            <text x="46" y="300" fill="#fde68a">x &amp; 1        → 末尾ビット（奇数判定）　　　　x &gt;&gt; 1       → 2で割る（切り捨て）</text>
+            <text x="46" y="322" fill="#fde68a">x &amp; (x-1)    → ★ 最下位の1を消す　　　　　　x &amp; -x       → ★ 最下位の1だけ残す</text>
+            <text x="46" y="344" fill="#fde68a">x | (1&lt;&lt;i)   → i番目のビットを立てる　　　　x &amp; ^(1&lt;&lt;i)  → i番目のビットを落とす</text>
+            <text x="46" y="366" fill="#fde68a">x &amp; (1&lt;&lt;i)   → i番目のビットが立っているか　x ^ (1&lt;&lt;i)   → i番目のビットを反転</text>
+            <text x="46" y="392" fill="#4ade80">★ x &amp; (x-1) == 0 → 2のべき乗か判定（1が1個だけ）／ ビット数を数える別解: for x != 0 { x &amp;= x-1; cnt++ }</text>
+          </g>
+        </svg>
+        <p class="figcap">図13-1 2つの公式と基本操作。<span class="k">x &amp; (x-1)</span> は「2のべき乗判定」「ビット数カウント」の両方に使える。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="パターン①: Counting Bits (338) — 右シフトDP" data-tone="good"><script type="text/plain">
+func countBits(n int) []int {
+    ans := make([]int, n+1)
+    for i := 1; i <= n; i++ {
+@@+        ans[i] = ans[i>>1] + (i & 1)
+    }
+    return ans
+}
+// 計算量: O(n) 時間 / O(n) 空間（出力なので実質O(1)追加）
+
+// ★ 愚直解も書けるが、面接では O(n) を求められる
+//   愚直: 各iについてビットを数える → O(n log n)
+//   for i := 0; i <= n; i++ {
+//       for x := i; x > 0; x >>= 1 { ans[i] += x & 1 }
+//   }
+//
+// ★ もう1つのDP: ans[i] = ans[i & (i-1)] + 1
+//   「最下位の1を消した数」+1。こちらも O(n)
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="パターン②: Single Number (136) — XORキャンセル" data-tone="good"><script type="text/plain">
+func singleNumber(nums []int) int {
+    result := 0
+    for _, n := range nums {
+@@+        result ^= n
+    }
+    return result
+}
+// 計算量: O(n) 時間 / ★ O(1) 空間
+
+// ★ なぜ map による頻度カウントではダメか:
+//   問題文に「O(n)時間・O(1)空間で」という制約が付いている
+//   → map は O(n) 空間なので制約違反
+//   ★ この制約を見た瞬間に XOR を疑う
+
+// ★ 発展: Single Number II（3回ずつ出現し、1つだけ1回）
+//   XORでは解けない（3回だとキャンセルされない）
+//   → ビットごとに個数を数えて mod 3 する
+func singleNumberII(nums []int) int {
+    result := 0
+    for i := 0; i < 32; i++ {
+        count := 0
+        for _, n := range nums {
+            count += (n >> i) & 1
+        }
+@@+        if count%3 != 0 {
+            result |= 1 << i
+        }
+    }
+    return result
+}
+
+// ★ 発展: Missing Number (268) — XORで「あるべき集合」と比較
+func missingNumber(nums []int) int {
+    result := len(nums) // n を先に入れる
+    for i, v := range nums {
+        result ^= i ^ v // 0..n-1 と nums の全要素をXOR
+    }
+    return result
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">0〜nの各数の1ビット数を求めよ</b>」→ 右シフトDP一択</li>
+          <li>「<b class="text-slate-100">全要素が2回ずつ出現し、1つだけ1回</b>」→ XOR一択</li>
+          <li><b class="text-emerald-400">「O(n)時間・O(1)空間」の制約がついたら即ビット演算を疑う</b></li>
+          <li>「2のべき乗か」「ビット数」→ <span class="k">x &amp; (x-1)</span></li>
+          <li>「部分集合の全列挙」（n ≤ 20）→ ビット全探索（<span class="k">for mask := 0; mask &lt; 1&lt;&lt;n; mask++</span>）</li>
+          <li>実例問題: <b>Counting Bits (338), Single Number (136/137), Missing Number (268), Number of 1 Bits (191), Power of Two (231), Subsets (78)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch14" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">14</span> Greedy（貪欲法）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「今できるなら今やる」で最適解が得られる問題</b>。<b class="text-rose-400">テンプレートは自明。難しいのは「Greedyで正しいのか」の判断</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート（形は単純）" data-tone="good"><script type="text/plain">
+// 形1: 順番に見て、できるなら即やる
+count := 0
+for i := 0; i < len(arr); i++ {
+    if canDo(arr, i) {
+        doIt(arr, i)   // 即実行（後のことは考えない）
+        count++
+    }
+}
+
+// 形2: ソートしてから貪欲に選ぶ（こちらの方が多い）
+sort.Slice(items, func(i, j int) bool {
+@@+    return items[i].end < items[j].end // ★ 何でソートするかが解法の本質
+})
+lastEnd := math.MinInt
+count := 0
+for _, it := range items {
+    if it.start >= lastEnd {
+        count++
+        lastEnd = it.end
+    }
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ Greedy が成立する条件（最重要）</p>
+        <div class="kv">
+          <div class="kvi"><p>条件: 局所最適 = 全体最適</p><p><b class="text-slate-100">「今の時点で最善の選択が、最終的にも最善である」</b>ことが証明できる必要がある。<b class="text-rose-400">これが成立しない問題にGreedyを使うと、テストケースは通っても間違っている</b>。</p></div>
+          <div class="kvi"><p>成立する例: 区間スケジューリング</p><p>「終了時刻が最も早い会議を選ぶ」→ 残り時間が最大になるので、常に最善。<b class="text-emerald-400">交換論法で証明できる</b>（最適解の最初の会議を、終了が最早のものに置き換えても悪化しない）。</p></div>
+          <div class="kvi"><p class="text-rose-400">成立しない例: ナップサック問題</p><p>「価値/重量比が最大のものから詰める」→ 分割できないなら最適にならない。<b class="text-rose-400">DPが必要</b>。<b class="text-slate-100">「分割可能ならGreedy、不可能ならDP」が有名な境界</b>。</p></div>
+          <div class="kvi"><p>判断の実務的な手順</p><p>①小さな反例を探す（3〜4要素で試す）②見つからなければGreedyで進める ③面接では<b class="text-emerald-400">「この問題は交換論法でGreedyが最適だと示せます」あるいは「反例が見つからないのでGreedyを試します」と言う</b>。<b class="text-slate-300">黙って書くよりも、判断過程を説明する方が評価される</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Can Place Flowers (605)" data-tone="good"><script type="text/plain">
+func canPlaceFlowers(flowerbed []int, n int) bool {
+    count := 0
+    for i := 0; i < len(flowerbed); i++ {
+        if flowerbed[i] == 1 {
+            continue
+        }
+@@+        // 左右が空いているか（端は「空いている」扱い）
+        leftEmpty := i == 0 || flowerbed[i-1] == 0
+        rightEmpty := i == len(flowerbed)-1 || flowerbed[i+1] == 0
+        if leftEmpty && rightEmpty {
+@@+            flowerbed[i] = 1 // ★ 即植える（後のことは考えない）
+            count++
+            if count >= n {
+                return true // 早期リターン
+            }
+        }
+    }
+    return count >= n
+}
+
+// ★ なぜGreedyで正しいか:
+//   「植えられる最も左の位置に植える」ことで、右側に最大の余地が残る
+//   → 植えるのを遅らせて得することはない
+//   ★ この「遅らせて得することはない」が、Greedyの正しさの型
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="実例: Jump Game (55) — 「到達可能な最遠点」を持つ" data-tone="good"><script type="text/plain">
+func canJump(nums []int) bool {
+@@+    reach := 0 // ここまでは到達できる
+    for i, v := range nums {
+@@+        if i > reach {
+            return false // ★ 到達できない位置に来た
+        }
+        reach = max(reach, i+v)
+        if reach >= len(nums)-1 {
+            return true
+        }
+    }
+    return true
+}
+// 計算量: O(n) 時間 / O(1) 空間
+
+// ★ Greedyの発想: 「各位置からどこまで行けるか」ではなく
+//   「全体でどこまで到達可能か」という1つの値だけを持つ
+//   → DPの O(n²) が O(n) になる
+// ★ これが「Greedyでできるか」を考える価値がある理由
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">最大何個の〇〇を求めよ</b>」で、順番に判定できる</li>
+          <li>「<b class="text-slate-100">最小の回数で</b>」「<b class="text-slate-100">できるか判定せよ</b>」（到達可能性）</li>
+          <li>ソートしてから貪欲に選ぶ問題（区間・締切・コスト）</li>
+          <li><b class="text-amber-400">DPで書けるがO(n²)になる → Greedyで O(n) にできないか疑う</b></li>
+          <li>実例問題: <b>Can Place Flowers (605), Jump Game (55/45), Non-overlapping Intervals (435), Gas Station (134), Assign Cookies (455)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part5">
+      <p class="eyebrow">Part 5</p>
+      <h2>次に覚える5つ</h2>
+      <p class="sub">ここまでの14パターンで多くの Easy/Medium はカバーできる。<b class="text-emerald-400">次に投資すべきは Heap / Monotonic Stack / Backtracking / Union Find / DP</b> の5つ。<b class="text-slate-200">この5つを足すと Medium のカバー率が大きく上がる</b>。各章はテンプレートと判定シグナルに絞る。</p>
+    </div>
+
+    <section id="ch15" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">15</span> Heap / Priority Queue</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「上位k個」「k番目に大きい」「常に最小/最大を取り出す」</b>。<b class="text-slate-200">Goには <span class="k">container/heap</span> があるが、インターフェース実装が必要でボイラープレートが多い</b> — テンプレートとして丸暗記する。</p>
+
+      <div class="cb" data-lang="go" data-cap="Goのheapテンプレート（丸暗記推奨）" data-tone="good"><script type="text/plain">
+import "container/heap"
+
+// ★ 最小ヒープ（int）
+type IntHeap []int
+
+func (h IntHeap) Len() int            { return len(h) }
+@@+func (h IntHeap) Less(i, j int) bool  { return h[i] < h[j] } // ★ > にすると最大ヒープ
+func (h IntHeap) Swap(i, j int)       { h[i], h[j] = h[j], h[i] }
+func (h *IntHeap) Push(x any)         { *h = append(*h, x.(int)) }
+func (h *IntHeap) Pop() any {
+    old := *h
+    n := len(old)
+    x := old[n-1]
+    *h = old[:n-1]
+    return x
+}
+// ★ 注意: Push/Pop は ポインタレシーバ（スライスの長さが変わるため）
+//   Len/Less/Swap は 値レシーバでよい
+//   → go-language-basics.html ch4 の「レシーバの選択」がそのまま効く
+
+// 使い方
+h := &IntHeap{5, 2, 8}
+heap.Init(h)              // ★ 既存スライスをヒープ化（O(n)）
+heap.Push(h, 1)           // ★ heap.Push を使う（h.Push ではない）
+min := heap.Pop(h).(int)  // 最小値を取り出す
+
+// ★ Kth Largest Element (215): サイズkの最小ヒープを維持する
+func findKthLargest(nums []int, k int) int {
+    h := &IntHeap{}
+    heap.Init(h)
+    for _, v := range nums {
+        heap.Push(h, v)
+@@+        if h.Len() > k {
+@@+            heap.Pop(h) // ★ 最小を捨てる → 常に「上位k個」が残る
+        }
+    }
+    return (*h)[0] // ヒープの先頭 = k個の中の最小 = 全体のk番目に大きい
+}
+// 計算量: O(n log k)（全体ソートの O(n log n) より速い）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">上位k個</b>」「<b class="text-slate-100">k番目に大きい/小さい</b>」→ サイズkのヒープ（O(n log k)）</li>
+          <li>「<b class="text-slate-100">常に最小/最大を取り出して処理する</b>」→ Heap（Dijkstra・タスクスケジューリング）</li>
+          <li>「<b class="text-slate-100">中央値をストリームで求める</b>」→ 2つのヒープ（最大ヒープ + 最小ヒープ）</li>
+          <li>「マージするリストがk個ある」→ Heapでk-way merge</li>
+          <li><b class="text-amber-400">全体をソートする必要がないのに sort している</b> → Heapで速くなる可能性</li>
+          <li>実例問題: <b>Kth Largest Element (215), Top K Frequent Elements (347), Merge k Sorted Lists (23), Find Median from Data Stream (295), K Closest Points (973)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch16" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">16</span> Monotonic Stack</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「次に大きい要素」「直近の小さい要素」「ヒストグラムの最大長方形」</b>。<b class="text-slate-200">発想は「自分より小さい過去の値は、もう答えになれないので捨てる」</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 300" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="300" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">Next Greater Element — スタックを単調減少に保つ</text>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="62" fill="#7dd3fc">nums = [2, 1, 5, 3]  各要素の「右側で最初に自分より大きい値」を求める</text>
+
+            <text x="40" y="94" fill="#94a3b8">i=0 (2)</text>
+            <text x="150" y="94" fill="#e2e8f0">stack=[] → push → stack=[2]</text>
+            <text x="40" y="118" fill="#94a3b8">i=1 (1)</text>
+            <text x="150" y="118" fill="#e2e8f0">1 &lt; 2 なので pop せず → push → stack=[2, 1]</text>
+            <text x="470" y="118" fill="#94a3b8" font-size="9.5">（単調減少を保っている）</text>
+            <text x="40" y="142" fill="#94a3b8">i=2 (5)</text>
+            <text x="150" y="142" fill="#4ade80">5 &gt; 1 → pop(1)、ans[1]=5</text>
+            <text x="150" y="160" fill="#4ade80">5 &gt; 2 → pop(2)、ans[0]=5 → push → stack=[5]</text>
+            <text x="40" y="184" fill="#94a3b8">i=3 (3)</text>
+            <text x="150" y="184" fill="#e2e8f0">3 &lt; 5 → push → stack=[5, 3]</text>
+            <text x="40" y="212" fill="#fbbf24">終了</text>
+            <text x="150" y="212" fill="#fde68a">stack に残った 5, 3 は「右に大きい値がない」→ ans = -1</text>
+            <text x="150" y="234" fill="#4ade80">結果: ans = [5, 5, -1, -1]</text>
+
+            <rect x="30" y="252" width="980" height="40" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="46" y="276" fill="#bbf7d0">★ 各要素は「1回push、最大1回pop」しかされない → 全体で O(n)。2重ループに見えるが線形</text>
+          </g>
+        </svg>
+        <p class="figcap">図16-1 Monotonic Stack。「もう答えになれないものを捨てる」ので、各要素は最大1回popされる。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート: Next Greater Element" data-tone="good"><script type="text/plain">
+func nextGreaterElements(nums []int) []int {
+    n := len(nums)
+    ans := make([]int, n)
+    for i := range ans {
+        ans[i] = -1 // 見つからない場合のデフォルト
+    }
+@@+    stack := []int{} // ★ インデックスを保持する（値ではない）
+
+    for i, v := range nums {
+@@+        // 自分より小さい要素を全部popし、その答えを自分にする
+@@+        for len(stack) > 0 && nums[stack[len(stack)-1]] < v {
+            top := stack[len(stack)-1]
+            stack = stack[:len(stack)-1]
+            ans[top] = v
+        }
+        stack = append(stack, i)
+    }
+    return ans
+}
+// 計算量: O(n) 時間 / O(n) 空間
+
+// ★ バリエーション（不等号と方向を変えるだけ）:
+//   次に大きい要素   → 左から / stack内は減少 / pop条件 nums[top] < v
+//   次に小さい要素   → 左から / stack内は増加 / pop条件 nums[top] > v
+//   前の大きい要素   → 右から走査（または stack に残ったものを見る）
+// ★ 「stack内が単調になるように保つ」が共通の骨格
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">次に大きい/小さい要素</b>」「<b class="text-slate-100">何日後に暖かくなるか</b>」</li>
+          <li>「<b class="text-slate-100">ヒストグラムの最大長方形</b>」「<b class="text-slate-100">雨水を貯める</b>」（両側の壁を探す）</li>
+          <li><b class="text-amber-400">「各要素について、条件を満たす最も近い要素」を O(n²) で探そうとしたとき</b></li>
+          <li>実例問題: <b>Daily Temperatures (739), Next Greater Element I/II (496/503), Largest Rectangle in Histogram (84), Trapping Rain Water (42), Remove K Digits (402)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch17" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">17</span> Backtracking</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「全組み合わせ」「全順列」「条件を満たす全パターン」</b>。骨格は<b class="text-slate-200">「選ぶ → 進む → 戻す」の3行</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート（この形を覚える）" data-tone="good"><script type="text/plain">
+func backtrackTemplate(nums []int) [][]int {
+    var result [][]int
+    var path []int
+
+    var backtrack func(start int)
+    backtrack = func(start int) {
+        // ① 記録（条件を満たしたら結果に追加）
+@@+        result = append(result, append([]int{}, path...)) // ★ 必ずコピーする
+
+        for i := start; i < len(nums); i++ {
+            // ② 枝刈り（重複スキップ・条件チェック）
+            if i > start && nums[i] == nums[i-1] {
+                continue // ソート済み前提での重複スキップ
+            }
+@@+            path = append(path, nums[i])   // ③ 選ぶ
+@@+            backtrack(i + 1)               // ④ 進む
+@@+            path = path[:len(path)-1]      // ⑤ 戻す（backtrack）
+        }
+    }
+    sort.Ints(nums) // 重複スキップをするならソートが前提
+    backtrack(0)
+    return result
+}
+
+// ★ 3つのバリエーション（何を変えるか）:
+//   部分集合（Subsets 78）      : backtrack(i+1)、全ノードで記録
+//   組み合わせ（Combinations 77）: backtrack(i+1)、サイズk のときだけ記録
+//   順列（Permutations 46）     : backtrack(0) + used[] 配列で使用済みを管理
+//
+// ★ 最大の落とし穴（再掲）:
+//   result = append(result, path)  ← ✗ 同じ配列を指すので、後で全部書き換わる
+//   result = append(result, append([]int{}, path...))  ← ✓
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="順列（Permutations 46）— used配列を使う形" data-tone="good"><script type="text/plain">
+func permute(nums []int) [][]int {
+    var result [][]int
+    var path []int
+@@+    used := make([]bool, len(nums))
+
+    var backtrack func()
+    backtrack = func() {
+        if len(path) == len(nums) {
+            result = append(result, append([]int{}, path...))
+            return
+        }
+@@+        for i := 0; i < len(nums); i++ {  // ★ 順列は毎回0から
+            if used[i] {
+                continue
+            }
+            used[i] = true
+            path = append(path, nums[i])
+            backtrack()
+            path = path[:len(path)-1]
+            used[i] = false                // ★ used も戻す
+        }
+    }
+    backtrack()
+    return result
+}
+// 計算量: O(n! × n)
+
+// ★ 組み合わせ（start を進める）と順列（0から + used）の違いを押さえる:
+//   組み合わせ: [1,2] と [2,1] は同じ → start で「後ろだけ見る」
+//   順列      : [1,2] と [2,1] は別   → 毎回全部見る + used で重複を防ぐ
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">全ての組み合わせ/順列を列挙せよ</b>」「<b class="text-slate-100">条件を満たす全パターン</b>」</li>
+          <li>「<b class="text-slate-100">n ≤ 10〜20</b>」という小さい制約（指数時間が許される）</li>
+          <li>数独・N Queens・迷路の全経路</li>
+          <li><b class="text-amber-400">「何通りあるか（個数だけ）」ならDPの方が速い</b>（列挙が不要なら列挙しない）</li>
+          <li>実例問題: <b>Subsets (78/90), Permutations (46/47), Combination Sum (39/40), Word Search (79), N-Queens (51), Letter Combinations of a Phone Number (17)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch18" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">18</span> Union Find（素集合データ構造）</h2>
+      <p class="lede">使う場面: <b class="text-emerald-400">「グループが同じか」「連結されているか」を、辺が動的に追加される中で問われる</b>。<b class="text-slate-200">DFS/BFSは「その時点のグラフ全体」を走査するが、Union Findは「繋がりを incrementally に管理」する</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="テンプレート（経路圧縮 + union by size）" data-tone="good"><script type="text/plain">
+type UnionFind struct {
+    parent []int
+    size   []int
+    count  int // 連結成分の数
+}
+
+func NewUnionFind(n int) *UnionFind {
+    p := make([]int, n)
+    s := make([]int, n)
+    for i := range p {
+        p[i] = i  // 最初は全員が自分自身の親
+        s[i] = 1
+    }
+    return &UnionFind{parent: p, size: s, count: n}
+}
+
+// Find は代表元（root）を返す。経路圧縮つき
+func (u *UnionFind) Find(x int) int {
+    for u.parent[x] != x {
+@@+        u.parent[x] = u.parent[u.parent[x]] // ★ 経路圧縮（半分ずつ縮める）
+        x = u.parent[x]
+    }
+    return x
+}
+
+// Union は2つを繋ぐ。すでに繋がっていれば false
+func (u *UnionFind) Union(a, b int) bool {
+    ra, rb := u.Find(a), u.Find(b)
+    if ra == rb {
+        return false // ★ すでに同じグループ = 閉路の検出に使える
+    }
+@@+    if u.size[ra] < u.size[rb] { // ★ 小さい木を大きい木にぶら下げる
+        ra, rb = rb, ra
+    }
+    u.parent[rb] = ra
+    u.size[ra] += u.size[rb]
+    u.count--
+    return true
+}
+
+func (u *UnionFind) Connected(a, b int) bool { return u.Find(a) == u.Find(b) }
+func (u *UnionFind) Count() int              { return u.count }
+
+// 計算量: ほぼ O(1)（正確には逆アッカーマン関数 α(n)。実用上は定数）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">2つが繋がっているか</b>」を何度も問われる（動的に辺が増える）</li>
+          <li>「<b class="text-slate-100">連結成分の数</b>」を求める（DFSでも解けるが、Union Findの方が簡潔なことがある）</li>
+          <li>「<b class="text-slate-100">閉路があるか</b>」の判定（<span class="k">Union</span> が false を返したら閉路）</li>
+          <li>最小全域木（Kruskal法）</li>
+          <li>実例問題: <b>Number of Provinces (547), Redundant Connection (684), Accounts Merge (721), Number of Islands II (305), Graph Valid Tree (261)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch19" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">19</span> DP（動的計画法）</h2>
+      <p class="lede">最後にして最大の山。<b class="text-emerald-400">DPは「同じ部分問題を繰り返し解くのをやめる」ための道具</b>。<b class="text-slate-200">3ステップ（状態定義 → 遷移式 → 初期値）を書き出せば、コードは自動的に決まる</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">DPの3ステップ — 考える順序を固定する</text>
+          <defs><marker id="lc19" markerWidth="10" markerHeight="10" refX="4" refY="9" orient="auto"><path d="M0,0 L8,0 L4,10 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="150" y="50" width="740" height="86" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="166" y="74" fill="#bae6fd" font-size="12" font-weight="bold">Step 1: 状態を定義する（最も重要・ここで9割決まる）</text>
+            <text x="166" y="98" fill="#e0f2fe">「dp[i] は 〜 を表す」を日本語で1文書く</text>
+            <text x="166" y="120" fill="#7dd3fc">例: dp[i] = 「i段目まで登る方法の数」 / dp[i][j] = 「s[0..i] と t[0..j] の編集距離」</text>
+            <line x1="520" y1="138" x2="520" y2="152" stroke="#4ade80" stroke-width="2" marker-end="url(#lc19)"/>
+
+            <rect x="150" y="154" width="740" height="86" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="166" y="178" fill="#dcfce7" font-size="12" font-weight="bold">Step 2: 遷移式を書く</text>
+            <text x="166" y="202" fill="#bbf7d0">「dp[i] を、より小さい添字の dp から作る式」</text>
+            <text x="166" y="224" fill="#86efac">例: dp[i] = dp[i-1] + dp[i-2]（階段） / dp[i] = max(dp[i-1], dp[i-2] + nums[i])（家を盗む）</text>
+            <line x1="520" y1="242" x2="520" y2="256" stroke="#4ade80" stroke-width="2" marker-end="url(#lc19)"/>
+
+            <rect x="150" y="258" width="740" height="86" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="166" y="282" fill="#fef3c7" font-size="12" font-weight="bold">Step 3: 初期値と順序を決める</text>
+            <text x="166" y="306" fill="#fde68a">「dp[0] は何か」「どの順で埋めるか（小さい方から）」</text>
+            <text x="166" y="328" fill="#fcd34d">例: dp[0]=1, dp[1]=1 / 2次元なら i の外ループ、j の内ループ</text>
+
+            <text x="520" y="370" fill="#4ade80" font-size="11.5" text-anchor="middle">★ この3つが書ければ、コードは機械的に書ける。逆に「コードから考える」と必ず詰まる</text>
+            <text x="520" y="390" fill="#86efac" font-size="10.5" text-anchor="middle">★ 面接では Step 1 を声に出して言う。それだけで「DPだと分かっている」ことが伝わる</text>
+          </g>
+        </svg>
+        <p class="figcap">図19-1 DPの3ステップ。「状態定義」を日本語で1文書けるかが分岐点。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="1次元DP: Climbing Stairs (70) / House Robber (198)" data-tone="good"><script type="text/plain">
+// ---- Climbing Stairs: n段の階段を1段or2段で登る方法の数 ----
+// Step 1: dp[i] = 「i段目に到達する方法の数」
+// Step 2: dp[i] = dp[i-1] + dp[i-2]（最後の1歩が1段か2段か）
+// Step 3: dp[0] = 1, dp[1] = 1
+func climbStairs(n int) int {
+    if n <= 1 {
+        return 1
+    }
+@@+    prev2, prev1 := 1, 1 // ★ 配列を持たず2変数で済む（空間 O(1)）
+    for i := 2; i <= n; i++ {
+        prev2, prev1 = prev1, prev1+prev2
+    }
+    return prev1
+}
+
+// ---- House Robber: 隣接する家は盗めない。最大金額 ----
+// Step 1: dp[i] = 「i番目までで盗める最大金額」
+// Step 2: dp[i] = max(dp[i-1],           ← i を盗まない
+//                     dp[i-2] + nums[i])  ← i を盗む
+// Step 3: dp[0] = nums[0]
+func rob(nums []int) int {
+    prev2, prev1 := 0, 0
+    for _, v := range nums {
+@@+        prev2, prev1 = prev1, max(prev1, prev2+v)
+    }
+    return prev1
+}
+// ★ 「配列を持たず2変数で回す」のは1次元DPの定番の最適化
+//   面接では「まず配列で書いて、その後O(1)空間に落とせます」と言うと良い
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="2次元DP: Longest Common Subsequence (1143)" data-tone="good"><script type="text/plain">
+// Step 1: dp[i][j] = 「a[0..i-1] と b[0..j-1] の最長共通部分列の長さ」
+// Step 2: a[i-1] == b[j-1] なら dp[i][j] = dp[i-1][j-1] + 1
+//         違うなら          dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+// Step 3: dp[0][*] = dp[*][0] = 0（空文字列との共通部分列は0）
+func longestCommonSubsequence(a string, b string) int {
+    m, n := len(a), len(b)
+@@+    dp := make([][]int, m+1) // ★ +1 して「空文字列」の行/列を作ると境界処理が消える
+    for i := range dp {
+        dp[i] = make([]int, n+1)
+    }
+
+    for i := 1; i <= m; i++ {
+        for j := 1; j <= n; j++ {
+            if a[i-1] == b[j-1] {
+                dp[i][j] = dp[i-1][j-1] + 1
+            } else {
+                dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+            }
+        }
+    }
+    return dp[m][n]
+}
+// 計算量: O(m×n) 時間・空間（空間は1行だけ持てば O(n) に落とせる）
+
+// ★ 2次元DPの定型:
+//   ・サイズを +1 にして「空」の行/列を用意する（初期化が楽になる）
+//   ・a[i-1] のように「-1」でアクセスする（dpのindexと文字列のindexが1ズレる）
+//   ★ このズレが2次元DPで最も間違えやすい箇所
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">判定シグナルまとめ</p>
+        <ul>
+          <li>「<b class="text-slate-100">何通りあるか</b>」「<b class="text-slate-100">最大/最小の合計</b>」+ 選択の連続</li>
+          <li>「<b class="text-slate-100">部分列（subsequence）</b>」（連続でない）→ DP（連続なら Sliding Window）</li>
+          <li><b class="text-slate-100">再帰で書いたら同じ引数で何度も呼ばれる</b>（重複部分問題）→ メモ化 or ボトムアップDP</li>
+          <li>Greedyで反例が見つかった → DP</li>
+          <li><b class="text-amber-400">n ≤ 5000 で O(n²) が許される制約</b> → 2次元DPの可能性</li>
+          <li>実例問題: <b>Climbing Stairs (70), House Robber (198), Coin Change (322), Longest Increasing Subsequence (300), Longest Common Subsequence (1143), Edit Distance (72), 0-1 Knapsack, Unique Paths (62)</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="cheat" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">付</span> 計算量 / Goのイディオム / 誤り集</h2>
+
+      <div class="step note">
+        <p class="step-h">計算量チートシート</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>操作</th><th>計算量</th><th>備考</th></tr></thead>
+            <tbody>
+              <tr><td>配列のインデックスアクセス</td><td class="good">O(1)</td><td>—</td></tr>
+              <tr><td><span class="k">append</span>（容量に余裕あり）</td><td class="good">O(1)</td><td>容量不足なら O(n) だが償却 O(1)</td></tr>
+              <tr><td><span class="k">queue = queue[1:]</span></td><td class="good">O(1)</td><td class="warn">元の配列が解放されない点に注意</td></tr>
+              <tr><td>map の読み書き</td><td class="good">O(1) 平均</td><td>ハッシュ計算のコストは定数倍で効く</td></tr>
+              <tr><td><span class="k">sort.Ints</span> / <span class="k">sort.Slice</span></td><td>O(n log n)</td><td>pdqsort（Go 1.19+）</td></tr>
+              <tr><td>Binary Search</td><td class="good">O(log n)</td><td>ソート済み前提</td></tr>
+              <tr><td>Heap の Push/Pop</td><td>O(log n)</td><td>Init は O(n)</td></tr>
+              <tr><td>BFS / DFS</td><td>O(V + E)</td><td>グリッドなら O(行×列)</td></tr>
+              <tr><td>Union Find（圧縮あり）</td><td class="good">ほぼ O(1)</td><td>逆アッカーマン α(n)</td></tr>
+              <tr><td>Two Pointers / Sliding Window</td><td class="good">O(n)</td><td>2重ループに見えてもポインタは戻らない</td></tr>
+              <tr><td>Backtracking（部分集合）</td><td class="bad">O(2ⁿ × n)</td><td>n ≤ 20</td></tr>
+              <tr><td>Backtracking（順列）</td><td class="bad">O(n! × n)</td><td>n ≤ 10</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="LeetCodeで使うGoのイディオム" data-tone="good"><script type="text/plain">
+// ===== max / min（Go 1.21+ は組み込み。それ以前は自作）=====
+// Go 1.21+:
+x := max(a, b)
+y := min(a, b, c)  // 可変長でもOK
+// Go 1.20以前:
+func max(a, b int) int { if a > b { return a }; return b }
+
+// ===== 2次元スライスの初期化（1行ではできない）=====
+dp := make([][]int, m)
+for i := range dp {
+@@+    dp[i] = make([]int, n)  // ★ 各行を個別にmakeする必要がある
+}
+// ★ dp := make([][]int, m, n) は間違い（第3引数は容量、行の初期化はされない）
+
+// ===== 文字列の操作 =====
+b := []byte(s)          // 書き換えたいとき（stringはimmutable）
+r := []rune(s)          // マルチバイト文字を1文字ずつ扱うとき
+s[i]                    // byte（ASCII前提ならこれで十分）
+s[i] - 'a'              // 0-25のインデックスに変換
+string(b)               // []byte → string
+strings.Builder         // ループで文字列連結するとき（+= は O(n²)）
+
+// ===== ソート =====
+sort.Ints(nums)
+sort.Strings(strs)
+sort.Slice(items, func(i, j int) bool { return items[i].end < items[j].end })
+sort.SliceStable(...)   // 同値の順序を保つ必要があるとき
+
+// ===== 数値の限界値 =====
+math.MaxInt   // Go 1.17+
+math.MinInt
+math.MaxInt32 // 32bit前提の問題で使う
+
+// ===== 切り上げ除算（頻出）=====
+ceil := (a + b - 1) / b   // ★ float変換より安全（誤差がない）
+
+// ===== 絶対値（intにはmath.Absがない）=====
+func abs(x int) int { if x < 0 { return -x }; return x }
+
+// ===== スライスのコピー（Backtrackingで必須）=====
+copied := append([]int{}, path...)
+// または Go 1.21+: copied := slices.Clone(path)
+
+// ===== 再帰クロージャ =====
+@@+var dfs func(node int) int   // ★ 先に宣言する（:= では自己参照できない）
+dfs = func(node int) int { ... dfs(child) ... }
+</script></div>
+
+      <div class="step rev">
+        <p class="step-h">よくある誤り集（パターン横断）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>誤り</th><th>症状</th><th>正しい形</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Two Pointers 型1(b) でソートしていない</td><td class="bad">一部のテストだけ通る</td><td><span class="k">sort.Ints(nums)</span> を先に</td></tr>
+              <tr><td>2</td><td>両方のポインタを同時に動かす</td><td class="bad">ペアを取りこぼす</td><td>片側だけ動かす</td></tr>
+              <tr><td>3</td><td>Sliding Window で記録の位置を間違える</td><td class="bad">答えが1つズレる</td><td>最長は縮めた後、最短は縮める前</td></tr>
+              <tr><td>4</td><td>Binary Search で <span class="k">hi = mid</span> と <span class="k">lo &lt;= hi</span> を混ぜる</td><td class="bad">無限ループ</td><td>閉区間 + <span class="k">mid±1</span> で統一</td></tr>
+              <tr><td>5</td><td>BFS で pop 時に visited をマーク</td><td class="bad">queueが膨らむ / TLE</td><td>push 時にマークする</td></tr>
+              <tr><td>6</td><td>木DFSでベースケースを書かない</td><td class="bad">nil参照でpanic</td><td><span class="k">if root == nil { return }</span> を最初に</td></tr>
+              <tr><td>7</td><td>木問題にグラフDFS（visited / graph[node]）を使う</td><td class="bad">コンパイルエラー</td><td><span class="k">root.Left / root.Right</span> を再帰</td></tr>
+              <tr><td>8</td><td>Backtracking で path をコピーせず append</td><td class="bad">全部同じ内容になる</td><td><span class="k">append([]int{}, path...)</span></td></tr>
+              <tr><td>9</td><td>Linked List に配列のテンプレートを使う</td><td class="bad">コンパイルエラー</td><td>prev/curr/next の3変数</td></tr>
+              <tr><td>10</td><td>Linked List の反転で next を保存しない</td><td class="bad">リストが切れる</td><td><span class="k">next := curr.Next</span> を最初に</td></tr>
+              <tr><td>11</td><td>Two Sum で「先に自分を入れて後で探す」</td><td class="bad">自分自身とペアを作る</td><td>先に探して、後で入れる</td></tr>
+              <tr><td>12</td><td>2次元スライスを <span class="k">make([][]int, m, n)</span></td><td class="bad">nil行でpanic</td><td>ループで各行を make</td></tr>
+              <tr><td>13</td><td><span class="k">=</span> と <span class="k">==</span> の混同</td><td class="bad">コンパイルエラー</td><td>比較は <span class="k">==</span></td></tr>
+              <tr><td>14</td><td>ループ内で <span class="k">:=</span> して新変数を作る</td><td class="bad">変更が反映されない</td><td>既存変数への代入は <span class="k">=</span></td></tr>
+              <tr><td>15</td><td>空配列・1要素のケースを確認しない</td><td class="bad">index out of range</td><td>最初に長さをチェック</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">1画面チートシート（判定シグナル早見表）</p>
+        <div class="cb" data-lang="text" data-cap="問題文のキーワード → パターン"><script type="text/plain">
+「ソート済み」+「2値の和」      → Two Pointers 型1(b) / HashMap
+「回文」「両端から」            → Two Pointers 型1(a)
+「前に集める」「in-place除去」   → Two Pointers 型2（fast/slow）
+「部分列（subsequence）か」      → Two Pointers 型3 / DP
+「連続する部分」+「最大/最小」   → Sliding Window
+「自分以外の積」+「除算禁止」    → Prefix / Suffix
+「区間の和を何度も」            → Prefix Sum
+「ソート済み」+「探せ」          → Binary Search
+「最小の最大値」                → 答えで二分探索
+「最短経路」「最少ステップ」      → BFS（一択）
+「木の深さ」「全ノード訪問」      → 木DFS（再帰）
+「BSTで探す」                  → BST Search（順序で枝刈り・visited不要）
+「k番目に小さい（BST）」        → 中順巡回
+「出現回数」「アナグラム」        → HashMap
+「直近N件/Nms」                → Queue
+ListNode が出てきた             → Linked List（配列テンプレは使えない）
+「1ビット数」「1つだけ1回」      → Bit（右シフトDP / XOR）
+「O(1)空間」の制約              → Two Pointers / XOR / in-place
+「最大何個置けるか」            → Greedy
+「上位k個」「k番目に大きい」      → Heap
+「次に大きい要素」              → Monotonic Stack
+「全組み合わせ/全順列」          → Backtracking（n ≤ 20）
+「繋がっているか（動的）」        → Union Find
+「何通り」「最大/最小の合計」     → DP
+
+=== 制約から逆算 ===
+n ≤ 10  → O(n!)   Backtracking（順列）
+n ≤ 20  → O(2ⁿ)   Backtracking（部分集合）/ ビット全探索
+n ≤ 500 → O(n³)
+n ≤ 5000 → O(n²)  2次元DP
+n ≤ 10⁶ → O(n log n) ソート / Binary Search / Heap
+n ≤ 10⁸ → O(n)    Two Pointers / HashMap / Sliding Window
+</script></div>
+      </div>
+
+      <div class="step goog">
+        <p class="step-h">学習の進め方（実務的な提案）</p>
+        <ol>
+          <li><b class="text-lime-300">1問を3回書く &gt; 3問を1回ずつ解く</b> — テンプレートは反復でしか定着しない</li>
+          <li><b class="text-lime-300">解いた後に必ず「何がシグナルだったか」を1行書く</b> — これが判定力の訓練そのもの。<b class="text-slate-100">この教材の判定表に自分で追記していく</b></li>
+          <li><b class="text-lime-300">解けなかった問題は、答えを見た後に「翌日もう1回自力で書く」</b> — 見て理解した気になるのが最大の罠</li>
+          <li><b class="text-lime-300">計算量を必ず口に出す</b> — 面接では「動く」だけでは不十分。O(n) と言えることが評価される</li>
+          <li><b class="text-lime-300">エッジケースを自分から挙げる</b> — 空配列 / 1要素 / 全部同じ / 負の数 / 最大値</li>
+          <li><b class="text-lime-300">Part 5 の5パターン（Heap/Monotonic Stack/Backtracking/Union Find/DP）に投資する</b> — Mediumのカバー率が最も上がる</li>
+        </ol>
+      </div>
+
+      <div class="step zoom">
+        <p class="step-h">関連ノート</p>
+        <ul>
+          <li><b>04_thinking/leetcode-strategy.md</b> — 学習戦略・ペース配分</li>
+          <li><b>go-language-basics.html</b> — <b class="text-sky-400">スライスの浅いコピー（ch1）・レシーバの選択（ch4）・nil map（ch11）</b>は、そのままアルゴリズム実装のバグ源になる</li>
+          <li><b>database-system-design-ddia.html</b> — B-Tree / LSM-Tree。「実務でのBinary Searchとheap」がどう使われているか</li>
+          <li><b>software-design-micro.html</b> — アルゴリズムとは別の「設計」の話。面接では両方問われる</li>
+        </ul>
+      </div>
+    </section>
+    <footer class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono leading-relaxed">
+      図解アルゴリズムパターン — 問題を見た瞬間にパターン判定する<br>
+      Part 0: 判定表（キーワード → パターン / 制約から逆算）<br>
+      Part 1: 配列・文字列（Two Pointers 3型 / Sliding Window 4テンプレート / Prefix・Suffix）<br>
+      Part 2: 探索（Binary Search 2種 / BFS / DFS 3パターン / BST Search）<br>
+      Part 3: データ構造（HashMap / Queue・Monotonic Deque / Linked List 3パターン）<br>
+      Part 4: 数値・選択（Bit Manipulation 2公式 / Greedy の成立条件）<br>
+      Part 5: 次に覚える5つ（Heap / Monotonic Stack / Backtracking / Union Find / DP）<br>
+      付録: 計算量チートシート / Goのイディオム / よくある誤り15 / 判定シグナル早見表<br>
+      <span class="text-slate-600">関連ノート: go-language-basics.html（スライスの浅いコピー・レシーバ・nil map） / 04_thinking/leetcode-strategy.md（学習戦略）</span>
+    </footer>
+
+  </main>
+</div>
+<button id="topBtn" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-500 text-slate-950 w-12 h-12 shadow-lg font-bold text-lg z-40" aria-label="先頭へ戻る">↑</button>
+
+<script>
+/* =========================================================
+   1. コードブロックのシンタックスハイライト（自前・依存なし）
+   div.cb[data-lang][data-cap][data-tone] の中に置いた
+   script[type=text/plain] のテキストを読み、色付けした pre に差し替える。
+   行頭の @@- / @@+ / @@! / @@* で行単位の強調を付ける。
+   ========================================================= */
+(function () {
+  const LANGS = {
+    go: {
+      kw: ['func','if','else','for','range','return','var','const','type','struct','interface',
+           'map','chan','go','defer','select','switch','case','default','break','continue',
+           'fallthrough','package','import','goto'],
+      cn: ['nil','true','false','iota'],
+      ty: ['string','int','int8','int16','int32','int64','uint','uint8','uint16','uint32','uint64',
+           'float32','float64','bool','byte','rune','error','any','uintptr','complex64','complex128'],
+      lineComment: '//'
+    },
+    sql: {
+      kw: ['SELECT','FROM','WHERE','UPDATE','SET','INSERT','INTO','VALUES','DELETE','JOIN','LEFT',
+           'RIGHT','INNER','OUTER','ON','AND','OR','NOT','NULL','ORDER','BY','GROUP','HAVING','LIMIT',
+           'OFFSET','BEGIN','COMMIT','ROLLBACK','CREATE','TABLE','INDEX','UNIQUE','PRIMARY','KEY',
+           'FOR','SHARE','LOCK','IN','AS','WITH','RETURNING','CASE','WHEN','THEN','END','EXISTS','ASC','DESC'],
+      cn: ['TRUE','FALSE'],
+      ty: ['INT','BIGINT','VARCHAR','TEXT','DATE','DATETIME','TIMESTAMP','DECIMAL','BOOLEAN'],
+      lineComment: '--',
+      upper: true
+    },
+    ts: {
+      kw: ['const','let','var','function','return','if','else','for','while','do','switch','case',
+           'default','break','continue','new','class','extends','import','export','from','as','async',
+           'await','try','catch','finally','throw','typeof','instanceof','in','of','delete','void',
+           'yield','interface','type','enum','implements','public','private','protected','readonly',
+           'static','abstract','declare','namespace','satisfies','keyof','infer','is','asserts','get','set'],
+      cn: ['null','undefined','true','false','this','super','NaN','Infinity'],
+      ty: ['string','number','boolean','any','unknown','never','void','object','symbol','bigint',
+           'Array','Promise','Record','Partial','Pick','Omit','Readonly','Map','Set','Date','JSON','Math'],
+      lineComment: '//'
+    },
+    json: { kw: [], cn: ['true','false','null'], ty: [], lineComment: '//' },
+    bash: { kw: ['if','then','fi','for','do','done','export','echo','cd','function'], cn: [], ty: [], lineComment: '#' },
+    text: { kw: [], cn: [], ty: [], lineComment: '#' }
+  };
+  LANGS.tsx = LANGS.ts; LANGS.js = LANGS.ts; LANGS.jsx = LANGS.ts;
+  LANGS.yaml = LANGS.text; LANGS.yml = LANGS.text; LANGS.sh = LANGS.bash;
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function highlightLine(line, spec) {
+    // トークン: 行コメント / 文字列 / 数値 / 識別子 / 記号
+    const cm = spec.lineComment === '--' ? '--' : (spec.lineComment === '#' ? '#' : '\\/\\/');
+    const re = new RegExp(
+      '(' + cm + '.*$)' +                                      // 1 comment
+      '|("(?:\\\\.|[^"\\\\])*"|`[^`]*`|\'(?:\\\\.|[^\'\\\\])*\')' + // 2 string
+      '|(\\b0[xX][0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?\\b)' +   // 3 number
+      '|([A-Za-z_][A-Za-z0-9_]*)' +                            // 4 ident
+      '|([{}()\\[\\].,;:=+\\-*/%<>!&|^~?]+)',                   // 5 punct
+      'g'
+    );
+    let out = '', last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) out += esc(line.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) { out += '<span class="t-cm">' + esc(m[1]) + '</span>'; }
+      else if (m[2]) { out += '<span class="t-st">' + esc(m[2]) + '</span>'; }
+      else if (m[3]) { out += '<span class="t-nu">' + esc(m[3]) + '</span>'; }
+      else if (m[4]) {
+        const w = m[4];
+        const key = spec.upper ? w.toUpperCase() : w;
+        const next = line.slice(last).match(/^\s*\(/);
+        if (spec.kwSet.has(key)) out += '<span class="t-kw">' + esc(w) + '</span>';
+        else if (spec.cnSet.has(key)) out += '<span class="t-cn">' + esc(w) + '</span>';
+        else if (spec.tySet.has(key)) out += '<span class="t-ty">' + esc(w) + '</span>';
+        else if (next) out += '<span class="t-fn">' + esc(w) + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="t-id">' + esc(w) + '</span>';
+        else out += esc(w);
+      }
+      else { out += '<span class="t-pn">' + esc(m[5]) + '</span>'; }
+    }
+    if (last < line.length) out += esc(line.slice(last));
+    return out;
+  }
+
+  function render(block) {
+    const src = block.querySelector('script[type="text/plain"]');
+    if (!src) return;
+    const lang = (block.dataset.lang || 'go').toLowerCase();
+    const spec = Object.assign({}, LANGS[lang] || LANGS.text);
+    spec.kwSet = new Set(spec.kw); spec.cnSet = new Set(spec.cn); spec.tySet = new Set(spec.ty);
+
+    const raw = src.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    const html = raw.split('\n').map((line) => {
+      let cls = '';
+      const mk = line.slice(0, 3);
+      if (mk === '@@-') { cls = 'ln-bad'; line = line.slice(3); }
+      else if (mk === '@@+') { cls = 'ln-good'; line = line.slice(3); }
+      else if (mk === '@@!') { cls = 'ln-warn'; line = line.slice(3); }
+      else if (mk === '@@*') { cls = 'ln-focus'; line = line.slice(3); }
+      const body = lang === 'text' ? highlightLine(line, spec) : highlightLine(line, spec);
+      return '<span class="ln ' + cls + '">' + (body || '&nbsp;') + '</span>';
+    }).join('\n');
+
+    const bar = document.createElement('div');
+    bar.className = 'cb-bar';
+    const cap = block.dataset.cap ? '<span class="cb-cap">' + esc(block.dataset.cap) + '</span>' : '';
+    bar.innerHTML = '<span class="cb-lang">' + esc(lang) + '</span>' + cap;
+    const copy = document.createElement('button');
+    copy.textContent = 'copy';
+    copy.style.cssText = 'margin-left:auto;color:#64748b;border:1px solid #334155;border-radius:5px;padding:1px 7px;font-size:10px;cursor:pointer;background:transparent';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(raw.replace(/^@@[-+!*]/gm, '')).then(() => {
+        copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1200);
+      });
+    });
+    bar.appendChild(copy);
+
+    const pre = document.createElement('pre');
+    pre.innerHTML = html;
+    block.insertBefore(pre, src);
+    block.insertBefore(bar, pre);
+    src.remove();
+  }
+
+  document.querySelectorAll('.cb').forEach(render);
+})();
+
+/* =========================================================
+   2. 目次・スクロール連動・トップへ戻る
+   ========================================================= */
+(function () {
+  const toc = document.getElementById('toc');
+  const btn = document.getElementById('tocBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('hidden');
+      toc.classList.toggle('block');
+    });
+  }
+  const links = [...document.querySelectorAll('#tocNav a')];
+  links.forEach((a) => {
+    a.addEventListener('click', () => {
+      if (window.innerWidth < 1024) { toc.classList.add('hidden'); toc.classList.remove('block'); }
+    });
+  });
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => l.classList.remove('active'));
+        const active = links.find((l) => l.getAttribute('href') === '#' + e.target.id);
+        if (active) {
+          active.classList.add('active');
+          const r = active.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            active.scrollIntoView({ block: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach((s) => observer.observe(s));
+
+  const topBtn = document.getElementById('topBtn');
+  window.addEventListener('scroll', () => {
+    topBtn.classList.toggle('hidden', window.scrollY < 600);
+  });
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>

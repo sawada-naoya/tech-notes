@@ -1,0 +1,2815 @@
+<!doctype html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解React/Next.js設計 — 状態の分類・フォーム・サーバー境界</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] } } }
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .chapter { @apply scroll-mt-20 mb-20 pb-8 border-b border-slate-800; }
+    .ch-h { @apply text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3 mb-4 leading-tight; }
+    .ch-n { @apply shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-slate-800 text-sky-400 font-mono text-lg; }
+    .part-h { @apply mt-24 mb-10 rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-950 px-6 py-7 scroll-mt-20; }
+    .part-h p.eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.25em] text-sky-400 mb-2; }
+    .part-h h2 { @apply text-2xl sm:text-4xl font-bold text-slate-50 leading-tight mb-3; }
+    .part-h p.sub { @apply text-slate-400 leading-relaxed max-w-3xl; }
+    .lede { @apply text-slate-400 mb-6 leading-relaxed; }
+    .metaphor { @apply rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 text-amber-100 leading-relaxed; }
+    .metaphor b { @apply text-amber-300; }
+    .step { @apply rounded-xl border px-5 py-4 mb-4; }
+    .step-h { @apply font-mono text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2; }
+    /* 10ステップの色分け */
+    .prob { @apply border-rose-500/40 bg-rose-500/5; }
+    .prob .step-h { @apply text-rose-400; }
+    .naive { @apply border-orange-500/40 bg-orange-500/5; }
+    .naive .step-h { @apply text-orange-400; }
+    .why { @apply border-amber-500/40 bg-amber-500/5; }
+    .why .step-h { @apply text-amber-400; }
+    .principle { @apply border-teal-500/40 bg-teal-500/5; }
+    .principle .step-h { @apply text-teal-400; }
+    .sol { @apply border-emerald-500/40 bg-emerald-500/5; }
+    .sol .step-h { @apply text-emerald-400; }
+    .ba { @apply border-sky-500/40 bg-sky-500/5; }
+    .ba .step-h { @apply text-sky-400; }
+    .impact { @apply border-indigo-500/40 bg-indigo-500/5; }
+    .impact .step-h { @apply text-indigo-400; }
+    .trade { @apply border-violet-500/40 bg-violet-500/5; }
+    .trade .step-h { @apply text-violet-400; }
+    .over { @apply border-dashed border-slate-500 bg-slate-800/40; }
+    .over .step-h { @apply text-slate-300; }
+    .rev { @apply border-fuchsia-500/40 bg-fuchsia-500/5; }
+    .rev .step-h { @apply text-fuchsia-400; }
+    /* 補助ブロック */
+    .zoom { @apply border-cyan-500/40 bg-cyan-500/5; }
+    .zoom .step-h { @apply text-cyan-400; }
+    .goog { @apply border-lime-500/40 bg-lime-500/5; }
+    .goog .step-h { @apply text-lime-400; }
+    .note { @apply border-slate-600 bg-slate-900; }
+    .note .step-h { @apply text-slate-400; }
+    .step p { @apply text-slate-300 leading-relaxed; }
+    .step ul { @apply list-disc pl-5 space-y-1.5 text-slate-300; }
+    .step ol { @apply list-decimal pl-5 space-y-1.5 text-slate-300; }
+    .step ul ul, .step ol ul { @apply mt-1.5; }
+    .fig { @apply my-4 rounded-xl border border-slate-700 bg-slate-900 p-3 overflow-x-auto; }
+    .fig svg { @apply w-full h-auto min-w-[700px]; }
+    .figcap { @apply mt-2 text-xs text-slate-400 font-mono px-1; }
+    .tbl { @apply my-3 overflow-x-auto rounded-xl border border-slate-700; }
+    .tbl table { @apply w-full text-sm border-collapse min-w-[640px]; }
+    .tbl th { @apply bg-slate-800 text-left px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400; }
+    .tbl td { @apply border-t border-slate-800 px-3 py-2 align-top text-slate-300; }
+    .tbl tr:hover td { @apply bg-slate-800/40; }
+    .k { @apply font-mono text-[13px] px-1.5 py-0.5 rounded bg-slate-800 text-sky-300; }
+    .good { @apply text-emerald-400 font-semibold; }
+    .bad { @apply text-rose-400 font-semibold; }
+    .warn { @apply text-amber-400 font-semibold; }
+    .toc-a { @apply block px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition; }
+    .toc-a.active { @apply bg-sky-500/15 text-sky-300 font-semibold; }
+    .toc-grp { @apply px-3 pt-4 pb-1 font-mono text-[10px] uppercase tracking-widest text-slate-500; }
+    .qa { @apply rounded-xl border border-slate-700 bg-slate-900 mb-3 overflow-hidden; }
+    .qa summary { @apply cursor-pointer px-5 py-4 font-semibold text-slate-100 hover:bg-slate-800/60 flex gap-3 items-start; }
+    .qa .ans { @apply px-5 pb-5 pt-1 text-slate-300 leading-relaxed border-t border-slate-800; }
+    .kv { @apply grid sm:grid-cols-2 gap-3 my-3; }
+    .kvi { @apply rounded-xl border border-slate-700 bg-slate-900 p-4; }
+    .kvi > p:first-child { @apply font-mono text-[11px] text-sky-400 mb-1; }
+    .kvi > p:last-child { @apply text-sm text-slate-300 leading-relaxed; }
+    .flow { @apply my-4 rounded-xl border border-slate-700 bg-[#0b1220] p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-slate-300 whitespace-pre; }
+  }
+</style>
+<style>
+  /* ===== コードブロック（自前ハイライタ） ===== */
+  .cb { margin: 0.9rem 0; border-radius: 0.75rem; border: 1px solid #334155; background: #0b1220; overflow: hidden; }
+  .cb-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.8rem; background: #111c31; border-bottom: 1px solid #1f2c45;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.04em; }
+  .cb-lang { color: #7dd3fc; text-transform: uppercase; font-weight: 700; }
+  .cb-cap { color: #94a3b8; }
+  .cb[data-tone="bad"] { border-color: rgba(244,63,94,.45); }
+  .cb[data-tone="bad"] .cb-bar { background: rgba(244,63,94,.10); border-bottom-color: rgba(244,63,94,.3); }
+  .cb[data-tone="bad"] .cb-cap { color: #fda4af; }
+  .cb[data-tone="good"] { border-color: rgba(16,185,129,.45); }
+  .cb[data-tone="good"] .cb-bar { background: rgba(16,185,129,.10); border-bottom-color: rgba(16,185,129,.3); }
+  .cb[data-tone="good"] .cb-cap { color: #6ee7b7; }
+  .cb[data-tone="warn"] { border-color: rgba(245,158,11,.45); }
+  .cb[data-tone="warn"] .cb-bar { background: rgba(245,158,11,.10); border-bottom-color: rgba(245,158,11,.3); }
+  .cb[data-tone="warn"] .cb-cap { color: #fcd34d; }
+  .cb pre { margin: 0; padding: 0.85rem 0.9rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.65; color: #cbd5e1; white-space: pre; }
+  .cb .ln { display: block; padding: 0 0.9rem; margin: 0 -0.9rem; }
+  .cb .ln-bad { background: rgba(244,63,94,.13); box-shadow: inset 3px 0 0 #f43f5e; }
+  .cb .ln-good { background: rgba(16,185,129,.13); box-shadow: inset 3px 0 0 #10b981; }
+  .cb .ln-warn { background: rgba(245,158,11,.13); box-shadow: inset 3px 0 0 #f59e0b; }
+  .cb .ln-focus { background: rgba(56,189,248,.13); box-shadow: inset 3px 0 0 #38bdf8; }
+  .t-cm { color: #64748b; }
+  .t-st { color: #86efac; }
+  .t-kw { color: #f472b6; }
+  .t-cn { color: #e879f9; }
+  .t-ty { color: #38bdf8; }
+  .t-id { color: #7dd3fc; }
+  .t-fn { color: #fde047; }
+  .t-nu { color: #fb923c; }
+  .t-pn { color: #94a3b8; }
+  .t-tag { color: #f9a8d4; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased">
+
+<div class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+  <button id="tocBtn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-mono text-slate-300">☰ 目次</button>
+  <span class="text-sm font-bold text-slate-100 truncate">図解React/Next.js設計</span>
+</div>
+
+<div class="lg:grid lg:grid-cols-[310px_minmax(0,1fr)]">
+
+  <aside id="toc" class="hidden lg:block lg:sticky lg:top-0 lg:h-screen overflow-y-auto border-r border-slate-800 bg-slate-900/60 px-3 py-6">
+    <div class="px-3 mb-4">
+      <p class="font-mono text-[10px] uppercase tracking-widest text-sky-400">React / Next.js · 設計 · 図解</p>
+      <p class="text-lg font-bold text-slate-100 leading-tight mt-1">図解React/Next.js設計</p>
+      <p class="text-xs text-slate-500 mt-1">状態の分類・フォーム・サーバー境界</p>
+    </div>
+    <nav id="tocNav">
+      <a class="toc-a" href="#intro">00 はじめに — Reactは分類の問題</a>
+      <a class="toc-a" href="#map">00.5 全体地図（3つの境界）</a>
+
+      <div class="toc-grp">Part 1 状態の分類（7バケツ）</div>
+      <a class="toc-a" href="#ch1">01 なぜ分類が必要か / 2つの軸</a>
+      <a class="toc-a" href="#ch2">02 7つのバケツ</a>
+      <a class="toc-a" href="#ch3">03 バケツ違い — 4大アンチパターン</a>
+      <a class="toc-a" href="#ch4">04 派生状態を持たない（useMemo / key）</a>
+      <a class="toc-a" href="#ch5">05 React Query の要点</a>
+      <a class="toc-a" href="#ch6">06 非同期の基礎（Promise / fetch vs axios）</a>
+
+      <div class="toc-grp">Part 2 フォーム設計（RHF）</div>
+      <a class="toc-a" href="#ch7">07 RHFのメンタルモデル</a>
+      <a class="toc-a" href="#ch8">08 formState と error の反映機構</a>
+      <a class="toc-a" href="#ch9">09 useFieldArray と動的配列</a>
+      <a class="toc-a" href="#ch10">10 「動的配列が難しい」5つの原因</a>
+      <a class="toc-a" href="#ch11">11 Form型はUI階層に合わせる / 変換層</a>
+      <a class="toc-a" href="#ch12">12 API使い分けと watch の最小化</a>
+
+      <div class="toc-grp">Part 3 Server / Client 境界</div>
+      <a class="toc-a" href="#ch13">13 どこで動くか（RSC / CC / hydrate）</a>
+      <a class="toc-a" href="#ch14">14 "use client" と "use server"</a>
+      <a class="toc-a" href="#ch15">15 BFFとの比較 / Route Handler</a>
+      <a class="toc-a" href="#ch16">16 props か hydration か</a>
+      <a class="toc-a" href="#ch17">17 レンダリング4方式とホスティング</a>
+      <a class="toc-a" href="#ch18">18 5層のCRUDライフサイクル</a>
+      <a class="toc-a" href="#ch19">19 複数ユーザーとリアルタイム性</a>
+      <a class="toc-a" href="#ch20">20 認証（NextAuth）の全体像</a>
+      <a class="toc-a" href="#ch21">21 データ整形をどこに置くか</a>
+
+      <div class="toc-grp">付録</div>
+      <a class="toc-a" href="#cheat">チートシート / レビュー観点</a>
+    </nav>
+  </aside>
+
+  <main class="min-w-0 px-4 sm:px-8 lg:px-12 py-10 max-w-[1180px]">
+
+    <header class="mb-14">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-sky-400 mb-3">React · Next.js · React Hook Form · 図解版</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-50 leading-tight mb-5">図解React/Next.js設計<br><span class="text-slate-400 text-2xl sm:text-3xl">状態の分類・フォーム・サーバー境界</span></h1>
+      <p class="text-slate-400 max-w-3xl leading-relaxed">Reactを「使いこなせない」と感じる原因は、閃きの不足ではなく<b class="text-emerald-400">分類ができていないこと</b>である。この教材は3つの分類を扱う。<br>
+      ①<b class="text-emerald-400">状態の分類</b>（新しい状態に出会ったとき、7つのバケツのどれか即断できるか）<br>
+      ②<b class="text-emerald-400">フォームの分類</b>（error は useState ではなく RHF の内部stateである、と言えるか）<br>
+      ③<b class="text-emerald-400">実行場所の分類</b>（このコードはサーバーで動くのか、ブラウザで動くのか）</p>
+      <div class="mt-6 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張1</p><p class="text-sm text-slate-300">「stateを増やすほどバグる」の正体は<b class="text-slate-100">バケツ違い</b>。特に「サーバデータをuseState」「派生値をuseState+useEffectで同期」の2つが全体の8割。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張2</p><p class="text-sm text-slate-300">RHFの動的配列が難しいのは<b class="text-slate-100">APIの形をそのままフォーム型にしているから</b>。<b class="text-emerald-400">Form型はUI階層に合わせる</b>と、useFieldArrayは3行で終わる。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張3</p><p class="text-sm text-slate-300">Next.jsの核心は<b class="text-slate-100">「どこで動くか」</b>。<span class="k">'use client'</span> でfetchして配るのはBFFではない（ブラウザで動くので、ただのコンテナ）。</p></div>
+      </div>
+      <p class="text-slate-400 max-w-3xl leading-relaxed mt-6"><b class="text-slate-200">視覚的なマップ版</b>: <b class="text-sky-400">react-state-map.html</b> に「7バケツのマップ + 実画面例（予約管理画面のどこが何状態か）+ 裏側の配管（orval → React Query → UI）」がある。この教材はその<b class="text-slate-200">解説編</b>。</p>
+    </header>
+
+    <section id="intro" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00</span> はじめに — Reactは分類の問題</h2>
+      <p class="lede">結論。<b class="text-emerald-400">Reactを使いこなす = 新しい状態に出会うたびに「どのバケツか」を即断できること</b>。これは才能や閃きの問題ではなく、<b class="text-slate-200">分類の問題</b>である。分類表を持っていれば、毎回同じ手順で判断できる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">同じ「useState」に見えるものが、実は7種類ある</text>
+          <defs><marker id="ra" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="440" height="330" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="250" y="80" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">分類しない場合 — 全部 useState</text>
+            <text x="46" y="106" fill="#fca5a5">const [users, setUsers] = useState([])        // サーバデータ</text>
+            <text x="46" y="126" fill="#fca5a5">const [keyword, setKeyword] = useState("")    // 検索条件</text>
+            <text x="46" y="146" fill="#fca5a5">const [page, setPage] = useState(1)           // ページ番号</text>
+            <text x="46" y="166" fill="#fca5a5">const [user, setUser] = useState(null)        // ログインユーザー</text>
+            <text x="46" y="186" fill="#fca5a5">const [isOpen, setIsOpen] = useState(false)   // モーダル</text>
+            <text x="46" y="206" fill="#fca5a5">const [errors, setErrors] = useState({})      // 検証エラー</text>
+            <text x="46" y="226" fill="#fca5a5">const [total, setTotal] = useState(0)         // 合計金額</text>
+            <text x="46" y="246" fill="#fca5a5">const [timerId, setTimerId] = useState(null)  // タイマーID</text>
+            <text x="46" y="276" fill="#f87171" font-weight="bold">起きること:</text>
+            <text x="46" y="296" fill="#fca5a5">・users が古くなる（他の画面で更新しても反映されない）</text>
+            <text x="46" y="314" fill="#fca5a5">・keyword がリロードで消える / URLで共有できない</text>
+            <text x="46" y="332" fill="#fca5a5">・total を useEffect で同期 → 一瞬古い値が出る</text>
+            <text x="46" y="350" fill="#fca5a5">・timerId の setState で無駄な再レンダリング</text>
+            <text x="46" y="370" fill="#fbbf24">→ 「state が増えるほどバグる」という体感の正体</text>
+
+            <line x1="475" y1="220" x2="520" y2="220" stroke="#94a3b8" stroke-width="2" marker-end="url(#ra)"/>
+
+            <rect x="530" y="55" width="480" height="330" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="80" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">分類した場合 — 7つの道具を使い分ける</text>
+            <text x="546" y="106" fill="#bbf7d0">useQuery(['users', keyword, page])      // #1 サーバキャッシュ</text>
+            <text x="546" y="126" fill="#bbf7d0">useSearchParams() / router.push()       // #2 URL</text>
+            <text x="546" y="146" fill="#bbf7d0">useSession() / Zustand                  // #3 グローバル</text>
+            <text x="546" y="166" fill="#bbf7d0">useState(false)                         // #4 ローカルUI</text>
+            <text x="546" y="186" fill="#bbf7d0">useForm() → formState.errors            // #5 フォーム</text>
+            <text x="546" y="206" fill="#bbf7d0">useMemo(() =&gt; calc(items), [items])     // #6 派生（持たない）</text>
+            <text x="546" y="226" fill="#bbf7d0">useRef(null)                            // #7 参照</text>
+            <text x="546" y="256" fill="#4ade80" font-weight="bold">得られること:</text>
+            <text x="546" y="276" fill="#bbf7d0">・サーバデータは自動で再取得・invalidate できる</text>
+            <text x="546" y="294" fill="#bbf7d0">・検索条件はURLに乗るので共有・リロード耐性がある</text>
+            <text x="546" y="312" fill="#bbf7d0">・派生値は「持たない」ので同期バグが起きない</text>
+            <text x="546" y="330" fill="#bbf7d0">・再描画不要な値は再描画を起こさない</text>
+            <text x="546" y="358" fill="#4ade80">→ ★ 判断が「毎回同じ手順」になる（閃きが不要になる）</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-1 分類しないと8個のuseStateになり、分類すると7つの適切な道具になる。</p>
+      </div>
+    </section>
+
+    <section id="map" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00.5</span> 全体地図 — 3つの境界</h2>
+      <p class="lede">この教材が扱うのは<b class="text-emerald-400">3つの「境界」</b>。境界を意識せずにコードを書くと、必ずどこかで詰まる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">3つの境界と、対応する章</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="320" height="345" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="190" y="80" fill="#bae6fd" font-size="13" font-weight="bold" text-anchor="middle">境界1: 状態の所有者</text>
+            <text x="46" y="106" fill="#7dd3fc">問い: 「この値の持ち主は誰か？」</text>
+            <text x="46" y="132" fill="#e2e8f0">・サーバー   → React Query（#1）</text>
+            <text x="46" y="150" fill="#e2e8f0">・URL       → router（#2）</text>
+            <text x="46" y="168" fill="#e2e8f0">・アプリ全体 → Context/Zustand（#3）</text>
+            <text x="46" y="186" fill="#e2e8f0">・このコンポーネント → useState（#4）</text>
+            <text x="46" y="204" fill="#e2e8f0">・フォーム   → RHF（#5）</text>
+            <text x="46" y="222" fill="#e2e8f0">・誰でもない（計算できる）→ useMemo（#6）</text>
+            <text x="46" y="240" fill="#e2e8f0">・描画に無関係 → useRef（#7）</text>
+            <text x="46" y="268" fill="#38bdf8">失敗の症状:</text>
+            <text x="46" y="288" fill="#fca5a5">・データが古い / 重複fetch</text>
+            <text x="46" y="306" fill="#fca5a5">・リロードで消える / 共有できない</text>
+            <text x="46" y="324" fill="#fca5a5">・useEffectでの同期地獄</text>
+            <text x="46" y="352" fill="#fbbf24">章: ch1〜ch6</text>
+            <text x="46" y="378" fill="#4ade80">★ 最も頻繁に判断する境界。</text>
+            <text x="46" y="394" fill="#86efac">　 1日に何度も出てくる</text>
+
+            <rect x="360" y="55" width="320" height="345" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="520" y="80" fill="#dcfce7" font-size="13" font-weight="bold" text-anchor="middle">境界2: フォームの内と外</text>
+            <text x="376" y="106" fill="#86efac">問い: 「この値はRHFが持つのか？」</text>
+            <text x="376" y="132" fill="#e2e8f0">・入力値・検証エラー・送信状態</text>
+            <text x="392" y="150" fill="#bbf7d0">→ RHFの内部store（useStateではない）</text>
+            <text x="376" y="172" fill="#e2e8f0">・送信に不要なUIフラグ</text>
+            <text x="392" y="190" fill="#bbf7d0">→ useState でよい</text>
+            <text x="376" y="212" fill="#e2e8f0">・APIの形 ↔ フォームの形</text>
+            <text x="392" y="230" fill="#bbf7d0">→ 変換層（adapter）を1箇所に</text>
+            <text x="376" y="258" fill="#4ade80">失敗の症状:</text>
+            <text x="376" y="278" fill="#fca5a5">・errorをuseStateで持って同期が壊れる</text>
+            <text x="376" y="296" fill="#fca5a5">・resetで更新してdirtyが消える</text>
+            <text x="376" y="314" fill="#fca5a5">・描画ループの中でgroupByしている</text>
+            <text x="376" y="332" fill="#fca5a5">・as unknown as ApiType の二重キャスト</text>
+            <text x="376" y="358" fill="#fbbf24">章: ch7〜ch12</text>
+            <text x="376" y="384" fill="#4ade80">★ 「難しい」と感じるが、</text>
+            <text x="376" y="398" fill="#86efac">　 メンタルモデルを作れば終わる</text>
+
+            <rect x="690" y="55" width="320" height="345" rx="10" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="850" y="80" fill="#ede9fe" font-size="13" font-weight="bold" text-anchor="middle">境界3: サーバーとブラウザ</text>
+            <text x="706" y="106" fill="#c4b5fd">問い: 「このコードはどこで動くか？」</text>
+            <text x="706" y="132" fill="#e2e8f0">・Server Component（既定）</text>
+            <text x="722" y="150" fill="#ddd6fe">→ サーバーで1回。秘密鍵OK・stateなし</text>
+            <text x="706" y="172" fill="#e2e8f0">・Client Component（'use client'）</text>
+            <text x="722" y="190" fill="#ddd6fe">→ ブラウザで動き続ける。state可</text>
+            <text x="706" y="212" fill="#e2e8f0">・Server Action（'use server'）</text>
+            <text x="722" y="230" fill="#ddd6fe">→ ブラウザから呼べるサーバー関数</text>
+            <text x="706" y="252" fill="#e2e8f0">・Route Handler → 軽量BFF</text>
+            <text x="706" y="280" fill="#a78bfa">失敗の症状:</text>
+            <text x="706" y="300" fill="#fca5a5">・useState が使えないエラー</text>
+            <text x="706" y="318" fill="#fca5a5">・秘密鍵がバンドルに入る（漏洩）</text>
+            <text x="706" y="336" fill="#fca5a5">・「BFFを作った」つもりがCC</text>
+            <text x="706" y="354" fill="#fbbf24">章: ch13〜ch21</text>
+            <text x="706" y="380" fill="#4ade80">★ Next.js理解の核心。</text>
+            <text x="706" y="394" fill="#86efac">　 ここを外すと全部ズレる</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-2 3つの境界。それぞれ独立した判断軸で、混ぜて考えると混乱する。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part1">
+      <p class="eyebrow">Part 1</p>
+      <h2>状態の分類（7バケツ）</h2>
+      <p class="sub">判断は<b class="text-emerald-400">2つの軸</b>で決まる。<b class="text-slate-200">軸1: 所有者は誰か</b>（サーバー / URL / クライアント全体 / コンポーネント自身）、<b class="text-slate-200">軸2: 保存すべきか、導出すべきか</b>（store する / 他stateから計算する）。この2軸で7つのバケツに落ちる。</p>
+    </div>
+
+    <section id="ch1" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">01</span> なぜ分類が必要か / 2つの軸</h2>
+      <p class="lede">結論。<b class="text-emerald-400">state のバグは「値が間違っている」ではなく「置き場所が間違っている」</b>ことから生まれる。だから対策は「注意深く同期する」ではなく「置き場所を変える」。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2つの軸 → 7つのバケツ</text>
+          <g font-family="monospace" font-size="10.5">
+            <line x1="150" y1="400" x2="960" y2="400" stroke="#475569" stroke-width="2"/>
+            <line x1="150" y1="400" x2="150" y2="60" stroke="#475569" stroke-width="2"/>
+            <text x="555" y="430" fill="#94a3b8" font-size="12" text-anchor="middle">軸1: 所有者は誰か →（遠い＝サーバー … 近い＝コンポーネント）</text>
+            <text x="128" y="230" fill="#94a3b8" font-size="12" transform="rotate(-90 128 230)" text-anchor="middle">軸2: 保存する ↑ / 導出する ↓</text>
+
+            <!-- 上段: 保存する -->
+            <rect x="175" y="75" width="180" height="90" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="98" fill="#bae6fd" font-weight="bold" text-anchor="middle">#1 サーバキャッシュ</text>
+            <text x="189" y="118" fill="#e0f2fe" font-size="9.5">所有者: サーバー</text>
+            <text x="189" y="134" fill="#e0f2fe" font-size="9.5">React Query / SWR</text>
+            <text x="189" y="152" fill="#7dd3fc" font-size="9">陳腐化する・invalidate必要</text>
+
+            <rect x="365" y="75" width="180" height="90" rx="8" fill="#164e63" stroke="#22d3ee" stroke-width="2"/>
+            <text x="455" y="98" fill="#cffafe" font-weight="bold" text-anchor="middle">#2 URL状態</text>
+            <text x="379" y="118" fill="#a5f3fc" font-size="9.5">所有者: URL（ブラウザ）</text>
+            <text x="379" y="134" fill="#a5f3fc" font-size="9.5">router / searchParams</text>
+            <text x="379" y="152" fill="#67e8f9" font-size="9">共有・ブックマーク・リロード耐性</text>
+
+            <rect x="555" y="75" width="180" height="90" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="645" y="98" fill="#dcfce7" font-weight="bold" text-anchor="middle">#3 グローバル</text>
+            <text x="569" y="118" fill="#bbf7d0" font-size="9.5">所有者: アプリ全体</text>
+            <text x="569" y="134" fill="#bbf7d0" font-size="9.5">Context / Zustand / Jotai</text>
+            <text x="569" y="152" fill="#86efac" font-size="9">ログインユーザー・テーマ</text>
+
+            <rect x="745" y="75" width="215" height="90" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="852" y="98" fill="#fef3c7" font-weight="bold" text-anchor="middle">#4 ローカルUI / #5 フォーム</text>
+            <text x="759" y="118" fill="#fde68a" font-size="9.5">所有者: このコンポーネント</text>
+            <text x="759" y="134" fill="#fde68a" font-size="9.5">useState / useReducer / RHF</text>
+            <text x="759" y="152" fill="#fcd34d" font-size="9">isOpen・入力途中の値</text>
+
+            <!-- 下段: 導出する -->
+            <rect x="175" y="245" width="380" height="90" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2.5"/>
+            <text x="365" y="268" fill="#ede9fe" font-weight="bold" text-anchor="middle">#6 派生状態 — ★ 持たない</text>
+            <text x="189" y="290" fill="#ddd6fe" font-size="9.5">合計金額 / フィルタ後の配列 / isValid / 表示用フォーマット</text>
+            <text x="189" y="308" fill="#ddd6fe" font-size="9.5">useMemo（または単に式として書く）</text>
+            <text x="189" y="326" fill="#c4b5fd" font-size="9">「他のstateから計算できるか？」がYesなら、ここ</text>
+
+            <rect x="575" y="245" width="385" height="90" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="767" y="268" fill="#fecaca" font-weight="bold" text-anchor="middle">#7 参照 / インスタンス — ★ 再描画しない</text>
+            <text x="589" y="290" fill="#fca5a5" font-size="9.5">DOM ref / タイマーID / 前回値 / AbortController</text>
+            <text x="589" y="308" fill="#fca5a5" font-size="9.5">useRef</text>
+            <text x="589" y="326" fill="#f87171" font-size="9">「値が変わっても画面は変わらない」ならここ</text>
+
+            <rect x="175" y="350" width="785" height="40" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="189" y="374" fill="#bbf7d0">★ 原則: 迷ったら「これは他のstateから計算できるか？」を先に問う。できるなら #6（＝ 持たない）。</text>
+          </g>
+        </svg>
+        <p class="figcap">図1-1 2軸のマトリクス。#6と#7は「stateではない」ことが本質。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 判断手順（この順で問う）</p>
+        <ol>
+          <li><b class="text-teal-300">他のstate/propsから計算できるか？</b> → Yes なら <b class="text-emerald-400">#6 派生（持たない）</b>。ここで大半が消える</li>
+          <li><b class="text-teal-300">値が変わったとき、画面は変わるべきか？</b> → No なら <b class="text-emerald-400">#7 useRef</b></li>
+          <li><b class="text-teal-300">この値の「正本」はサーバーにあるか？</b> → Yes なら <b class="text-emerald-400">#1 React Query</b>（絶対にuseStateにしない）</li>
+          <li><b class="text-teal-300">URLで共有・ブックマーク・リロードしたいか？</b> → Yes なら <b class="text-emerald-400">#2 URL</b></li>
+          <li><b class="text-teal-300">複数の離れたコンポーネントが必要とするか？</b> → Yes なら <b class="text-emerald-400">#3 グローバル</b></li>
+          <li><b class="text-teal-300">フォームの入力・検証・送信状態か？</b> → Yes なら <b class="text-emerald-400">#5 RHF</b></li>
+          <li>ここまで全部Noなら <b class="text-emerald-400">#4 useState</b></li>
+        </ol>
+        <p class="mt-3"><b class="text-amber-400">この順序が重要</b>: 多くの人は7番（useState）から始めてしまう。<b class="text-slate-100">1番（計算できるか）から問うと、そもそもstateが要らないケースが大量に見つかる</b>。</p>
+      </div>
+    </section>
+
+    <section id="ch2" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">02</span> 7つのバケツ</h2>
+      <p class="lede">各バケツの<b class="text-emerald-400">「具体例・ツール・特徴・失敗するとどうなるか」</b>を確定させる。</p>
+
+      <div class="step note">
+        <p class="step-h">7バケツ一覧表</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>バケツ</th><th>具体例</th><th>ツール</th><th>特徴 / 失敗の症状</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>1</td><td><b class="text-sky-400">サーバキャッシュ状態</b></td>
+                <td>APIから取得したデータ（予約一覧・ユーザー情報・マスタ）</td>
+                <td>React Query / SWR / RSC</td>
+                <td>非同期・<b>陳腐化する</b>・invalidate必要。<b class="text-slate-100">所有者はサーバー</b>。<br><span class="bad">失敗すると</span>: 古いデータが表示される / 同じAPIを何度も叩く / 更新後に反映されない</td>
+              </tr>
+              <tr>
+                <td>2</td><td><b class="text-cyan-400">URL状態</b></td>
+                <td>検索条件・ページ番号・タブ・ソート順・選択中のID</td>
+                <td><span class="k">useSearchParams</span> / <span class="k">router.push</span></td>
+                <td>共有・ブックマーク・リロード耐性・戻るボタンが必要なもの。<br><span class="bad">失敗すると</span>: リロードで消える / URLを送っても同じ画面にならない / 戻るボタンが効かない</td>
+              </tr>
+              <tr>
+                <td>3</td><td><b class="text-emerald-400">グローバルクライアント状態</b></td>
+                <td>ログインユーザー・テーマ・機能フラグ・トースト通知のキュー</td>
+                <td>Context / Zustand / Jotai</td>
+                <td>アプリ横断・<b>サーバ由来ではない</b>。<br><span class="bad">失敗すると</span>: propsのバケツリレー / Contextの再描画で全体が重くなる</td>
+              </tr>
+              <tr>
+                <td>4</td><td><b class="text-amber-400">ローカルUI状態</b></td>
+                <td><span class="k">isOpen</span> / hover / アコーディオンの開閉 / 入力途中の一時値</td>
+                <td><span class="k">useState</span> / <span class="k">useReducer</span></td>
+                <td>そのコンポーネント限り・<b>揮発してよい</b>。<br><span class="bad">失敗すると</span>: 本来グローバルであるべき値がここにあり、他から見えない</td>
+              </tr>
+              <tr>
+                <td>5</td><td><b class="text-orange-400">フォーム状態</b></td>
+                <td>入力値・検証エラー・dirty・touched・送信中</td>
+                <td>React Hook Form / Formik</td>
+                <td>#4の特殊化。<b class="text-slate-100">専用ライブラリに任せる</b>（自作すると再描画とバリデーションで破綻する）。<br><span class="bad">失敗すると</span>: errorをuseStateで持って同期が壊れる（Part 2）</td>
+              </tr>
+              <tr>
+                <td>6</td><td><b class="text-violet-400">派生状態</b></td>
+                <td>合計金額・フィルタ後の配列・<span class="k">isValid</span>・表示用の整形結果</td>
+                <td class="good"><b>useMemo（storeしない）</b></td>
+                <td>他stateから計算する。<b class="text-rose-400">持つな</b>。<br><span class="bad">失敗すると</span>: <span class="k">useEffect(()=&gt;setTotal(a+b),[a,b])</span> = <b>最も多い罪</b>。一瞬古い値が表示される・無限ループ</td>
+              </tr>
+              <tr>
+                <td>7</td><td><b class="text-rose-400">参照 / インスタンス状態</b></td>
+                <td>DOM ref・タイマーID・前回値・AbortController・スクロール位置の記録</td>
+                <td class="good"><span class="k">useRef</span></td>
+                <td><b>再レンダリングを起こさない</b>可変値。<br><span class="bad">失敗すると</span>: useStateにしてしまい、無駄な再レンダリングが毎秒発生する</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-slate-200">上級（+1）</b>: 複雑な遷移フローは<b class="text-emerald-400">状態機械（XState / 自作のreducer）</b>。「A→B→Cしか遷移しない」を型で縛る。<b class="text-slate-300">ただし状態が4つ以上あり、遷移に制約がある場合だけ</b>。それ未満はuseReducerで十分。</p>
+      </div>
+
+      <div class="cb" data-lang="ts" data-cap="実際のコード — 予約管理画面で7バケツを使い分ける" data-tone="good"><script type="text/plain">
+'use client';
+
+export function ReservationList() {
+  // #2 URL状態: 検索条件はURLに置く（共有・リロード耐性）
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const keyword = searchParams.get('q') ?? '';
+  const page = Number(searchParams.get('page') ?? '1');
+  const status = searchParams.get('status') ?? 'all';
+
+  // #1 サーバキャッシュ: queryKeyに依存を全部入れる（★ 入れ忘れると古いcacheが出る）
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['reservations', { keyword, page, status }],
+    queryFn: () => fetchReservations({ keyword, page, status }),
+    staleTime: 30_000, // 30秒はfetchしない
+  });
+
+  // #3 グローバル: ログインユーザー
+  const { data: session } = useSession();
+
+  // #4 ローカルUI: モーダルの開閉（このコンポーネント限り・揮発してよい）
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // #6 派生状態: ★ useStateにしない。計算する
+  const totalAmount = useMemo(
+    () => data?.items.reduce((sum, r) => sum + r.totalYen, 0) ?? 0,
+    [data],
+  );
+  // ★ さらに言えば、useMemoすら不要な場合が多い（軽い計算なら毎回計算してよい）
+  const canEdit = session?.user.role === 'admin'; // ← useMemo不要
+
+  // #7 参照: 検索のdebounceタイマー（再描画不要）
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearch = (value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      // #2 URLを更新する（useStateではない）
+      const next = new URLSearchParams(searchParams);
+      next.set('q', value);
+      next.set('page', '1'); // 検索条件が変わったら1ページ目に戻す
+      router.push(`?${next.toString()}`);
+    }, 300);
+  };
+
+  // ★ #1 の3状態を必ずハンドリングする（初心者が最も飛ばす）
+  if (isPending) return <Skeleton />;
+  if (isError) return <ErrorPanel error={error} onRetry={() => refetch()} />;
+
+  return (
+    <>
+      <SearchBox defaultValue={keyword} onChange={handleSearch} />
+      <p>合計: {totalAmount.toLocaleString()}円</p>
+      <Table items={data.items} onSelect={setSelectedId} canEdit={canEdit} />
+      {selectedId && <DetailModal id={selectedId} onClose={() => setSelectedId(null)} />}
+    </>
+  );
+}
+</script></div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 過剰になる境界 — 分類しすぎる害</p>
+        <ul>
+          <li><b>全部URLに入れる</b> — モーダルの開閉やhoverまでURLに入れると、URLが汚れ、履歴が壊れる。<b class="text-emerald-400">「共有したいか / 戻るボタンで戻りたいか」がNoなら useState</b></li>
+          <li><b>小さなアプリでZustandを入れる</b> — propsで2階層渡すだけなら、Contextもストアも不要。<b class="text-slate-300">「バケツリレーが3階層以上」になってから導入する</b></li>
+          <li><b>すべての計算を useMemo で包む</b> — <span class="k">useMemo</span> 自体にコスト（依存配列の比較）がある。<b class="text-amber-400">重い計算（1000件のソート・フィルタ）だけに使う</b>。<span class="k">a + b</span> を包むのは無駄</li>
+          <li><b>状態機械を最初から入れる</b> — 状態が2〜3個なら useState で十分。XStateは学習コストが高い</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch3" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">03</span> バケツ違い — 4大アンチパターン</h2>
+      <p class="lede">「Reactを使いこなせない人」の症状は、ほぼこの4つに集約される。<b class="text-rose-400">どれも「動く」ので、レビューで指摘されなければ気づかない</b>。</p>
+
+      <div class="step note">
+        <p class="step-h">4大アンチパターン</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>アンチパターン</th><th>症状</th><th>正しいバケツ</th></tr></thead>
+            <tbody>
+              <tr><td><b class="bad">サーバデータをuseStateに入れる</b></td><td>陳腐化・重複fetch・同期地獄・「更新したのに画面が変わらない」</td><td class="good">#1 React Query</td></tr>
+              <tr><td><b class="bad">検索条件をuseStateに入れる</b></td><td>リロードで消える・URLを共有できない・戻るボタンが効かない</td><td class="good">#2 URL</td></tr>
+              <tr><td><b class="bad">派生値をuseState+useEffectで同期</b></td><td><span class="k">useEffect(()=&gt;setTotal(a+b),[a,b])</span> = <b>最も多い罪</b>。一瞬古い値が出る・無限ループ・依存漏れ</td><td class="good">#6 useMemo（持たない）</td></tr>
+              <tr><td><b class="bad">再描画不要な値をuseStateに入れる</b></td><td>無駄な再レンダリング（毎秒・毎keypress）</td><td class="good">#7 useRef</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="ts" data-cap="アンチパターン1: サーバデータをuseStateに入れる" data-tone="bad"><script type="text/plain">
+@@-function ReservationList() {
+@@-  const [items, setItems] = useState<Reservation[]>([]);
+@@-  const [loading, setLoading] = useState(true);
+@@-  const [error, setError] = useState<Error | null>(null);
+@@-
+@@-  useEffect(() => {
+@@-    setLoading(true);
+@@-    fetch('/api/reservations')
+@@-      .then(res => res.json())
+@@-      .then(data => setItems(data.items))
+@@-      .catch(e => setError(e))
+@@-      .finally(() => setLoading(false));
+@@-  }, []);
+@@-
+@@-  const handleUpdate = async (id: string) => {
+@@-    await updateReservation(id);
+@@-    // ★ 手動で再取得する（書き忘れると画面が古いまま）
+@@-    const res = await fetch('/api/reservations');
+@@-    setItems((await res.json()).items);
+@@-  };
+@@-  ...
+}
+
+// ★ この22行が抱えている問題:
+//   1. race condition: 検索条件を素早く変えると、古いレスポンスが後着して上書きする
+//   2. 重複fetch: 同じデータを使う別コンポーネントが、それぞれfetchする
+//   3. 更新後の再取得を手書き（全ての更新箇所で忘れずに書く必要がある）
+//   4. タブを再フォーカスしたときに最新化されない
+//   5. loading/error の状態管理が毎回コピペになる
+//   6. キャッシュがないので、画面を戻るたびに再fetch（体感が遅い）
+//   7. useEffectの依存配列を間違えると無限ループ
+</script></div>
+      <div class="cb" data-lang="ts" data-cap="正しい形 — React Queryに任せる" data-tone="good"><script type="text/plain">
+function ReservationList() {
+@@+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['reservations'],
+    queryFn: fetchReservations,
+  });
+
+  const queryClient = useQueryClient();
+@@+  const { mutate, isPending: isUpdating } = useMutation({
+    mutationFn: updateReservation,
+    onSuccess: () => {
+      // ★ 「このqueryKeyのcacheを無効化する」と宣言するだけ
+      //   → 自動で再fetchされ、それを使っている全コンポーネントが更新される
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+    },
+  });
+
+  if (isPending) return <Skeleton />;
+  if (isError) return <ErrorPanel error={error} />;
+  return <Table items={data.items} onUpdate={mutate} updating={isUpdating} />;
+}
+
+// ★ これで自動的に得られるもの:
+//   ・race condition の解決（queryKey単位で古いリクエストを無効化）
+//   ・重複排除（同じqueryKeyは1回だけfetchされ、結果を共有）
+//   ・キャッシュ（戻ったときに即表示 → 裏で再検証）
+//   ・タブ再フォーカスで自動refetch
+//   ・loading/error の統一された扱い
+//   ・retry（デフォルト3回）
+//   ★ 22行 → 12行になり、かつ品質が上がる
+</script></div>
+
+      <div class="cb" data-lang="ts" data-cap="アンチパターン3: 派生値をuseState+useEffectで同期（最も多い罪）" data-tone="bad"><script type="text/plain">
+@@-function Cart({ items }: { items: Item[] }) {
+@@-  const [total, setTotal] = useState(0);
+@@-  const [taxIncluded, setTaxIncluded] = useState(0);
+@@-
+@@-  useEffect(() => {
+@@-    const t = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+@@-    setTotal(t);
+@@-    setTaxIncluded(Math.floor(t * 1.1));
+@@-  }, [items]);
+@@-
+@@-  return <p>{total}円（税込 {taxIncluded}円）</p>;
+}
+
+// ★ 何が起きるか:
+//   1. items が変わった直後の1フレームは、古い total が表示される（チラつき）
+//   2. レンダリング → useEffect → setState → 再レンダリング の2往復（無駄）
+//   3. 依存配列に入れ忘れると、永久に古い値が表示される
+//   4. 「単一の真実」が2箇所（items と total）に存在する
+//   5. items 以外から total を setState できてしまう（不整合の余地）
+</script></div>
+      <div class="cb" data-lang="ts" data-cap="正しい形 — 計算する（stateにしない）" data-tone="good"><script type="text/plain">
+function Cart({ items }: { items: Item[] }) {
+@@+  // 軽い計算なら、useMemoすら不要。毎レンダリング計算してよい
+@@+  const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+@@+  const taxIncluded = Math.floor(total * 1.1);
+
+  return <p>{total}円（税込 {taxIncluded}円）</p>;
+}
+
+// ★ 重い計算（1000件のソート・フィルタ）の場合だけ useMemo:
+const sorted = useMemo(
+  () => [...items].sort((a, b) => b.price - a.price),
+  [items],
+);
+
+// ★ useMemo が必要かの判断:
+//   ・計算が O(n log n) 以上 かつ n が数百以上 → useMemo
+//   ・結果を子コンポーネントのpropsに渡し、その子がmemo化されている → useMemo
+//     （参照が毎回変わると memo が効かない）
+//   ・それ以外 → 不要。useMemo自体のコストの方が高い
+</script></div>
+
+      <div class="cb" data-lang="ts" data-cap="アンチパターン4: 再描画不要な値をuseStateに入れる" data-tone="bad"><script type="text/plain">
+@@-function Timer() {
+@@-  const [timerId, setTimerId] = useState<number | null>(null);
+@@-  const [prevValue, setPrevValue] = useState('');
+@@-
+@@-  const start = () => {
+@@-    const id = window.setInterval(tick, 1000);
+@@-    setTimerId(id); // ★ 再レンダリングが発生する（意味がない）
+@@-  };
+@@-  const stop = () => {
+@@-    if (timerId) clearInterval(timerId);
+@@-    setTimerId(null); // ★ また再レンダリング
+@@-  };
+}
+
+// ✓ 正しい形
+function Timer() {
+@@+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+@@+  const prevValueRef = useRef('');
+
+  const start = () => {
+    timerRef.current = setInterval(tick, 1000); // 再レンダリングなし
+  };
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+  };
+
+  // ★ クリーンアップを忘れない（メモリリーク / setState after unmount）
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+}
+
+// ★ useRef が正しいものの一覧:
+//   ・DOM要素への参照（focus / scroll / measure）
+//   ・タイマーID / AbortController / WebSocketインスタンス
+//   ・前回の値（比較用）
+//   ・「レンダリング中には使わない」可変値
+// ★ 判定: 「この値が変わったとき、画面は変わるべきか？」がNoならuseRef
+</script></div>
+    </section>
+
+    <section id="ch4" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">04</span> 派生状態を持たない — useMemo と key によるリセット</h2>
+      <p class="lede"><b class="text-emerald-400">「single source of truth（同じ事実を2箇所に持たない）」</b>がReactの中心原則。<b class="text-slate-200">propsから初期化するuseStateは、この原則を破る最も一般的な形</b>である。</p>
+
+      <div class="cb" data-lang="ts" data-cap="propsで初期化するuseState — 同期バグの温床" data-tone="bad"><script type="text/plain">
+@@-function EditForm({ user }: { user: User }) {
+@@-  // props から初期化する（初回だけ効く）
+@@-  const [name, setName] = useState(user.name);
+@@-
+@@-  // ★ user が変わっても name は変わらない！
+@@-  //   → 別のユーザーを選んでも、前のユーザーの名前が残る
+@@-
+@@-  // 対策として useEffect で同期する人が多い（これも間違い）
+@@-  useEffect(() => {
+@@-    setName(user.name); // ★ 入力途中の値が消える / チラつく / 依存の管理が破綻する
+@@-  }, [user]);
+}
+</script></div>
+      <div class="cb" data-lang="ts" data-cap="正しい形 — key で再マウントする（Reactの定石）" data-tone="good"><script type="text/plain">
+// 親側で key を渡す
+@@+<EditForm key={selectedUserId} user={user} />
+
+// ★ key が変わると、Reactはコンポーネントを「別物」として扱い、
+//   完全に破棄して再マウントする → useState が初期値から作り直される
+//   → useEffect による同期が一切不要になる
+
+function EditForm({ user }: { user: User }) {
+  const [name, setName] = useState(user.name); // key が変わるたびに初期化される
+  return <input value={name} onChange={e => setName(e.target.value)} />;
+}
+
+// ★ この手法の名前: "key でリセット" / "uncontrolled component with a key"
+//   React公式ドキュメントでも推奨されている（Resetting state with a key）
+
+// ★ 他の選択肢:
+//   ① そもそも state にしない（親が値を持ち、propsで渡す = controlled）
+//   ② RHFなら reset(defaultValues) を使う（フォーム全体の再初期化）
+//   ③ 「編集中の値」を URL や親のstateに持つ（下書き保存など）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ single source of truth の実務チェック</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>疑うコード</th><th>問い</th><th>正しい形</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">useState(props.xxx)</span></td><td>propsが変わったらどうなる？</td><td class="good">key でリセット / そもそもstateにしない</td></tr>
+              <tr><td><span class="k">useEffect(() =&gt; setX(...), [y])</span></td><td>xはyから計算できる？</td><td class="good">計算する（useMemo or 式）</td></tr>
+              <tr><td>同じデータをuseStateとuseQueryの両方で持つ</td><td>どちらが正本？</td><td class="good">useQueryだけにする</td></tr>
+              <tr><td>フォームの値をRHFとuseStateの両方で持つ</td><td>どちらが正本？</td><td class="good">RHFだけにする（Part 2）</td></tr>
+              <tr><td><span class="k">isValid</span> を useState で持つ</td><td>入力値から計算できる？</td><td class="good">RHFの <span class="k">formState.isValid</span>（派生）</td></tr>
+              <tr><td>選択中のアイテムのオブジェクト全体をstateに持つ</td><td>IDだけで足りる？</td><td class="good">IDだけ持ち、データはcacheから引く（更新が反映される）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="ts" data-cap="最後の項目の実例 — オブジェクトではなくIDを持つ" data-tone="good"><script type="text/plain">
+// ✗ 悪い: オブジェクト全体をstateに持つ
+@@-const [selected, setSelected] = useState<Reservation | null>(null);
+@@-// → 一覧が更新されても selected は古いまま（2箇所に同じ事実がある）
+
+// ✓ 良い: IDだけを持ち、データは常にcacheから引く
+@@+const [selectedId, setSelectedId] = useState<string | null>(null);
+@@+const selected = data?.items.find(r => r.id === selectedId) ?? null;
+// → 一覧が再fetchされたら、selected も自動で最新になる
+
+// ★ さらに良い: selectedId を URL に置く（#2 URL状態）
+//   → 詳細画面をリロードしても選択が維持される / URLで共有できる
+const selectedId = searchParams.get('id');
+</script></div>
+      </div>
+    </section>
+
+    <section id="ch5" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">05</span> React Query の要点</h2>
+      <p class="lede">#1（サーバキャッシュ）を担うツールの、<b class="text-emerald-400">実務で必ず知っておくべき6点</b>だけに絞る。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">staleTime と gcTime — 「いつ取り直すか」を決める2つのダイヤル</text>
+          <defs><marker id="r5" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <line x1="60" y1="130" x2="980" y2="130" stroke="#475569" stroke-width="2"/>
+            <text x="60" y="60" fill="#e2e8f0" font-size="11.5" font-weight="bold">1つのqueryKeyの一生</text>
+
+            <circle cx="120" cy="130" r="7" fill="#4ade80"/>
+            <text x="120" y="112" fill="#86efac" text-anchor="middle">t0: 初回fetch</text>
+            <text x="120" y="156" fill="#bbf7d0" font-size="9.5" text-anchor="middle">fresh（新鮮）</text>
+
+            <rect x="127" y="120" width="220" height="20" fill="#052e16" stroke="#4ade80"/>
+            <text x="237" y="134" fill="#bbf7d0" font-size="9" text-anchor="middle">staleTime 内 = 再fetchしない</text>
+
+            <circle cx="350" cy="130" r="7" fill="#fbbf24"/>
+            <text x="350" y="112" fill="#fde68a" text-anchor="middle">staleTime 経過</text>
+            <text x="350" y="156" fill="#fde68a" font-size="9.5" text-anchor="middle">stale（陳腐化）</text>
+
+            <rect x="357" y="120" width="290" height="20" fill="#3f2d0a" stroke="#fbbf24"/>
+            <text x="502" y="134" fill="#fde68a" font-size="9" text-anchor="middle">画面に表示されている間 = 表示は続く（cacheを見せる）</text>
+
+            <circle cx="650" cy="130" r="7" fill="#38bdf8"/>
+            <text x="650" y="112" fill="#7dd3fc" text-anchor="middle">画面から消える</text>
+            <text x="650" y="156" fill="#7dd3fc" font-size="9.5" text-anchor="middle">inactive</text>
+
+            <rect x="657" y="120" width="230" height="20" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="772" y="134" fill="#7dd3fc" font-size="9" text-anchor="middle">gcTime 内 = cacheが残る（戻ると即表示）</text>
+
+            <circle cx="890" cy="130" r="7" fill="#f87171"/>
+            <text x="890" y="112" fill="#fca5a5" text-anchor="middle">gcTime 経過</text>
+            <text x="890" y="156" fill="#fca5a5" font-size="9.5" text-anchor="middle">破棄</text>
+
+            <rect x="60" y="185" width="440" height="235" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="76" y="209" fill="#bae6fd" font-size="12" font-weight="bold">staleTime の設定指針</text>
+            <text x="76" y="233" fill="#e0f2fe">デフォルト: 0（＝ 即 stale。マウントごとに再fetch）</text>
+            <text x="76" y="257" fill="#7dd3fc">・頻繁に変わる（予約一覧・在庫）→ 0〜30秒</text>
+            <text x="76" y="277" fill="#7dd3fc">・あまり変わらない（部屋マスタ・プラン）→ 5〜10分</text>
+            <text x="76" y="297" fill="#7dd3fc">・ほぼ変わらない（都道府県・設備マスタ）→ Infinity</text>
+            <text x="76" y="321" fill="#4ade80">★ 「stale」でも画面は消えない。</text>
+            <text x="76" y="339" fill="#86efac">　 cacheを表示しつつ裏で再fetchする（stale-while-revalidate）</text>
+            <text x="76" y="363" fill="#fbbf24">★ 再fetchのトリガー（staleのときだけ発動）:</text>
+            <text x="76" y="381" fill="#fde68a">　 マウント / タブ再フォーカス / 再接続 / refetchInterval</text>
+            <text x="76" y="403" fill="#f87171">★ staleTime=0 のまま大量のqueryを持つと、</text>
+            <text x="76" y="415" fill="#fca5a5">　 画面遷移のたびに全部再fetchされる（体感が遅い原因）</text>
+
+            <rect x="520" y="185" width="460" height="235" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="536" y="209" fill="#dcfce7" font-size="12" font-weight="bold">queryKey の設計（最重要）</text>
+            <text x="536" y="233" fill="#bbf7d0">queryKey = 「このデータを一意に決める全ての条件」</text>
+            <text x="536" y="257" fill="#e2e8f0">✓ ['reservations', { keyword, page, status }]</text>
+            <text x="536" y="275" fill="#f87171">✗ ['reservations']  ← 条件が変わっても同じcacheを見る</text>
+            <text x="536" y="299" fill="#fbbf24">★ 入れ忘れると起きること:</text>
+            <text x="536" y="317" fill="#fde68a">　 検索条件を変えたのに、前の結果が表示される</text>
+            <text x="536" y="335" fill="#fde68a">　（そして数百ms後に正しい結果に切り替わる＝チラつき）</text>
+            <text x="536" y="359" fill="#4ade80">★ 階層構造にすると invalidate が便利:</text>
+            <text x="536" y="377" fill="#bbf7d0">　 ['reservations', 'list', filters]</text>
+            <text x="536" y="393" fill="#bbf7d0">　 ['reservations', 'detail', id]</text>
+            <text x="536" y="411" fill="#86efac">　 → invalidate(['reservations']) で両方が無効化される</text>
+          </g>
+        </svg>
+        <p class="figcap">図5-1 staleTime（再fetchするか）と gcTime（cacheを保持するか）は別のダイヤル。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 実務で必ず押さえる6点</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>要点</th><th>やらないと起きること</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><b>queryKeyに依存を全部入れる</b></td><td class="bad">条件変更後も古いcacheが表示される（最頻出のバグ）</td></tr>
+              <tr><td>2</td><td><b>isPending / isError を必ず出す</b></td><td class="bad">data が undefined でクラッシュ / 白画面 / エラーが無言で消える</td></tr>
+              <tr><td>3</td><td><b>staleTime を意識的に設定する</b></td><td class="warn">画面遷移のたびに全API再取得（体感が遅い / サーバ負荷）</td></tr>
+              <tr><td>4</td><td><b>mutation後に invalidateQueries</b></td><td class="bad">更新したのに一覧が古いまま</td></tr>
+              <tr><td>5</td><td><b>race condition は自動で解決される</b></td><td class="good">（自前fetchだと自分で防ぐ必要がある。これがReact Queryの主な価値）</td></tr>
+              <tr><td>6</td><td><b>optimistic update は「使う場所を選ぶ」</b></td><td class="warn">全部に入れると、失敗時のロールバックが複雑になる</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="ts" data-cap="mutation の完全な形（invalidate / optimistic / エラー処理）" data-tone="good"><script type="text/plain">
+// ---- 基本形: 成功したら invalidate ----
+const { mutate, isPending } = useMutation({
+  mutationFn: (input: UpdateInput) => api.updateReservation(input),
+@@+  onSuccess: (_data, variables) => {
+    // 一覧と詳細の両方を無効化する
+    queryClient.invalidateQueries({ queryKey: ['reservations'] });
+    // 特定の詳細だけを更新したい場合
+    queryClient.invalidateQueries({ queryKey: ['reservations', 'detail', variables.id] });
+  },
+  onError: (error) => {
+    toast.error(toMessage(error)); // ★ 必ずユーザーに伝える
+  },
+});
+
+// ---- optimistic update: 保存を待たずにUIを更新する ----
+const { mutate: toggleFavorite } = useMutation({
+  mutationFn: api.toggleFavorite,
+@@+  onMutate: async (id: string) => {
+    // 1) 進行中のfetchをキャンセル（上書きされないように）
+    await queryClient.cancelQueries({ queryKey: ['reservations'] });
+    // 2) ロールバック用に現在のcacheを保存
+    const previous = queryClient.getQueryData<ReservationList>(['reservations']);
+    // 3) cacheを先に書き換える（UIが即座に反応する）
+    queryClient.setQueryData<ReservationList>(['reservations'], old =>
+      old ? { ...old, items: old.items.map(r =>
+        r.id === id ? { ...r, isFavorite: !r.isFavorite } : r) } : old,
+    );
+    return { previous }; // context として onError に渡る
+  },
+@@+  onError: (_err, _id, context) => {
+    // 4) 失敗したら元に戻す
+    if (context?.previous) {
+      queryClient.setQueryData(['reservations'], context.previous);
+    }
+    toast.error('更新に失敗しました');
+  },
+@@+  onSettled: () => {
+    // 5) 成功・失敗どちらでも、最後にサーバーの真実で上書きする
+    queryClient.invalidateQueries({ queryKey: ['reservations'] });
+  },
+});
+
+// ★ optimistic update を使う判断:
+//   ✓ 使う: いいね・お気に入り・チェックボックス（失敗の影響が小さく、頻度が高い）
+//   ✗ 使わない: 予約の確定・課金・在庫の確保
+//     → 「成功したように見えたのに失敗していた」が業務事故になる
+//   ★ 「失敗したときにユーザーが困るか」で判断する
+</script></div>
+
+      <div class="cb" data-lang="ts" data-cap="race condition — React Queryが自動で解決していること" data-tone="good"><script type="text/plain">
+// ★ 自前fetchで起きる問題:
+//   ユーザーが素早く「東京」→「大阪」と検索したとき
+//
+//   t1: fetch("東京") 開始
+//   t2: fetch("大阪") 開始
+//   t3: 「大阪」のレスポンス到着 → setItems(大阪の結果)  ← 正しい
+//   t4: 「東京」のレスポンス到着 → setItems(東京の結果)  ← ★ 古い結果で上書き！
+//
+//   → 画面には「大阪」と入力されているのに「東京」の結果が出る
+
+// ★ 自前で防ぐ場合（毎回書く必要がある）:
+useEffect(() => {
+  let cancelled = false;
+  fetch(`/api/search?q=${keyword}`)
+    .then(r => r.json())
+    .then(d => { if (!cancelled) setItems(d.items); }); // ★ フラグで防ぐ
+  return () => { cancelled = true; };
+}, [keyword]);
+// または AbortController を使う
+
+// ★ React Query の場合: 何も書かなくてよい
+@@+const { data } = useQuery({
+@@+  queryKey: ['search', keyword], // ★ keyword が変わると別のqueryになる
+@@+  queryFn: () => searchApi(keyword),
+});
+// → 「東京」のqueryと「大阪」のqueryは別物として管理される
+// → 表示されるのは常に「今のqueryKeyに対応する結果」
+// ★ これがReact Queryを使う最大の理由（キャッシュより、この正しさ）
+</script></div>
+    </section>
+
+    <section id="ch6" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">06</span> 非同期の基礎（Reactの外・JSの世界）</h2>
+      <p class="lede">重要な認識: <b class="text-emerald-400">fetch部分はReactの機能ではない</b>。JS/ブラウザの非同期処理であり、React Queryはその上に「キャッシュ＆状態化」を乗せているだけ。<b class="text-slate-200">層を混同すると、どこを直せばいいか分からなくなる</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">4つの層を分けて理解する</text>
+          <defs><marker id="r6" markerWidth="10" markerHeight="10" refX="4" refY="9" orient="auto"><path d="M0,0 L8,0 L4,10 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="150" y="50" width="740" height="60" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="166" y="74" fill="#e2e8f0" font-size="11.5" font-weight="bold">層1: await / Promise — 「待つ仕組み」（JSの言語機能）</text>
+            <text x="166" y="96" fill="#cbd5e1">Promise = 未来に届く値の箱（pending → fulfilled / rejected）。async/await はその糖衣構文</text>
+            <line x1="520" y1="112" x2="520" y2="126" stroke="#4ade80" stroke-width="2" marker-end="url(#r6)"/>
+
+            <rect x="150" y="128" width="740" height="60" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="166" y="152" fill="#bae6fd" font-size="11.5" font-weight="bold">層2: fetch / axios — 「HTTPを叩く道具」（ブラウザAPI / ライブラリ）</text>
+            <text x="166" y="174" fill="#e0f2fe">HTTPリクエストを送り、Promiseを返す。★ Reactとは無関係。Node.jsでも動く</text>
+            <line x1="520" y1="190" x2="520" y2="204" stroke="#4ade80" stroke-width="2" marker-end="url(#r6)"/>
+
+            <rect x="150" y="206" width="740" height="60" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="166" y="230" fill="#dcfce7" font-size="11.5" font-weight="bold">層3: useQuery / useMutation — 「結果を状態化してUIに繋ぐ」（React）</text>
+            <text x="166" y="252" fill="#bbf7d0">cache / 再fetch / loading・error の管理 / 重複排除 / race condition の解決</text>
+            <line x1="520" y1="268" x2="520" y2="282" stroke="#4ade80" stroke-width="2" marker-end="url(#r6)"/>
+
+            <rect x="150" y="284" width="740" height="60" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="166" y="308" fill="#ede9fe" font-size="11.5" font-weight="bold">層4: orval / openapi-typescript — 「型とフックを自動生成」（ビルド時）</text>
+            <text x="166" y="330" fill="#ddd6fe">OpenAPI仕様から useQuery ラッパーと型を生成 → ★ 手書きの fetch/axios を書く場面が減る</text>
+
+            <text x="520" y="368" fill="#fbbf24" font-size="11" text-anchor="middle">★ 「fetchが失敗する」問題は層2、「画面が更新されない」問題は層3。切り分けができると調査が速い</text>
+          </g>
+        </svg>
+        <p class="figcap">図6-1 4層。orvalを使っていると層2を書かないので、層1〜2の理解が抜けやすい。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ fetch vs axios（実務で知っておくべき差）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>観点</th><th>fetch</th><th>axios</th></tr></thead>
+            <tbody>
+              <tr><td>出自</td><td>ブラウザ標準（Node 18+ にも入った）</td><td>外部ライブラリ</td></tr>
+              <tr><td>JSONパース</td><td>手動 <span class="k">await res.json()</span></td><td class="good">自動 <span class="k">res.data</span></td></tr>
+              <tr><td><b>HTTPエラー(4xx/5xx)</b></td><td class="bad"><b>rejectしない</b>（<span class="k">res.ok</span> を自分で見る）</td><td class="good">自動reject → catchで捕まる</td></tr>
+              <tr><td>timeout</td><td class="bad">ない（<span class="k">AbortSignal.timeout()</span> で自作）</td><td class="good">組み込み</td></tr>
+              <tr><td>interceptor（共通処理）</td><td class="bad">ない（ラッパーを自作）</td><td class="good">組み込み（トークン付与・401でリダイレクト）</td></tr>
+              <tr><td>バンドルサイズ</td><td class="good">0（標準）</td><td class="warn">約13KB</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="ts" data-cap="fetch の最大の罠 — 4xx/5xx で reject しない" data-tone="bad"><script type="text/plain">
+// ✗ これは 404 でも 500 でも「成功」として扱われる
+@@-const res = await fetch('/api/reservations/999');
+@@-const data = await res.json(); // ★ エラーレスポンスのJSONをパースしてしまう
+@@-return data.items;             // undefined → 後続でクラッシュ
+
+// ✓ 必ず res.ok を確認する
+const res = await fetch('/api/reservations/999');
+@@+if (!res.ok) {
+@@+  const body = await res.text();
+@@+  throw new HttpError(res.status, body); // ★ throwすればReact QueryがisErrorにしてくれる
+}
+const data = await res.json();
+
+// ★ 実務では共通ラッパーを1つ作る（毎回書かない）
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    signal: AbortSignal.timeout(10_000), // ★ タイムアウトを自作する
+  });
+  if (!res.ok) {
+    throw new HttpError(res.status, await res.text().catch(() => ''));
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+// ★ orval を使う場合、この関数を custom instance として登録すれば
+//   生成された全フックがこのラッパーを通る
+</script></div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">補足 — await の誤解</p>
+        <div class="cb" data-lang="ts" data-cap="await は「その関数だけ」を中断する（ブロックしない）"><script type="text/plain">
+async function loadAll() {
+  // ✗ 直列実行: 3つのAPIを順番に待つ（合計300ms）
+@@-  const a = await fetchA(); // 100ms
+@@-  const b = await fetchB(); // 100ms
+@@-  const c = await fetchC(); // 100ms
+
+  // ✓ 並列実行: 同時に投げて全部待つ（合計100ms）
+@@+  const [a, b, c] = await Promise.all([fetchA(), fetchB(), fetchC()]);
+
+  // ✓ 一部が失敗してもよい場合
+  const results = await Promise.allSettled([fetchA(), fetchB(), fetchC()]);
+  // results[0].status === 'fulfilled' | 'rejected'
+}
+
+// ★ 押さえる点:
+//   ・await は「この関数の実行を一時中断」するだけ。ブラウザ全体は止まらない
+//   ・async関数は必ず Promise を返す（return 1 でも Promise<number>）
+//   ・依存関係がない複数のawaitを見たら、Promise.all にできないか疑う
+//   ・React Query なら useQueries で並列取得できる（それぞれ独立してcacheされる）
+</script></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part2">
+      <p class="eyebrow">Part 2</p>
+      <h2>フォーム設計（React Hook Form）</h2>
+      <p class="sub">結論を先に: <b class="text-rose-400">動的配列管理が難しく感じる本当の理由は、<span class="k">useFieldArray</span> のAPIが難しいからではない</b>。<b class="text-emerald-400">フォームstateの形をUI階層に合わせず、サーバーレスポンス（API）の形のまま使っていること</b>が原因である。RHFは素朴なAPIなので、メンタルモデルを構築すれば終わる。</p>
+    </div>
+
+    <section id="ch7" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">07</span> RHFのメンタルモデル</h2>
+      <p class="lede">最低限これだけ。<b class="text-emerald-400">RHFの状態は React state ではなく、RHF内部のstoreに存在する</b>。だから「値が変わっても再レンダリングが起きない」（それが速い理由）。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">RHFは「uncontrolled + 内部store + 購読」で動く</text>
+          <defs><marker id="r7" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="40" y="55" width="240" height="140" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="160" y="79" fill="#bae6fd" font-size="12" text-anchor="middle" font-weight="bold">DOM（input要素）</text>
+            <text x="56" y="103" fill="#e0f2fe">&lt;input {...register('email')} /&gt;</text>
+            <text x="56" y="127" fill="#7dd3fc">・値はDOMが持つ（uncontrolled）</text>
+            <text x="56" y="145" fill="#7dd3fc">・onChangeで内部storeへ通知</text>
+            <text x="56" y="163" fill="#7dd3fc">・★ 入力のたびに再レンダリング</text>
+            <text x="56" y="179" fill="#7dd3fc">　 は起きない（速い理由）</text>
+
+            <line x1="284" y1="125" x2="324" y2="125" stroke="#4ade80" stroke-width="2" marker-end="url(#r7)"/>
+
+            <rect x="330" y="55" width="330" height="230" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="495" y="79" fill="#dcfce7" font-size="12" text-anchor="middle" font-weight="bold">RHF内部store（_formState など）</text>
+            <text x="346" y="103" fill="#bbf7d0">values          — 現在の入力値</text>
+            <text x="346" y="121" fill="#bbf7d0">defaultValues   — 初期値（基準線）</text>
+            <text x="346" y="139" fill="#bbf7d0">errors          — 検証エラー ★ ここが正本</text>
+            <text x="346" y="157" fill="#bbf7d0">touchedFields   — 触ったフィールド</text>
+            <text x="346" y="175" fill="#bbf7d0">dirtyFields     — 初期値から変わったもの</text>
+            <text x="346" y="193" fill="#bbf7d0">isSubmitting    — 送信中</text>
+            <text x="346" y="211" fill="#bbf7d0">isValid         — 全体が妥当か（派生）</text>
+            <text x="346" y="237" fill="#4ade80">★ この中に useState(_formState) がある</text>
+            <text x="346" y="255" fill="#86efac">＝ 「探していた useState」はRHFの中にある</text>
+            <text x="346" y="275" fill="#fbbf24">★ だから自分で useState を作る必要がない</text>
+
+            <line x1="664" y1="170" x2="704" y2="170" stroke="#4ade80" stroke-width="2" marker-end="url(#r7)"/>
+
+            <rect x="710" y="55" width="290" height="230" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="855" y="79" fill="#ede9fe" font-size="12" text-anchor="middle" font-weight="bold">購読（Proxy）</text>
+            <text x="726" y="103" fill="#ddd6fe">formState.errors を「読んだ」</text>
+            <text x="726" y="121" fill="#ddd6fe">コンポーネントだけが再レンダリング</text>
+            <text x="726" y="145" fill="#c4b5fd">仕組み: _proxyFormState が</text>
+            <text x="726" y="163" fill="#c4b5fd">「何を読んだか」を記録する</text>
+            <text x="726" y="187" fill="#a78bfa">→ errors を読まないコンポーネントは</text>
+            <text x="726" y="205" fill="#a78bfa">　 エラーが出ても再描画されない</text>
+            <text x="726" y="231" fill="#4ade80">★ これがRHFが速い2つ目の理由</text>
+            <text x="726" y="251" fill="#f87171">★ 注意: 読んだ瞬間に購読が始まる。</text>
+            <text x="726" y="269" fill="#fca5a5">　 分割代入で読むだけでも購読される</text>
+
+            <rect x="40" y="305" width="960" height="100" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="56" y="329" fill="#fef3c7" font-size="12" font-weight="bold">3状態モデルでの位置づけ（Part 1の分類との対応）</text>
+            <text x="56" y="353" fill="#fde68a">UI状態（useState）      持ち主: あなた        → error はここではない ✗</text>
+            <text x="56" y="373" fill="#4ade80">フォーム状態（useForm） 持ち主: RHF内部store  → ★ error / 検証 / 送信状態は全部ここ ✓</text>
+            <text x="56" y="393" fill="#fde68a">サーバ状態（useQuery）  持ち主: React Query   → defaultValues の供給元にはなる ✗（error はここでもない）</text>
+          </g>
+        </svg>
+        <p class="figcap">図7-1 RHFの3要素。「errorをuseStateで持つ?」という問い自体が的外れである理由がここにある。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 最低限のAPI（7つ）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>API</th><th>役割</th><th>再レンダリング</th><th>注意</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">register</span></td><td>入力をRHFの内部storeに紐付ける。文字列パスでアクセス</td><td class="good">起きない</td><td>パスは <span class="k">'items.0.name'</span> のドット記法</td></tr>
+              <tr><td><span class="k">handleSubmit</span></td><td>検証 → 成功なら onValid / 失敗なら onInvalid を呼ぶ</td><td>errors更新時のみ</td><td><b>イベントハンドラを返す高階関数</b></td></tr>
+              <tr><td><span class="k">useFieldArray</span></td><td>配列フィールドの append/remove/move/update</td><td>配列操作時</td><td>key は <span class="k">field.id</span>（indexではない）</td></tr>
+              <tr><td><span class="k">watch</span></td><td>フィールドを購読する</td><td class="bad"><b>呼ぶと再レンダリングが発生</b></td><td>全体購読 <span class="k">watch()</span> は避ける</td></tr>
+              <tr><td><span class="k">getValues</span></td><td>現在値を取得する</td><td class="good">起きない（購読しない）</td><td>レンダリング中に読んでも最新にならない</td></tr>
+              <tr><td><span class="k">setValue</span></td><td>1フィールドを更新する</td><td>オプション次第</td><td><span class="k">{ shouldDirty: true }</span> を明示する</td></tr>
+              <tr><td><span class="k">reset</span></td><td>フォーム全体を<b>再初期化</b>する</td><td>する</td><td class="bad"><b>dirty/touched が消える</b>。更新目的で使わない</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-teal-300">腹落ちすべき3点</b>: ①<b class="text-slate-100">RHFはuncontrolledベース</b>（値はDOMにあり、Reactのstateではない）②<b class="text-slate-100"><span class="k">watch</span> は「購読されているスナップショット」、<span class="k">getValues</span> は「現時点の値」</b>③<b class="text-slate-100"><span class="k">fields</span>（useFieldArrayの返り値）は配列のスナップショットであり、実データではない</b>。</p>
+      </div>
+    </section>
+
+    <section id="ch8" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">08</span> formState と error の反映機構</h2>
+      <p class="lede">結論。<b class="text-emerald-400">validationの「判定」も errorの「保持」も、全部RHF内部storeが持つ</b>。あなたのuseStateではない。<b class="text-slate-200">errorは「フォーム状態」の一部であり、「UI状態」ではない</b> — ここを混同すると永久に腹落ちしない。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="500" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">handleSubmit → エラーがUIに出るまでの4ステップ</text>
+          <defs><marker id="r8" markerWidth="10" markerHeight="10" refX="4" refY="9" orient="auto"><path d="M0,0 L8,0 L4,10 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="200" y="50" width="640" height="62" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="216" y="74" fill="#bae6fd" font-size="11.5" font-weight="bold">submit イベント発火 → handleSubmit(onValid, onInvalid) が返したハンドラが実行される</text>
+            <text x="216" y="96" fill="#e0f2fe">getValues() で現在の全入力値を集める</text>
+            <line x1="520" y1="114" x2="520" y2="128" stroke="#4ade80" stroke-width="2" marker-end="url(#r8)"/>
+
+            <rect x="200" y="130" width="640" height="82" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="216" y="154" fill="#dcfce7" font-size="11.5" font-weight="bold">① 判定（validation）</text>
+            <text x="216" y="176" fill="#bbf7d0">resolver（zod / yup）または register のルール（required など）で全登録フィールドを検証</text>
+            <text x="216" y="196" fill="#86efac">★ ここが「あなたが書こうとしていた if 文の集まり」。RHFが代わりに実行している</text>
+            <line x1="380" y1="214" x2="380" y2="228" stroke="#4ade80" stroke-width="2" marker-end="url(#r8)"/>
+            <line x1="680" y1="214" x2="680" y2="228" stroke="#4ade80" stroke-width="2" marker-end="url(#r8)"/>
+
+            <rect x="200" y="230" width="330" height="70" rx="8" fill="#052e16" stroke="#4ade80"/>
+            <text x="216" y="254" fill="#dcfce7" font-weight="bold">error が空 → onValid(values)</text>
+            <text x="216" y="276" fill="#bbf7d0">＝ あなたの送信処理（mutate など）</text>
+            <text x="216" y="294" fill="#86efac" font-size="9.5">この間 isSubmitting が true になる</text>
+
+            <rect x="550" y="230" width="290" height="70" rx="8" fill="#450a0a" stroke="#f87171"/>
+            <text x="566" y="254" fill="#fecaca" font-weight="bold">error あり → 内部storeへ格納</text>
+            <text x="566" y="276" fill="#fca5a5">_formState.errors に入る</text>
+            <text x="566" y="294" fill="#fca5a5" font-size="9.5">onInvalid が呼ばれ、必要ならフォーカス移動</text>
+            <line x1="695" y1="302" x2="695" y2="316" stroke="#4ade80" stroke-width="2" marker-end="url(#r8)"/>
+
+            <rect x="480" y="318" width="430" height="76" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="496" y="342" fill="#ede9fe" font-size="11.5" font-weight="bold">② 通知（publish）</text>
+            <text x="496" y="364" fill="#ddd6fe">_subjects.state.next({ errors }) で購読者に通知</text>
+            <text x="496" y="384" fill="#c4b5fd">→ 購読中の next が updateFormState（= setState）を呼ぶ</text>
+            <line x1="695" y1="396" x2="695" y2="410" stroke="#4ade80" stroke-width="2" marker-end="url(#r8)"/>
+
+            <rect x="480" y="412" width="430" height="76" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="496" y="436" fill="#fef3c7" font-size="11.5" font-weight="bold">③ 再レンダリング（購読者のみ）</text>
+            <text x="496" y="458" fill="#fde68a">formState.errors を「読んでいる」コンポーネントだけが再描画される</text>
+            <text x="496" y="478" fill="#fcd34d">→ {errors.email &amp;&amp; &lt;span&gt;{errors.email.message}&lt;/span&gt;} が表示される</text>
+
+            <rect x="40" y="318" width="420" height="170" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="56" y="342" fill="#e2e8f0" font-size="11.5" font-weight="bold">この機構が意味すること</text>
+            <text x="56" y="366" fill="#cbd5e1">・error のために useState を作る必要はない</text>
+            <text x="56" y="386" fill="#cbd5e1">・error は「保存する種類の状態」ではなく</text>
+            <text x="72" y="404" fill="#cbd5e1">　values から導出された結果（#6 派生に近い）</text>
+            <text x="56" y="426" fill="#cbd5e1">・isSubmitting は React Query の isPending と</text>
+            <text x="72" y="444" fill="#cbd5e1">　同じ構造（非同期の実行中フラグ）</text>
+            <text x="56" y="468" fill="#4ade80">★ 一度理解すれば、全部の非同期処理に効く</text>
+          </g>
+        </svg>
+        <p class="figcap">図8-1 handleSubmitの4ステップ。「探していたuseStateはRHFの中にある」ことが分かれば腹落ちする。</p>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="errorを表示する最小コード" data-tone="good"><script type="text/plain">
+const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  resolver: zodResolver(schema), // zodで検証ルールを定義（推奨）
+  defaultValues: { email: '', name: '' },
+});
+
+<form onSubmit={handleSubmit(onValid)}>
+  <input {...register('email')} aria-invalid={!!errors.email} />
+  {/* ★ errors を「読んだ」ので、このコンポーネントは errors 変化で再描画される */}
+  {errors.email && <span role="alert">{errors.email.message}</span>}
+
+  <button type="submit" disabled={isSubmitting}>
+    {isSubmitting ? '送信中...' : '送信'}
+  </button>
+</form>
+
+// ★ zod スキーマ側にルールを集約する（register のオプションに散らさない）
+const schema = z.object({
+  email: z.string().min(1, 'メールアドレスは必須です').email('形式が正しくありません'),
+  name:  z.string().min(1, '名前は必須です').max(100, '100文字以内で入力してください'),
+});
+type FormValues = z.infer<typeof schema>; // ★ 型が自動で導出される
+
+// ★ zodを使う利点:
+//   ・検証ルールが1箇所に集まる（register に分散しない）
+//   ・型が自動生成される（手書きの型定義とのズレがなくなる）
+//   ・サーバー側と同じスキーマを共有できる場合がある
+</script></div>
+
+      <div class="step note">
+        <p class="step-h">FormProvider を使うときの再レンダリング粒度（実務の落とし穴）</p>
+        <div class="cb" data-lang="tsx" data-cap="Provider経由だと粒度が粗くなる" data-tone="warn"><script type="text/plain">
+// ✗ 粒度が粗い: useFormContext().formState は Provider の1つの useForm を配るだけ
+//   → 再レンダリングの起点が Provider コンポーネントになる
+//   → 100項目のフォームで1項目のエラーが出ると、全体が再描画される
+function Child() {
+@@-  const { formState: { errors } } = useFormContext();
+  return <span>{errors.email?.message}</span>;
+}
+
+// ✓ 項目単位で購読する（各自が独立した購読を持つ）
+function Child() {
+@@+  const { control } = useFormContext();
+@@+  const { errors } = useFormState({ control, name: 'email' }); // ★ nameを指定すると更に絞れる
+  return <span>{errors.email?.message}</span>;
+}
+
+// ✓ または Controller / useController を使う（値とエラーをまとめて購読）
+function EmailInput() {
+  const { field, fieldState } = useController({ name: 'email', control });
+  return (
+    <>
+      <input {...field} aria-invalid={!!fieldState.error} />
+      {fieldState.error && <span>{fieldState.error.message}</span>}
+    </>
+  );
+}
+
+// ★ 判断:
+//   ・項目が20個未満 → useFormContext で十分（最適化は不要）
+//   ・項目が50個以上 / 動的配列で行が多い → useFormState({ name }) / useController
+//   ★ React DevTools の Profiler で「実際に遅いか」を測ってから最適化する
+</script></div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">formState は「7バケツの縮図」になっている</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>グループ</th><th>フィールド</th><th>縮図としての意味</th><th>対応バケツ</th></tr></thead>
+            <tbody>
+              <tr><td>データ本体</td><td><span class="k">values</span></td><td>実データ</td><td>#4 ローカルUI</td></tr>
+              <tr><td>基準線</td><td><span class="k">defaultValues</span></td><td>サーバ由来の初期表示</td><td>#1 的</td></tr>
+              <tr><td><b>検証（派生）</b></td><td><span class="k">errors</span> / <span class="k">isValid</span> / <span class="k">isValidating</span></td><td class="good"><b>valuesから導出される</b></td><td>#6 派生</td></tr>
+              <tr><td>インタラクション</td><td><span class="k">touchedFields</span> / <span class="k">dirtyFields</span> / <span class="k">isDirty</span></td><td>操作履歴（初期値との差分）</td><td>UI操作</td></tr>
+              <tr><td>送信ライフサイクル</td><td><span class="k">isSubmitting</span> / <span class="k">isSubmitted</span> / <span class="k">isSubmitSuccessful</span> / <span class="k">submitCount</span></td><td>非同期処理の実行中/成功</td><td>#1 的</td></tr>
+              <tr><td>ロード</td><td><span class="k">isLoading</span> / <span class="k">disabled</span></td><td>非同期defaultValuesの読込中</td><td>#1 的</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="kv mt-3">
+          <div class="kvi"><p>洞察1</p><p><b class="text-emerald-400"><span class="k">errors</span> / <span class="k">isValid</span> は派生（#6）</b>。だから自分でuseStateにしない。<b class="text-slate-100">「errorをuseStateにする?」という問い自体が的外れ</b>（保存する種類の状態ではない）。</p></div>
+          <div class="kvi"><p>洞察2</p><p><b class="text-slate-100"><span class="k">isSubmitting</span> は React Query の <span class="k">isPending</span> と同じ構造</b>。「非同期の実行中フラグ」はフォームでもサーバ状態でも同形。<b class="text-emerald-400">一度理解すれば全部に効く</b>。</p></div>
+          <div class="kvi"><p>洞察3</p><p><b class="text-slate-100"><span class="k">defaultValues</span> vs <span class="k">values</span> = 基準線 vs 現在値</b>。dirty判定 = 「サーバの真実とローカル編集の差分」。<b class="text-sky-400">DDDの「永続化状態 vs 編集中状態」と同型</b>（ddd-practice.html ch3の「命令と状態」）。</p></div>
+          <div class="kvi"><p>実務での使い道</p><p><span class="k">isDirty</span> で「変更がある場合だけ保存ボタンを有効化」「離脱時に確認ダイアログ」を実装する。<b class="text-slate-300">自分で「変更されたか」を管理する必要がない</b>。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch9" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">09</span> useFieldArray と動的配列</h2>
+      <p class="lede">結論。<b class="text-emerald-400">useFieldArray の使い方は3行で終わる</b>。難しさはAPIではなく、フォーム型の設計にある（ch10）。</p>
+
+      <div class="cb" data-lang="tsx" data-cap="3行のルール" data-tone="good"><script type="text/plain">
+const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+return (
+  <>
+    {/* ① fields.map で描画する */}
+    {fields.map((field, index) => (
+      /* ② key は field.id を使う（配列インデックスではない） */
+      <div key={field.id}>
+        {/* ③ 入力名は `name.${index}.fieldName` のドット記法 */}
+        <input {...register(`items.${index}.name`)} />
+        <input {...register(`items.${index}.qty`, { valueAsNumber: true })} />
+        <button type="button" onClick={() => remove(index)}>削除</button>
+      </div>
+    ))}
+    <button type="button" onClick={() => append({ name: '', qty: 1 })}>追加</button>
+  </>
+);
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ 操作APIの一覧</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>API</th><th>用途</th><th>備考</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">append(item)</span></td><td>末尾に追加</td><td>複数追加は配列を渡す</td></tr>
+              <tr><td><span class="k">prepend(item)</span></td><td>先頭に追加</td><td>—</td></tr>
+              <tr><td><span class="k">insert(index, item)</span></td><td>指定位置に挿入</td><td>—</td></tr>
+              <tr><td><span class="k">remove(index | index[])</span></td><td>削除</td><td>引数なしで全削除</td></tr>
+              <tr><td><span class="k">update(index, item)</span></td><td>置換</td><td class="warn">その行が再マウントされる（フォーカスが飛ぶ）→ 部分更新は <span class="k">setValue</span> の方が良い場合がある</td></tr>
+              <tr><td><span class="k">move(from, to)</span></td><td>並び替え</td><td>ドラッグ&amp;ドロップの実装で使う</td></tr>
+              <tr><td><span class="k">replace(newArray)</span></td><td>配列全置換</td><td>サーバーから再取得した配列を反映するとき</td></tr>
+              <tr><td><span class="k">swap(a, b)</span></td><td>2要素の交換</td><td>上下ボタンでの並び替え</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step why">
+        <p class="step-h">③ なぜ key に <span class="k">field.id</span> を使うのか</p>
+        <div class="cb" data-lang="tsx" data-cap="index を key にすると壊れる" data-tone="bad"><script type="text/plain">
+@@-{fields.map((field, index) => (
+@@-  <div key={index}>          {/* ★ インデックスをkeyにしている */}
+@@-    <input {...register(`items.${index}.name`)} />
+@@-  </div>
+@@-))}
+
+// ★ 何が起きるか（3行のフォームで、1行目を削除した場合）:
+//   削除前: key=0(A), key=1(B), key=2(C)
+//   削除後: key=0(B), key=1(C)
+//
+//   Reactは「key=0 の中身が A から B に変わった」と解釈する
+//   → DOM要素を再利用して値だけ差し替える
+//   → 結果: 入力中のフォーカスが飛ぶ / IME入力が中断される
+//          / uncontrolledなinputの表示値と内部stateがズレる
+//
+// ★ field.id は RHF が生成する安定したUUID。
+//   削除しても他の行のidは変わらないので、Reactが正しく対応付けできる。
+</script></div>
+      </div>
+    </section>
+
+    <section id="ch10" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">10</span> 「動的配列が難しい」5つの原因</h2>
+      <p class="lede">ここが Part 2 の核心。<b class="text-rose-400">難しさの原因はRHFではなく、設計にある</b>。5つの原因を順に潰す。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">原因1: フォーム型がUI階層と一致していない</text>
+          <defs><marker id="r10" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f87171"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="300" height="180" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="180" y="79" fill="#ede9fe" font-size="12" font-weight="bold" text-anchor="middle">APIレスポンスの形</text>
+            <text x="46" y="103" fill="#ddd6fe">{ items: [</text>
+            <text x="46" y="121" fill="#ddd6fe">  { id:1, categoryId: 10, name: "A" },</text>
+            <text x="46" y="139" fill="#ddd6fe">  { id:2, categoryId: 10, name: "B" },</text>
+            <text x="46" y="157" fill="#ddd6fe">  { id:3, categoryId: 20, name: "C" },</text>
+            <text x="46" y="175" fill="#ddd6fe">] }</text>
+            <text x="46" y="203" fill="#c4b5fd">★ flat な配列（DBの形に近い）</text>
+            <text x="46" y="223" fill="#a78bfa">これがそのままフォーム型になると…</text>
+
+            <line x1="335" y1="145" x2="375" y2="145" stroke="#f87171" stroke-width="2" marker-end="url(#r10)"/>
+
+            <rect x="380" y="55" width="300" height="180" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="530" y="79" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">UIの要求（カテゴリ別に表示）</text>
+            <text x="396" y="103" fill="#fca5a5">［カテゴリ10］</text>
+            <text x="412" y="121" fill="#e2e8f0">A / B</text>
+            <text x="396" y="143" fill="#fca5a5">［カテゴリ20］</text>
+            <text x="412" y="161" fill="#e2e8f0">C</text>
+            <text x="396" y="189" fill="#f87171">→ flat のままだと、毎レンダリングで</text>
+            <text x="396" y="207" fill="#f87171">　 groupBy(items, 'categoryId') する</text>
+            <text x="396" y="225" fill="#fbbf24">→ index の対応付けが崩壊する</text>
+
+            <line x1="685" y1="145" x2="725" y2="145" stroke="#f87171" stroke-width="2" marker-end="url(#r10)"/>
+
+            <rect x="730" y="55" width="280" height="180" rx="8" fill="#1a0a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="870" y="79" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">起きる地獄</text>
+            <text x="746" y="103" fill="#fca5a5">・register の index が</text>
+            <text x="762" y="119" fill="#fca5a5">　groupBy後の index とズレる</text>
+            <text x="746" y="141" fill="#fca5a5">・append すると、どのグループに</text>
+            <text x="762" y="157" fill="#fca5a5">　入るか制御できない</text>
+            <text x="746" y="179" fill="#fca5a5">・remove の index 計算が複雑</text>
+            <text x="746" y="201" fill="#fca5a5">・useFieldArray が使えず</text>
+            <text x="762" y="217" fill="#fca5a5">　watch + 手動操作に退化する</text>
+
+            <rect x="30" y="260" width="470" height="205" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="284" fill="#fecaca" font-size="12" font-weight="bold">✗ 悪い: API型をそのままフォーム型にする</text>
+            <text x="46" y="310" fill="#fca5a5">type Form = { items: Item[] };</text>
+            <text x="46" y="336" fill="#e2e8f0">// 描画のたびにグループ化</text>
+            <text x="46" y="354" fill="#fca5a5">const groups = groupBy(watch('items'), 'categoryId');</text>
+            <text x="46" y="378" fill="#f87171">問題:</text>
+            <text x="46" y="396" fill="#fca5a5">・watch() で全体購読 → 毎入力で再描画</text>
+            <text x="46" y="414" fill="#fca5a5">・groups の index と items の index が別物</text>
+            <text x="46" y="432" fill="#fca5a5">・useFieldArray の append/remove が使えない</text>
+            <text x="46" y="454" fill="#fbbf24">★ 「描画ループの中でgroupBy」が設計ミスのサイン</text>
+
+            <rect x="530" y="260" width="480" height="205" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="546" y="284" fill="#dcfce7" font-size="12" font-weight="bold">✓ 良い: フォーム型をUI階層に合わせる</text>
+            <text x="546" y="310" fill="#bbf7d0">type Form = {</text>
+            <text x="546" y="328" fill="#bbf7d0">  groups: { groupId: number; items: Item[] }[];</text>
+            <text x="546" y="346" fill="#bbf7d0">};</text>
+            <text x="546" y="372" fill="#4ade80">得られること:</text>
+            <text x="546" y="390" fill="#bbf7d0">・ネストした useFieldArray がそのまま使える</text>
+            <text x="546" y="408" fill="#bbf7d0">・register('groups.0.items.1.name') で素直に書ける</text>
+            <text x="546" y="426" fill="#bbf7d0">・groupBy が描画から消える</text>
+            <text x="546" y="448" fill="#86efac">★ 変換は submit直前 / 受信直後 の2箇所だけ（ch11）</text>
+          </g>
+        </svg>
+        <p class="figcap">図10-1 原因1。「フォームstateはUIに寄せる。APIの形と一致させない」が解。</p>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">原因2〜5</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>原因</th><th>症状</th><th>解</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b class="bad">原因2: <span class="k">reset</span> を「更新」のために使っている</b></td>
+                <td><span class="k">reset({ ...watch(), ...変更 })</span> — dirty/touched/defaultValues が破壊される。<span class="k">watch()</span> が購読を発生させ、無駄な再レンダリング連鎖が起きる</td>
+                <td class="good">1フィールド更新は <span class="k">setValue(path, value, { shouldDirty: true })</span>。<span class="k">reset</span> は初期化専用</td>
+              </tr>
+              <tr>
+                <td><b class="bad">原因3: <span class="k">useFieldArray</span> を中途半端に使う</b></td>
+                <td>ある配列だけ useFieldArray、別の配列は <span class="k">watch + index</span> で触る混在。keyも <span class="k">field.id</span> と index が混在</td>
+                <td class="good"><b>配列を扱うなら全部 useFieldArray で統一する</b>。例外を作らない</td>
+              </tr>
+              <tr>
+                <td><b class="bad">原因4: 派生状態をフォームstateにしていない（またはその逆）</b></td>
+                <td>「あるモードがONかOFFか」を別の useState で持ち、フォームの値と同期が崩れる</td>
+                <td class="good"><b>送信に必要ならフォームのフィールドとして持つ</b>。不要なら useState でよい（ただしRHFの値と双方向同期はしない）</td>
+              </tr>
+              <tr>
+                <td><b class="bad">原因5: API型をそのままフォーム型に流用</b></td>
+                <td><span class="k">as unknown as ApiType</span> の double cast が出始める = 設計の敗北</td>
+                <td class="good">API型 → フォーム型 → API型 の変換関数を<b>1箇所に閉じ込める</b>（ch11）</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="原因2の実例 — reset を更新に使うと壊れる" data-tone="bad"><script type="text/plain">
+// ✗ 典型的アンチパターン
+@@-const handleSelectPlan = (planId: string) => {
+@@-  reset({ ...watch(), planId }); // 「現在値 + 変更」で reset
+@@-};
+
+// ★ 何が壊れるか:
+//   1. dirtyFields / touchedFields が全部クリアされる
+//      → 「変更があるので保存ボタンを有効化」が効かなくなる
+//      → 「離脱時の確認ダイアログ」が出なくなる
+//   2. defaultValues が「現在値」に置き換わる
+//      → 以降の isDirty の基準線がズレる（「変更なし」と判定される）
+//   3. watch() で全体購読が発生 → このコンポーネントが毎入力で再描画
+//   4. フォーム全体が再マウントされ、フォーカスが飛ぶ
+
+// ✓ 正しい形
+@@+const handleSelectPlan = (planId: string) => {
+@@+  setValue('planId', planId, { shouldDirty: true, shouldValidate: true });
+@@+};
+
+// ★ setValue のオプション:
+//   shouldDirty: true    → dirtyFields に記録する（保存ボタンの制御に必要）
+//   shouldTouch: true    → touchedFields に記録する（エラー表示のタイミング制御）
+//   shouldValidate: true → その場で検証する（即座にエラーを出したい場合）
+// ★ デフォルトは全部 false。★ 明示しないと「変更したのにisDirtyがfalse」になる
+
+// ★ reset を使う正しい場面:
+//   ・サーバーから初期データを取得したとき: reset(serverData)
+//   ・フォームを白紙化するとき: reset()
+//   ・送信成功後に初期化するとき: reset(newDefaultValues)
+</script></div>
+    </section>
+
+    <section id="ch11" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">11</span> Form型はUI階層に合わせる / 変換層</h2>
+      <p class="lede">結論。<b class="text-emerald-400">API型とフォーム型は別物として設計し、境界に変換関数（adapter）を置く</b>。これは Part 1 のDTO分離、そして <b class="text-sky-400">ddd-practice.html の「型を分ける」議論</b>と全く同じ構造。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 300" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="300" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">変換層を分離する</text>
+          <defs><marker id="r11" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="70" width="220" height="80" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="140" y="96" fill="#ede9fe" font-size="11.5" text-anchor="middle" font-weight="bold">API response</text>
+            <text x="46" y="118" fill="#ddd6fe" font-size="9.5">生成型（orval / openapi-ts）</text>
+            <text x="46" y="136" fill="#c4b5fd" font-size="9.5">flat / snake_case / nullable</text>
+
+            <line x1="255" y1="110" x2="320" y2="110" stroke="#4ade80" stroke-width="2" marker-end="url(#r11)"/>
+            <text x="288" y="100" fill="#4ade80" font-size="9.5" text-anchor="middle">adapter in</text>
+
+            <rect x="325" y="70" width="220" height="80" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="435" y="96" fill="#dcfce7" font-size="11.5" text-anchor="middle" font-weight="bold">Form state</text>
+            <text x="341" y="118" fill="#bbf7d0" font-size="9.5">UI階層に一致した形</text>
+            <text x="341" y="136" fill="#86efac" font-size="9.5">ネスト / camelCase / 非null</text>
+
+            <line x1="550" y1="110" x2="615" y2="110" stroke="#4ade80" stroke-width="2" marker-end="url(#r11)"/>
+            <text x="583" y="100" fill="#4ade80" font-size="9.5" text-anchor="middle">adapter out</text>
+
+            <rect x="620" y="70" width="220" height="80" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="730" y="96" fill="#ede9fe" font-size="11.5" text-anchor="middle" font-weight="bold">API request</text>
+            <text x="636" y="118" fill="#ddd6fe" font-size="9.5">flatten して送る</text>
+            <text x="636" y="136" fill="#c4b5fd" font-size="9.5">生成型に合わせる</text>
+
+            <rect x="30" y="180" width="810" height="100" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="46" y="204" fill="#bae6fd" font-size="11.5" font-weight="bold">この形にする利点</text>
+            <text x="46" y="228" fill="#e0f2fe">・フォーム内の処理は変換を一切気にしなくてよい（型が1つに固定される）</text>
+            <text x="46" y="248" fill="#e0f2fe">・API仕様が変わったら adapter だけ直す（フォームのコンポーネントは無変更）</text>
+            <text x="46" y="268" fill="#4ade80">・★ as unknown as の二重キャストが消える（型が本当に別物なので、変換関数が必要だと明示される）</text>
+
+            <rect x="860" y="180" width="150" height="100" rx="8" fill="#052e16" stroke="#4ade80"/>
+            <text x="935" y="206" fill="#dcfce7" font-size="10.5" text-anchor="middle" font-weight="bold">DDDとの同型</text>
+            <text x="876" y="228" fill="#bbf7d0" font-size="9">DTO ⇄ Entity と</text>
+            <text x="876" y="244" fill="#bbf7d0" font-size="9">同じ構造。</text>
+            <text x="876" y="264" fill="#86efac" font-size="9">「変更理由が違う</text>
+            <text x="876" y="278" fill="#86efac" font-size="9">から型を分ける」</text>
+          </g>
+        </svg>
+        <p class="figcap">図11-1 変換層。フロントエンドでもバックエンドと同じ「型を分ける」原則が効く。</p>
+      </div>
+
+      <div class="cb" data-lang="ts" data-cap="adapter の実装（1ファイルに閉じ込める）" data-tone="good"><script type="text/plain">
+// features/reservation/form/adapter.ts
+
+import type { ReservationResponse, UpdateReservationRequest } from '@/api/generated';
+
+// ---- フォーム型: UI階層に合わせて設計する ----
+export type ReservationForm = {
+  guestName: string;
+  stay: { checkIn: string; checkOut: string };  // ★ UIで1つのブロックとして表示するのでネスト
+  groups: {                                     // ★ カテゴリ別に表示するのでグループ化
+    categoryId: number;
+    categoryName: string;
+    items: { id: string | null; name: string; qty: number }[];
+  }[];
+};
+
+// ---- adapter in: API → Form ----
+export function toForm(res: ReservationResponse): ReservationForm {
+  return {
+    guestName: res.guest_name ?? '',              // ★ null を空文字に正規化（UIはnullを扱いたくない）
+    stay: {
+      checkIn: res.check_in ?? '',
+      checkOut: res.check_out ?? '',
+    },
+    // ★ groupBy はここで1回だけ実行する（描画ループの中ではない）
+    groups: groupByCategory(res.items ?? []),
+  };
+}
+
+// ---- adapter out: Form → API ----
+export function toRequest(form: ReservationForm): UpdateReservationRequest {
+  return {
+    guest_name: form.guestName,
+    check_in: form.stay.checkIn,
+    check_out: form.stay.checkOut,
+    // ★ flatten はここで1回だけ
+    items: form.groups.flatMap(g =>
+      g.items.map(i => ({
+        id: i.id ?? undefined,
+        category_id: g.categoryId,   // ★ グループ情報を各itemに戻す
+        name: i.name,
+        qty: i.qty,
+      })),
+    ),
+  };
+}
+
+// ---- 使う側: 変換を意識しない ----
+function ReservationEditForm({ id }: { id: string }) {
+  const { data, isPending } = useQuery({
+    queryKey: ['reservation', id],
+    queryFn: () => api.getReservation(id),
+@@+    select: toForm, // ★ React Query の select で変換すると、キャッシュは生データのまま
+  });
+
+  const methods = useForm<ReservationForm>({
+@@+    values: data,   // ★ v7.42+ の values（非同期データの反映に reset が不要）
+    resolver: zodResolver(formSchema),
+  });
+
+  const { mutate } = useMutation({
+@@+    mutationFn: (form: ReservationForm) => api.updateReservation(id, toRequest(form)),
+  });
+
+  if (isPending) return <Skeleton />;
+  return (
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(mutate)}>{/* ... */}</form>
+    </FormProvider>
+  );
+}
+// ★ フォームのコンポーネントは ReservationForm 型しか知らない。
+//   API型が変わっても adapter.ts だけを直せばよい。
+</script></div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 過剰になる境界 — 変換層を作らない方がよい場合</p>
+        <ul>
+          <li><b>API型とUI階層が完全に一致している</b> — 単純な設定画面（3〜5項目のflat）なら、生成型をそのままフォーム型に使ってよい。<b class="text-slate-300">変換関数が恒等関数になるなら書かない</b></li>
+          <li><b>判定基準</b>: <b class="text-emerald-400">「描画ループの中で groupBy / map による整形が必要か」</b>がYesなら変換層を作る。Noなら不要</li>
+          <li><b>TypeScriptの限界を受け入れる</b> — <span class="k">Path&lt;T&gt;</span> / <span class="k">FieldPath&lt;T&gt;</span> の型推論は深いネストで重くなる、または効かなくなる。<b class="text-slate-100">Generic component（<span class="k">&lt;TextInput&lt;Form&gt;&gt;</span>）で型を伝播させると、エディタが一気に遅くなることがある</b>。これはRHFの限界であり、型ヒントが効かない箇所は string literal で諦めるのも判断。<b class="text-rose-400">「型がきつい」と「設計がきつい」は別物なので混同しない</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch12" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">12</span> API使い分けと watch の最小化</h2>
+      <p class="lede">最後に<b class="text-emerald-400">「やりたいこと → 使うAPI」の対応表</b>を確定させる。これを見れば毎回迷わない。</p>
+
+      <div class="step principle">
+        <p class="step-h">④ 責務でAPIを使い分ける</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>やりたいこと</th><th>使うAPI</th><th>注意</th></tr></thead>
+            <tbody>
+              <tr><td>初期データをロードする</td><td><span class="k">useForm({ values })</span>（v7.42+）または <span class="k">reset(data)</span></td><td><span class="k">values</span> なら useEffect が不要</td></tr>
+              <tr><td>フォームを白紙化する</td><td><span class="k">reset()</span></td><td>—</td></tr>
+              <tr><td>1フィールドを更新する</td><td><span class="k">setValue(path, v, { shouldDirty: true })</span></td><td class="bad"><span class="k">reset</span> を使わない</td></tr>
+              <tr><td>配列の append/remove</td><td><span class="k">useFieldArray</span> の操作API</td><td>全配列で統一する</td></tr>
+              <tr><td>現在値を読む（副作用の中で）</td><td><span class="k">getValues()</span></td><td class="good">購読しない = 再描画なし</td></tr>
+              <tr><td>値の変化に追従して<b>再描画</b>したい</td><td><span class="k">watch('field')</span></td><td class="warn">全体購読 <span class="k">watch()</span> は避ける</td></tr>
+              <tr><td>値の変化に追従して<b>副作用</b>を起こしたい</td><td><span class="k">useEffect</span> + <span class="k">watch</span> または <span class="k">subscribe</span>（v8+）</td><td>再描画を伴うので最小範囲に</td></tr>
+              <tr><td>1項目だけのエラーを表示する</td><td><span class="k">useFormState({ control, name })</span> / <span class="k">useController</span></td><td class="good">再描画を項目単位に絞れる</td></tr>
+              <tr><td>変更があるか判定する</td><td><span class="k">formState.isDirty</span></td><td>自分で管理しない</td></tr>
+              <tr><td>送信中を表示する</td><td><span class="k">formState.isSubmitting</span></td><td>useStateを作らない</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="watch の最小化 — 3段階" data-tone="good"><script type="text/plain">
+// ✗ 最悪: 全体購読（1文字入力するたびに、このコンポーネント全体が再描画）
+@@-const values = watch();
+@@-const total = values.items.reduce((s, i) => s + i.price, 0);
+
+// △ 改善: 特定フィールドだけ購読
+@@!const items = watch('items');
+@@!const total = items.reduce((s, i) => s + i.price, 0);
+
+// ✓ さらに良い: 計算専用の小さなコンポーネントに切り出す
+//   → 再描画がそのコンポーネントだけに閉じる
+function TotalDisplay() {
+@@+  const items = useWatch({ control, name: 'items' }); // useWatch はこの用途に最適
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+  return <p>合計: {total.toLocaleString()}円</p>;
+}
+// 親側:
+<TotalDisplay />  {/* 親は再描画されない */}
+
+// ✓ 読むだけなら購読しない
+const handleClick = () => {
+@@+  const current = getValues('items'); // ★ 購読しないので再描画が起きない
+  console.log(current);
+};
+
+// ★ 判断:
+//   ・画面に表示する値 → useWatch（小さなコンポーネントに閉じる）
+//   ・イベントハンドラの中で読む → getValues
+//   ・副作用のトリガー → useEffect + watch（依存を絞る）
+</script></div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ フォーム設計を始める前のチェックリスト</p>
+        <ul>
+          <li>Form型はUI階層に合っているか（API型のコピーになっていないか）</li>
+          <li>API型 ↔ Form型 の変換関数を1箇所に分離したか</li>
+          <li>配列フィールドは全て <span class="k">useFieldArray</span> を使うか</li>
+          <li>map の key は <span class="k">field.id</span> か</li>
+          <li><span class="k">reset</span> を「更新」目的で使っていないか</li>
+          <li><span class="k">watch()</span> の全体購読を雑に呼んでいないか</li>
+          <li>UIフラグはフォームstateとローカルstateのどちらが妥当か判断したか</li>
+          <li>error / isValid / isSubmitting を自分の useState で持っていないか</li>
+          <li>検証ルールは zod スキーマ1箇所に集まっているか（register に散っていないか）</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part3">
+      <p class="eyebrow">Part 3</p>
+      <h2>Server / Client 境界（Next.js）</h2>
+      <p class="sub">Next.js理解の核心は<b class="text-emerald-400">「どこで動くか」</b>。同じReactコードでも、サーバーで動くかブラウザで動くかで全くの別物になる。<b class="text-rose-400">最も多い誤解: <span class="k">'use client'</span> のコンポーネントでfetchして配るのはBFFではない</b>（ブラウザで動くので、ただのコンテナ）。この Part では実行場所・データの受け渡し・レンダリング方式・認証を、すべて「どこで動くか」の視点で整理する。</p>
+    </div>
+
+    <section id="ch13" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">13</span> どこで動くか（RSC / CC / hydrate）</h2>
+      <p class="lede">結論。<b class="text-emerald-400">Server Component は「サーバーで動くUIコンポーネント」であり、BFFではない</b>。ただしBFFの責務（データ取得・整形・秘密鍵の隠蔽）を吸収している。<b class="text-slate-200">データの流れは Server → Client（props経由）の一方通行だけ</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">よくある誤解と、正しい理解</text>
+          <defs><marker id="rc13" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="130" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="265" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">✗ 誤解: 「間に挟む」イメージ</text>
+            <text x="46" y="102" fill="#fca5a5">client → server → backend</text>
+            <text x="46" y="126" fill="#e2e8f0">「Next.jsサーバーをプロキシとして挟んでいる」</text>
+            <text x="46" y="148" fill="#f87171">→ この理解だと、なぜ useState が使えないのか、</text>
+            <text x="46" y="166" fill="#f87171">　 なぜ props しか渡せないのかが説明できない</text>
+
+            <rect x="530" y="50" width="480" height="130" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">✓ 正しい: 同じツリーの別実行環境</text>
+            <text x="546" y="102" fill="#bbf7d0">client と server は「同じReactツリーの別の実行環境」</text>
+            <text x="546" y="126" fill="#e2e8f0">「挟んでいる」のではなく</text>
+            <text x="546" y="144" fill="#e2e8f0">「Reactツリーの一部がサーバーで動いている」</text>
+            <text x="546" y="168" fill="#4ade80">→ だから props で渡す（同じツリーだから）</text>
+
+            <rect x="30" y="200" width="980" height="270" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="224" fill="#bae6fd" font-size="12" font-weight="bold">データの流れ（核心）</text>
+
+            <rect x="60" y="240" width="200" height="60" rx="6" fill="#4c1d95" stroke="#a78bfa"/>
+            <text x="160" y="262" fill="#ede9fe" text-anchor="middle">DB / 外部API</text>
+            <text x="160" y="282" fill="#c4b5fd" font-size="9" text-anchor="middle">秘密鍵で認証してよい</text>
+            <line x1="264" y1="270" x2="296" y2="270" stroke="#4ade80" stroke-width="2" marker-end="url(#rc13)"/>
+
+            <rect x="300" y="240" width="220" height="60" rx="6" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="410" y="258" fill="#dcfce7" text-anchor="middle" font-weight="bold">Server Component</text>
+            <text x="410" y="276" fill="#bbf7d0" font-size="9" text-anchor="middle">await fetch してレンダリング</text>
+            <text x="410" y="292" fill="#86efac" font-size="9" text-anchor="middle">★ サーバーで1回だけ実行</text>
+            <line x1="524" y1="270" x2="556" y2="270" stroke="#4ade80" stroke-width="2" marker-end="url(#rc13)"/>
+
+            <rect x="560" y="240" width="200" height="60" rx="6" fill="#164e63" stroke="#22d3ee"/>
+            <text x="660" y="258" fill="#cffafe" text-anchor="middle">RSC Payload</text>
+            <text x="660" y="276" fill="#a5f3fc" font-size="9" text-anchor="middle">HTML + シリアライズされた</text>
+            <text x="660" y="290" fill="#a5f3fc" font-size="9" text-anchor="middle">コンポーネントツリー</text>
+            <line x1="764" y1="270" x2="796" y2="270" stroke="#4ade80" stroke-width="2" marker-end="url(#rc13)"/>
+
+            <rect x="800" y="240" width="190" height="60" rx="6" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="895" y="258" fill="#fef3c7" text-anchor="middle" font-weight="bold">Client Component</text>
+            <text x="895" y="276" fill="#fde68a" font-size="9" text-anchor="middle">propsを受け取り</text>
+            <text x="895" y="290" fill="#fcd34d" font-size="9" text-anchor="middle">ブラウザでhydrate</text>
+
+            <text x="46" y="330" fill="#38bdf8" font-size="11.5" font-weight="bold">4つのルール</text>
+            <text x="46" y="354" fill="#e0f2fe">① Server → Client のデータ渡しは <tspan font-weight="bold">props 経由のみ</tspan></text>
+            <text x="46" y="376" fill="#e0f2fe">② props に渡せるのは <tspan font-weight="bold">シリアライズ可能な値のみ</tspan>（関数・クラスインスタンス・Dateの一部・Mapは不可）</text>
+            <text x="46" y="398" fill="#e0f2fe">③ Client → Server 方向のデータ渡しは <tspan fill="#f87171" font-weight="bold">不可</tspan></text>
+            <text x="46" y="420" fill="#e0f2fe">④ Client から Server 処理を呼びたい場合は <tspan font-weight="bold">Server Actions</tspan> を使う</text>
+            <text x="46" y="448" fill="#fbbf24">★ hydrate = サーバー生成HTMLに、ブラウザでJSを後付けしてインタラクティブにすること</text>
+            <text x="46" y="464" fill="#fde68a">　（Client Component の初回レンダリングは、実はサーバーでも行われる = SSR）</text>
+          </g>
+        </svg>
+        <p class="figcap">図13-1 データの流れ。「同じツリーの別実行環境」と理解すると、4つのルールが自然に導ける。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 基本の違い（対比表）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th></th><th>Server Component</th><th>Client Component</th></tr></thead>
+            <tbody>
+              <tr><td>実行場所</td><td>サーバー（Node.js）</td><td>ブラウザ（+ 初回はサーバーでもSSR）</td></tr>
+              <tr><td>宣言方法</td><td class="good">デフォルト（何も書かない）</td><td>ファイル先頭に <span class="k">'use client'</span></td></tr>
+              <tr><td>JSバンドル</td><td class="good">含まれない</td><td>含まれる</td></tr>
+              <tr><td>state / effect</td><td class="bad">使えない</td><td class="good">使える</td></tr>
+              <tr><td>イベントハンドラ（onClick）</td><td class="bad">使えない</td><td class="good">使える</td></tr>
+              <tr><td>DB・秘密鍵アクセス</td><td class="good">直接できる</td><td class="bad">できない（バンドルに含まれ漏洩する）</td></tr>
+              <tr><td><span class="k">async/await</span> を直接書く</td><td class="good">できる</td><td class="bad">できない（useQuery等を使う）</td></tr>
+              <tr><td>useQuery / useSession</td><td class="bad">使えない</td><td class="good">使える</td></tr>
+              <tr><td>実行回数</td><td>リクエストごとに1回</td><td>ブラウザで動き続ける</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="典型的な構成パターン" data-tone="good"><script type="text/plain">
+// app/reservations/page.tsx（Server Component・デフォルト）
+async function Page({ searchParams }: { searchParams: { q?: string } }) {
+@@+  // サーバーで実行される。秘密鍵を使ってよい
+  const res = await fetch(`${process.env.API_URL}/reservations?q=${searchParams.q ?? ''}`, {
+    headers: { Authorization: `Bearer ${process.env.INTERNAL_API_TOKEN}` }, // ★ ブラウザに漏れない
+    cache: 'no-store', // 毎回最新を取る（デフォルトの挙動はNextのバージョンで変わるので明示する）
+  });
+  const json = await res.json();
+
+@@+  return <ReservationTable items={json.items} />; // props で渡す
+}
+
+// components/ReservationTable.tsx（Client Component）
+'use client';
+
+export function ReservationTable({ items }: { items: Item[] }) {
+@@+  const [selected, setSelected] = useState<Item | null>(null); // state が使える
+  return (
+    <ul>
+      {items.map(i => (
+        <li key={i.id} onClick={() => setSelected(i)}>{i.name}</li>
+      ))}
+    </ul>
+  );
+}
+</script></div>
+
+      <div class="step naive">
+        <p class="step-h">② 境界のルール — 一度クライアントに入ると戻れない</p>
+        <div class="cb" data-lang="text" data-cap="境界の考え方" data-tone="warn"><script type="text/plain">
+app/page.tsx              ← Server Component（デフォルト）
+  ├─ components/Header.tsx     ← Server Component（データ取得OK）
+  └─ components/Counter.tsx    ← 'use client'（★ ここが境界）
+       └─ components/Inner.tsx ← ★ 'use client' を書いていなくても Client になる
+            └─ さらにその子も全部 Client
+
+★ ルール:
+  1. 'use client' は「ここからブラウザ領域」という境界を引く宣言
+  2. 一度境界を越えると、その子ツリーは全部 Client になる
+  3. Client Component の中に Server Component を直接 import することはできない
+
+★ ただし例外（重要なテクニック）:
+   Client Component の children として Server Component を渡すことはできる
+
+// app/page.tsx（Server）
+<ClientWrapper>
+  <ServerComponent />   {/* ★ これはOK。Serverで実行された結果が children として渡る */}
+</ClientWrapper>
+
+// ClientWrapper.tsx
+'use client';
+export function ClientWrapper({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <div>{open && children}</div>;  // ★ children の中身は知らないまま扱える
+}
+
+★ この形が重要な理由:
+  ・「クリックで開くアコーディオンの中に、サーバーで取得した内容を入れる」が実現できる
+  ・Client Component を「できるだけ葉に近い場所」に押し込める
+  ・→ JSバンドルサイズが小さくなる（RSCの主要な利点）
+</script></div>
+      </div>
+    </section>
+
+    <section id="ch14" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">14</span> <span class="k">'use client'</span> と <span class="k">'use server'</span></h2>
+      <p class="lede"><b class="text-rose-400">最も混同される2つ</b>。名前が対称なので「対になる概念」と思われるが、<b class="text-emerald-400"><span class="k">'use client'</span> はコンポーネントの宣言、<span class="k">'use server'</span> は関数の宣言</b>で、レイヤーが違う。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2つのディレクティブは「対」ではない</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="330" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="265" y="76" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">'use client'</text>
+            <text x="46" y="102" fill="#fcd34d">何者か: このファイル以下をブラウザで実行すると宣言する境界線</text>
+            <text x="46" y="126" fill="#fde68a">書く対象: <tspan font-weight="bold">コンポーネントファイル</tspan></text>
+            <text x="46" y="146" fill="#fde68a">書く場所: ファイルの先頭1行目のみ</text>
+            <text x="46" y="172" fill="#fcd34d">効果:</text>
+            <text x="46" y="192" fill="#e2e8f0">・そのファイルと、そこからimportされるモジュールが</text>
+            <text x="62" y="208" fill="#e2e8f0">　JSバンドルに含まれる</text>
+            <text x="46" y="228" fill="#e2e8f0">・useState / useEffect / onClick が使えるようになる</text>
+            <text x="46" y="248" fill="#e2e8f0">・Server Componentの機能（DB直アクセス）は使えなくなる</text>
+            <text x="46" y="274" fill="#f87171">よくある誤解:</text>
+            <text x="46" y="294" fill="#fca5a5">「'use client' を書けば完全にブラウザ専用になる」</text>
+            <text x="46" y="312" fill="#e2e8f0">→ ✗ 初回レンダリングはサーバーでも行われる（SSR）</text>
+            <text x="46" y="330" fill="#e2e8f0">　 だから window / document を直接触るとエラーになる</text>
+            <text x="46" y="352" fill="#4ade80">→ useEffect の中で触る、または typeof window で判定する</text>
+
+            <rect x="530" y="50" width="480" height="330" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="770" y="76" fill="#ede9fe" font-size="12.5" font-weight="bold" text-anchor="middle">'use server'</text>
+            <text x="546" y="102" fill="#c4b5fd">何者か: この関数はサーバー側で実行されると宣言する</text>
+            <text x="546" y="126" fill="#ddd6fe">書く対象: <tspan font-weight="bold">関数</tspan>（コンポーネントではない）</text>
+            <text x="546" y="146" fill="#ddd6fe">書く場所: ファイル先頭（全export）or 関数の先頭（その関数だけ）</text>
+            <text x="546" y="172" fill="#c4b5fd">効果:</text>
+            <text x="546" y="192" fill="#e2e8f0">・Client Componentから呼び出せるサーバー関数</text>
+            <text x="562" y="208" fill="#e2e8f0">　（Server Action）を定義できる</text>
+            <text x="546" y="228" fill="#e2e8f0">・DB操作・秘密鍵使用・ファイル書き込みを</text>
+            <text x="562" y="244" fill="#e2e8f0">　ブラウザから安全に呼べる</text>
+            <text x="546" y="270" fill="#f87171">よくある誤解:</text>
+            <text x="546" y="290" fill="#fca5a5">「'use server' を書くとServer Componentになる」</text>
+            <text x="546" y="308" fill="#e2e8f0">→ ✗ <tspan font-weight="bold">関数（Action）の宣言</tspan>であって、コンポーネントの話ではない</text>
+            <text x="546" y="330" fill="#4ade80">→ Server Component（デフォルト）に 'use server' は不要。</text>
+            <text x="546" y="348" fill="#86efac">　 ただ async function を書けばよい</text>
+            <text x="546" y="370" fill="#fbbf24">★ Server Action は内部的にPOSTリクエストになる（が意識不要）</text>
+          </g>
+        </svg>
+        <p class="figcap">図14-1 レイヤーが違う。'use client' は境界、'use server' は関数の実行場所。</p>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="Server Action の使い方" data-tone="good"><script type="text/plain">
+// ---- actions.ts（ファイル全体を Server Actions にする）----
+'use server';
+
+import { revalidatePath } from 'next/cache';
+
+export async function createReservation(formData: FormData) {
+  // ★ ここはサーバーで動く。DBを直接叩ける / 秘密鍵を使える
+  const name = formData.get('guestName') as string;
+
+  // ★ 認可は必ずサーバー側で行う（Client から呼べる = 誰でも呼べる）
+  const session = await auth();
+  if (!session) {
+    throw new Error('unauthorized');
+  }
+
+  await api.createReservation({ guestName: name }, session.accessToken);
+
+  // ★ キャッシュを無効化して画面を最新にする
+  revalidatePath('/reservations');
+}
+
+// ---- 関数単位で宣言する形 ----
+export async function deleteReservation(id: string) {
+  'use server'; // ★ この関数だけ Server Action
+  await api.deleteReservation(id);
+}
+
+// ---- Client から呼ぶ ----
+'use client';
+import { createReservation } from './actions';
+
+export function ReservationForm() {
+  return (
+@@+    <form action={createReservation}>   {/* ★ REST APIを自分で書かなくてよい */}
+      <input name="guestName" />
+      <button type="submit">作成</button>
+    </form>
+  );
+}
+
+// ---- useFormStatus / useActionState で状態を扱う ----
+'use client';
+import { useActionState } from 'react';
+
+function Form() {
+  const [state, formAction, isPending] = useActionState(createReservation, null);
+  return (
+    <form action={formAction}>
+      <input name="guestName" />
+      <button disabled={isPending}>{isPending ? '送信中...' : '作成'}</button>
+      {state?.error && <p>{state.error}</p>}
+    </form>
+  );
+}
+</script></div>
+
+      <div class="step why">
+        <p class="step-h">③ 「APIすら書かない」の正確な意味</p>
+        <div class="kv">
+          <div class="kvi"><p>正確な意味</p><p><b class="text-slate-100">「クライアントから叩くREST APIを自前で書かなくていい」</b>という意味。<b class="text-emerald-400">APIが存在しないわけではない</b> — 内部的にはServer ActionがPOSTリクエストになっており、Next.jsがラップしている。</p></div>
+          <div class="kvi"><p>それでもAPIが必要な場合</p><p><b class="text-slate-100">外部クライアント（モバイルアプリ・パートナー企業・Webhook受信）向けのAPIは、別途 Route Handler で作る必要がある</b>。Server Action はNext.jsアプリ専用。</p></div>
+          <div class="kvi"><p>Server Action の注意点</p><p>①<b class="text-rose-400">認可を必ずサーバー側で書く</b>（Clientから呼べる=誰でも呼べる）②引数はシリアライズ可能な値のみ ③エラーハンドリングが独特（throwするとNext.jsのエラー画面になるので、戻り値でエラーを返す設計が実務的）</p></div>
+          <div class="kvi"><p>Go バックエンドがある場合の判断</p><p><b class="text-amber-400">Server Action は「Next.jsサーバーからGoバックエンドを呼ぶ薄い層」になる</b>。ビジネスロジックはGo側に置き、Server Actionは認証情報の付与と呼び出しだけを担う。<b class="text-slate-100">ここにロジックを書き始めると、Go/TSの二重実装になる</b>。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch15" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">15</span> BFFとの比較 / Route Handler</h2>
+      <p class="lede">結論。<b class="text-emerald-400">Server Component は BFF の責務を UI コンポーネントに内包した設計</b>。BFFそのものではないが、Next.jsがBFFの役割を吸収したと考えるのが正確。<b class="text-slate-200">明示的なBFFが必要なら Route Handler を使う</b>。</p>
+
+      <div class="step principle">
+        <p class="step-h">④ BFF / Server Component / Route Handler の比較</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th></th><th>BFF（独立サービス）</th><th>Server Component</th><th>Route Handler</th></tr></thead>
+            <tbody>
+              <tr><td>役割</td><td>フロント専用のAPIサーバー</td><td>UIとデータ取得が同一コンポーネント内</td><td>Next.js内のサーバー側API</td></tr>
+              <tr><td>HTTPエンドポイント</td><td class="good">持つ</td><td class="bad">持たない</td><td class="good">持つ（<span class="k">app/api/*/route.ts</span>）</td></tr>
+              <tr><td>ブラウザから直接叩けるか</td><td class="good">はい</td><td class="bad">いいえ</td><td class="good">はい</td></tr>
+              <tr><td>通信</td><td>REST / GraphQL</td><td>なし（直接DB / 内部API）</td><td>REST</td></tr>
+              <tr><td>独立性</td><td>別サービス（別デプロイ）</td><td>Next.jsのレンダリングパイプライン内</td><td>Next.jsアプリの一部</td></tr>
+              <tr><td>再利用性</td><td class="good">複数クライアント（Web/モバイル）で共有可</td><td class="bad">Next.jsアプリ専用</td><td class="warn">Next.jsのデプロイに紐づく</td></tr>
+              <tr><td>使う場面</td><td>モバイルアプリもある / チームが別</td><td class="good">初回表示のデータ取得（大半のケース）</td><td class="good">Webhook受信 / 外部公開API / 複数API集約</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="kv mt-3">
+          <div class="kvi"><p>何が似ているか</p><p>①バックエンドのDBやAPIに直接アクセスして、フロントに必要なデータを整形する ②クライアントに不要な情報（秘密鍵・内部ロジック）を隠蔽する</p></div>
+          <div class="kvi"><p>何が違うか</p><p><b class="text-slate-100">BFFは「APIレイヤー」として独立するが、Server Componentは HTTPエンドポイントを持たない</b>。ブラウザから Server Component を直接叩くことはできない。「APIサーバー」ではなく「サーバーで動くUIコンポーネント」。</p></div>
+          <div class="kvi"><p class="text-rose-400">最も多い誤解</p><p><b class="text-rose-400"><span class="k">'use client'</span> のコンポーネントで fetch して子に配るのは BFF ではない</b>。ブラウザで動くので、それは単なるコンテナコンポーネント。<b class="text-slate-100">BFFはサーバー側の層である</b>。</p></div>
+          <div class="kvi"><p>Route Handler が要る場面</p><p>①OTAからのWebhook受信（外部がURLを叩く）②モバイルアプリ向けAPI ③複数APIを1画面用に束ねる（over-fetch削減）④ファイルアップロードの中継 ⑤<b class="text-slate-100">Client Component から呼びたい処理で、Server Actionだと不自然なもの</b>（GET系・キャッシュを効かせたい）</p></div>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="ts" data-cap="Route Handler = 軽量BFF" data-tone="good"><script type="text/plain">
+// app/api/dashboard/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+@@+  // ★ 3つのAPIを並列で叩き、1つのレスポンスに集約する（over-fetch削減）
+  const [reservations, occupancy, revenue] = await Promise.all([
+    api.getReservations(session.accessToken, { limit: 5 }),
+    api.getOccupancy(session.accessToken),
+    api.getRevenue(session.accessToken, { month: currentMonth() }),
+  ]);
+
+  return NextResponse.json({
+    recentReservations: reservations.items,
+    occupancyRate: occupancy.rate,
+    monthlyRevenue: revenue.total,
+  });
+}
+
+// ★ これが「軽量BFF」。得られるもの:
+//   ・ブラウザからのリクエストが 3回 → 1回になる（モバイル回線で効く）
+//   ・accessToken がブラウザに露出しない（サーバー側で付与）
+//   ・レスポンスの形をUIに合わせられる（バックエンドを変更せずに）
+//
+// ★ 注意: ここにビジネスロジックを書き始めると、
+//   Go側とNext側で二重実装になる。「集約・秘匿・整形」に限定する。
+</script></div>
+    </section>
+
+    <section id="ch16" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">16</span> props か hydration か</h2>
+      <p class="lede">結論。<b class="text-rose-400"><span class="k">useQuery</span> は Client Component 専用</b>。サーバーで取ったデータをクライアントに渡す方法は2つあり、<b class="text-emerald-400">「再取得（refetch / invalidate）が必要かどうか」で選ぶ</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2つのパターン — props か hydration か</text>
+          <defs><marker id="rc16" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="190" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">Pattern 1: props で渡す（シンプル）</text>
+            <text x="46" y="100" fill="#e0f2fe">SC: const data = await fetch(...)</text>
+            <text x="46" y="118" fill="#e0f2fe">    return &lt;Client data={data} /&gt;</text>
+            <text x="46" y="144" fill="#4ade80">得られるもの:</text>
+            <text x="46" y="162" fill="#bbf7d0">・最もシンプル（学習コストゼロ）</text>
+            <text x="46" y="180" fill="#bbf7d0">・SSRで初期表示が速い</text>
+            <text x="46" y="204" fill="#f87171">失うもの:</text>
+            <text x="46" y="222" fill="#fca5a5">・React Query の cache に入らない</text>
+            <text x="46" y="236" fill="#fca5a5">・→ refetch / invalidate ができない</text>
+
+            <rect x="530" y="50" width="480" height="190" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">Pattern 2: hydration（王道）</text>
+            <text x="546" y="100" fill="#bbf7d0">SC: prefetchQuery → dehydrate</text>
+            <text x="546" y="118" fill="#bbf7d0">    &lt;HydrationBoundary state={...}&gt;</text>
+            <text x="546" y="136" fill="#bbf7d0">CC: useQuery(同じqueryKey) → cacheヒットで即表示</text>
+            <text x="546" y="162" fill="#4ade80">得られるもの:</text>
+            <text x="546" y="180" fill="#bbf7d0">・SSRの速さ + クライアントでの refetch/invalidate/mutation</text>
+            <text x="546" y="198" fill="#bbf7d0">・「初期表示は速く、更新後は自動で最新に」が両立</text>
+            <text x="546" y="222" fill="#fbbf24">代償: 設定が増える（QueryClientの生成をサーバー/クライアントで分ける）</text>
+
+            <rect x="30" y="260" width="980" height="185" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="284" fill="#fef3c7" font-size="12" font-weight="bold">誤解の修正（3点）</text>
+            <text x="46" y="308" fill="#fde68a">① <tspan font-weight="bold">サーバーで useQuery は実行できない</tspan>（hooksはClient専用）→ prefetchQuery を使う</text>
+            <text x="46" y="330" fill="#fde68a">② <tspan font-weight="bold">props渡しだけでは cache されない</tspan> → それはPattern 1で正常な挙動。cache機能が要るときだけPattern 2</text>
+            <text x="46" y="352" fill="#fde68a">③ <tspan fill="#f87171" font-weight="bold">SCでfetch→props で渡すなら、そのCCで useQuery を呼んではいけない</tspan></text>
+            <text x="62" y="370" fill="#fca5a5">→ 二重管理（同じデータが props と cache の2箇所にある）= single source of truth 違反</text>
+            <text x="46" y="396" fill="#4ade80">判断:</text>
+            <text x="46" y="416" fill="#bbf7d0">・読み取り専用・再取得不要（詳細ページの表示など）→ <tspan font-weight="bold">Pattern 1</tspan></text>
+            <text x="46" y="436" fill="#bbf7d0">・一覧 + 更新（mutation後にinvalidateしたい）→ <tspan font-weight="bold">Pattern 2</tspan></text>
+          </g>
+        </svg>
+        <p class="figcap">図16-1 2パターン。「更新後に自動で最新にしたいか」が判断軸。</p>
+      </div>
+
+      <div class="cb" data-lang="tsx" data-cap="Pattern 2 の実装（hydration）" data-tone="good"><script type="text/plain">
+// ---- lib/query-client.ts（サーバー用のQueryClientを毎リクエスト作る）----
+import { QueryClient } from '@tanstack/react-query';
+
+export function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { staleTime: 60_000 } },
+  });
+}
+// ★ 重要: サーバーでQueryClientをモジュールスコープに持つと、
+//   リクエスト間でcacheが共有され、他ユーザーのデータが漏れる。必ず毎回作る。
+
+// ---- app/reservations/page.tsx（Server Component）----
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+
+export default async function Page() {
+  const queryClient = makeQueryClient();
+
+@@+  // ★ useQuery ではなく prefetchQuery（hooksではないのでサーバーで動く）
+  await queryClient.prefetchQuery({
+    queryKey: ['reservations'],
+    queryFn: fetchReservations,
+  });
+
+  return (
+@@+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ReservationList />
+    </HydrationBoundary>
+  );
+}
+
+// ---- components/ReservationList.tsx（Client Component）----
+'use client';
+
+export function ReservationList() {
+@@+  // ★ 同じ queryKey なので、hydrate された cache がヒットする
+  //   → 初回レンダリングで即データが表示される（loading が出ない）
+  const { data } = useQuery({ queryKey: ['reservations'], queryFn: fetchReservations });
+
+  const queryClient = useQueryClient();
+  const { mutate } = useMutation({
+    mutationFn: updateReservation,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+  });
+
+  return <Table items={data!.items} onUpdate={mutate} />;
+}
+
+// ★ 得られる体験:
+//   1. 初回: サーバーで取得 → HTMLに埋め込まれる → 即表示（loadingなし）
+//   2. 更新後: invalidate → ブラウザで再fetch → 最新に
+//   ★ SSRの速さとSPAの快適さが両立する
+</script></div>
+    </section>
+
+    <section id="ch17" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">17</span> レンダリング4方式とホスティング</h2>
+      <p class="lede">結論。<b class="text-emerald-400">レンダリング方式とホスティング方法はセットで決まる</b>。<b class="text-rose-400">「全部SSR」はコストが高い</b>。管理画面（CSR）は静的配信、公開ページ（SSR）は稼働サーバー、と分けるのが定石。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="500" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">2つのレンダリングモデル（最も誤解される点）</text>
+          <defs><marker id="rc17" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="200" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">モデルA: CSR / 静的ホスティング</text>
+            <text x="46" y="100" fill="#e0f2fe">ビルド時: 空のHTML殻 + JS を生成 → CDNに置く</text>
+            <text x="46" y="122" fill="#e0f2fe">リクエスト時: CDNがHTMLを返す（中身は空）</text>
+            <text x="46" y="140" fill="#e0f2fe">　　　　　　→ ブラウザでReactが動く → fetch → 描画</text>
+            <text x="46" y="166" fill="#7dd3fc" font-weight="bold">★ HTMLは事前、fetchは後</text>
+            <text x="46" y="192" fill="#4ade80">利点: サーバー不要・安い・スケールしやすい</text>
+            <text x="46" y="212" fill="#f87171">欠点: 初期表示が遅い（JS読込 → fetch → 描画）・SEO弱い</text>
+            <text x="46" y="236" fill="#fbbf24">適する: 管理画面（ログイン必須・SEO不要・操作が主役）</text>
+
+            <rect x="530" y="50" width="480" height="200" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="770" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">モデルB: SSR / Server Components（Next.js既定）</text>
+            <text x="546" y="100" fill="#bbf7d0">デプロイされるのは「サーバーのコード」</text>
+            <text x="546" y="122" fill="#bbf7d0">リクエスト時: サーバーが<tspan font-weight="bold">先にfetch</tspan> → データ入りHTML生成 → 送る</text>
+            <text x="546" y="144" fill="#bbf7d0">　　　　　　→ ブラウザは完成したHTMLを即表示 → hydrate</text>
+            <text x="546" y="170" fill="#86efac" font-weight="bold">★ fetchが先、HTML生成が後、毎回サーバー上で</text>
+            <text x="546" y="196" fill="#4ade80">利点: 初期表示が速い・SEO強い・秘匿できる・JS削減</text>
+            <text x="546" y="216" fill="#f87171">欠点: サーバーが稼働し続ける（コスト・レイテンシ）</text>
+            <text x="546" y="240" fill="#fbbf24">適する: 公開ページ・ユーザーごとに内容が変わるページ</text>
+
+            <rect x="30" y="270" width="980" height="70" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="294" fill="#fecaca" font-size="12" font-weight="bold">誤解しやすい点</text>
+            <text x="46" y="318" fill="#fca5a5">「HTMLは元から出来ていて、後からfetchする」= <tspan font-weight="bold">SPA/静的の話（モデルA）</tspan>。</text>
+            <text x="46" y="334" fill="#fca5a5">Next.jsのSSRは<tspan fill="#4ade80" font-weight="bold">逆</tspan>で、リクエストのたびにサーバーが先にfetchし、データ入りHTMLを生成する。</text>
+
+            <rect x="30" y="356" width="470" height="135" rx="8" fill="#164e63" stroke="#22d3ee" stroke-width="2"/>
+            <text x="46" y="380" fill="#cffafe" font-size="12" font-weight="bold">4方式の判断軸（上から問う）</text>
+            <text x="46" y="404" fill="#a5f3fc">1. SEO不要 &amp; ログイン必須 &amp; 操作が主役 → <tspan fill="#4ade80" font-weight="bold">CSR</tspan></text>
+            <text x="46" y="424" fill="#a5f3fc">2. ほぼ変わらない（LP・記事）→ <tspan fill="#4ade80" font-weight="bold">SSG</tspan>（ビルド時1回・最速）</text>
+            <text x="46" y="444" fill="#a5f3fc">3. 時々更新の公開ページ → <tspan fill="#4ade80" font-weight="bold">ISR</tspan>（ビルド + 定期再生成）</text>
+            <text x="46" y="464" fill="#a5f3fc">4. ユーザーごとに変わる公開ページ → <tspan fill="#4ade80" font-weight="bold">SSR</tspan></text>
+            <text x="46" y="484" fill="#67e8f9" font-size="9.5">★ 1画面ごとに判断する（アプリ全体で1つに決めない）</text>
+
+            <rect x="530" y="356" width="480" height="135" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="546" y="380" fill="#fef3c7" font-size="12" font-weight="bold">ホスティング2方法（方式とセットで決まる）</text>
+            <text x="546" y="404" fill="#fde68a">① 静的ホスティング（サーバーなし）</text>
+            <text x="562" y="422" fill="#e2e8f0" font-size="9.5">成果物をCDNに置くだけ。S3+CloudFront / Amplify静的</text>
+            <text x="562" y="436" fill="#4ade80" font-size="9.5">安い・速い。CSR / SSG 向き</text>
+            <text x="546" y="458" fill="#fde68a">② SSRホスティング（サーバー稼働）</text>
+            <text x="562" y="476" fill="#e2e8f0" font-size="9.5">Node/Lambdaが都度動く。Amplify(SSR) / Vercel / ECS</text>
+            <text x="562" y="488" fill="#f87171" font-size="9.5">コスト・コールドスタート・レイテンシを考慮</text>
+          </g>
+        </svg>
+        <p class="figcap">図17-1 2モデル。「どちらで動くか」はデプロイ設定次第（Amplify SSRホスティング=B / <span class="k">output: 'export'</span>=A）。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ なぜサーバーレンダリングするのか（5つの理由）</p>
+        <div class="kv">
+          <div class="kvi"><p>1. 初期表示が速い</p><p>ブラウザは完成したHTMLを即表示できる。<b class="text-slate-100">「JS読込 → fetch → 描画」の3ステップが消える</b>。モバイル回線で差が大きい。</p></div>
+          <div class="kvi"><p>2. SEO</p><p>クローラがJSを実行しなくてもコンテンツが読める。<b class="text-slate-300">Googleは実行するが、他のクローラ・SNSのOGP取得は実行しない</b>。</p></div>
+          <div class="kvi"><p>3. 秘匿</p><p>APIキー・内部APIのURL・DBの接続情報をサーバーに留められる。<b class="text-rose-400">CSRでは全てバンドルに含まれる（環境変数も）</b>。</p></div>
+          <div class="kvi"><p>4. JS削減</p><p>Server Component のコードはバンドルに含まれない。<b class="text-emerald-400">重いライブラリ（markdownパーサ・日付処理・チャート）をサーバー側に置けば、クライアントに送らずに済む</b>。</p></div>
+          <div class="kvi"><p>5. データに近い</p><p>サーバー → DB の往復はms単位。<b class="text-slate-100">ブラウザ → API → DB の往復（waterfall）を削減できる</b>。特に「A取得 → Aの結果でB取得」の連鎖で効く。</p></div>
+          <div class="kvi"><p>それでもCSRを選ぶ場面</p><p><b class="text-slate-100">管理画面</b>: ログイン必須（SEO不要）・操作が主役・データが常に変わる・<b class="text-emerald-400">静的ホスティングで安く運用できる</b>。SSRの利点がほぼ効かない。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch18" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">18</span> 5層のCRUDライフサイクル</h2>
+      <p class="lede">DB から React までの<b class="text-emerald-400">5層</b>を通して、READ と WRITE の流れを追う。<b class="text-slate-200">「認可は必ずバックエンド（Go）で行う」</b>のが最重要のルール。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1060 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1060" height="500" fill="#0f172a" rx="10"/>
+          <text x="530" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">5層 — DB から React まで</text>
+          <defs>
+            <marker id="rc18r" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/></marker>
+            <marker id="rc18w" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#fbbf24"/></marker>
+          </defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="40" y="55" width="170" height="80" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="125" y="78" fill="#ede9fe" text-anchor="middle" font-weight="bold">① DB</text>
+            <text x="56" y="98" fill="#ddd6fe" font-size="9.5">MySQL / Postgres</text>
+            <text x="56" y="116" fill="#c4b5fd" font-size="9.5">★ 唯一の「正本」</text>
+            <text x="56" y="130" fill="#c4b5fd" font-size="9.5">（single source of truth）</text>
+
+            <rect x="230" y="55" width="180" height="80" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="320" y="78" fill="#dcfce7" text-anchor="middle" font-weight="bold">② Goバックエンド</text>
+            <text x="246" y="98" fill="#bbf7d0" font-size="9.5">ビジネスロジック</text>
+            <text x="246" y="114" fill="#bbf7d0" font-size="9.5">★ 認可（本当の判定）</text>
+            <text x="246" y="130" fill="#86efac" font-size="9.5">DBの読み書き</text>
+
+            <rect x="430" y="55" width="190" height="80" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="525" y="78" fill="#bae6fd" text-anchor="middle" font-weight="bold">③ Next.jsサーバー</text>
+            <text x="446" y="98" fill="#e0f2fe" font-size="9.5">SSR（HTML生成）</text>
+            <text x="446" y="114" fill="#e0f2fe" font-size="9.5">Route Handler = 軽量BFF</text>
+            <text x="446" y="130" fill="#7dd3fc" font-size="9.5">session の復号・検証</text>
+
+            <rect x="640" y="55" width="170" height="80" rx="8" fill="#164e63" stroke="#22d3ee" stroke-width="2"/>
+            <text x="725" y="78" fill="#cffafe" text-anchor="middle" font-weight="bold">④ ブラウザ</text>
+            <text x="656" y="98" fill="#a5f3fc" font-size="9.5">HTMLの表示</text>
+            <text x="656" y="114" fill="#a5f3fc" font-size="9.5">JSの実行</text>
+            <text x="656" y="130" fill="#67e8f9" font-size="9.5">cookie の保管</text>
+
+            <rect x="830" y="55" width="180" height="80" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="920" y="78" fill="#fef3c7" text-anchor="middle" font-weight="bold">⑤ React</text>
+            <text x="846" y="98" fill="#fde68a" font-size="9.5">状態 → UI</text>
+            <text x="846" y="114" fill="#fde68a" font-size="9.5">ユーザー操作</text>
+            <text x="846" y="130" fill="#fcd34d" font-size="9.5">React Query cache</text>
+
+            <!-- READ -->
+            <rect x="40" y="160" width="970" height="130" rx="8" fill="#0b1220" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="56" y="184" fill="#bae6fd" font-size="12" font-weight="bold">READ（初回表示・SSR）</text>
+            <text x="56" y="210" fill="#e0f2fe">④ブラウザ GET /reservations</text>
+            <text x="56" y="228" fill="#e0f2fe">　→ ③Next(RSC) が session を復号して accessToken を取得</text>
+            <text x="56" y="246" fill="#e0f2fe">　→ ②Go が token を検証（署名 + exp + role）→ 認可 → ①DB SELECT</text>
+            <text x="56" y="264" fill="#e0f2fe">　→ ③Next がデータ入りHTMLを生成 → ④ブラウザが即表示 → hydrate → ⑤React が動き出す</text>
+            <text x="56" y="284" fill="#4ade80">★ 「fetchが先、HTML生成が後」（ch17のモデルB）</text>
+
+            <!-- WRITE -->
+            <rect x="40" y="305" width="970" height="130" rx="8" fill="#0b1220" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="56" y="329" fill="#fef3c7" font-size="12" font-weight="bold">CREATE / UPDATE / DELETE</text>
+            <text x="56" y="355" fill="#fde68a">⑤React（submit）→ useMutation または Server Action</text>
+            <text x="56" y="373" fill="#fde68a">　→ ②Go が認可 → 書き込み → ①DB UPDATE</text>
+            <text x="56" y="391" fill="#fde68a">　→ ⑤React: invalidateQueries → 再READ → 再描画</text>
+            <text x="56" y="411" fill="#4ade80">★ 認可は必ず②Goで行う。③Next のsession確認は「UXのため」（早めに弾いて親切にする）</text>
+            <text x="56" y="429" fill="#f87171">★ フロントの認可チェックだけでは、curl で直接叩かれたら防げない</text>
+
+            <text x="530" y="465" fill="#fbbf24" font-size="11" text-anchor="middle">★ 層を1つずつ言えるかが、障害調査の速度を決める。</text>
+            <text x="530" y="485" fill="#fde68a" font-size="10.5" text-anchor="middle">「表示が古い」→⑤cache / 「403が出る」→②認可 / 「初期表示が遅い」→③SSRのwaterfall</text>
+          </g>
+        </svg>
+        <p class="figcap">図18-1 5層。障害の切り分けは「どの層の問題か」を決めることから始まる。</p>
+      </div>
+    </section>
+
+    <section id="ch19" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">19</span> 複数ユーザーとリアルタイム性</h2>
+      <p class="lede"><b class="text-rose-400">最も多い誤解</b>: React Query の cache は「グローバル」だが、それは<b class="text-slate-200">1アプリ内で共有</b>の意味であり<b class="text-rose-400">全ユーザー共有ではない</b>。cacheもDOMも、各ブラウザのメモリにある。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">Aが更新しても、Bの画面は変わらない</text>
+          <defs><marker id="rc19" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="400" y="55" width="240" height="70" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2.5"/>
+            <text x="520" y="80" fill="#ede9fe" text-anchor="middle" font-weight="bold">DB（唯一の真実）</text>
+            <text x="520" y="102" fill="#c4b5fd" font-size="9.5" text-anchor="middle">★ 共有されるのはここだけ</text>
+
+            <line x1="470" y1="128" x2="300" y2="178" stroke="#4ade80" stroke-width="2" marker-end="url(#rc19)"/>
+            <line x1="570" y1="128" x2="740" y2="178" stroke="#4ade80" stroke-width="2" marker-end="url(#rc19)"/>
+
+            <rect x="120" y="180" width="330" height="180" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="285" y="204" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">ユーザーAのブラウザ</text>
+            <rect x="140" y="216" width="290" height="40" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="156" y="240" fill="#bbf7d0">cache(A): { reservations: [...] }</text>
+            <rect x="140" y="264" width="290" height="40" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="156" y="288" fill="#bbf7d0">DOM(A): 画面に表示されている要素</text>
+            <text x="140" y="326" fill="#86efac" font-size="9.5">★ このメモリはAのブラウザにしかない</text>
+            <text x="140" y="346" fill="#86efac" font-size="9.5">★ invalidateQueries は「A自身のcache」にだけ効く</text>
+
+            <rect x="590" y="180" width="330" height="180" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="755" y="204" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">ユーザーBのブラウザ</text>
+            <rect x="610" y="216" width="290" height="40" rx="6" fill="#0b1220" stroke="#fbbf24"/>
+            <text x="626" y="240" fill="#fde68a">cache(B): { reservations: [...] } ← 別物</text>
+            <rect x="610" y="264" width="290" height="40" rx="6" fill="#0b1220" stroke="#fbbf24"/>
+            <text x="626" y="288" fill="#fde68a">DOM(B): Bの画面</text>
+            <text x="610" y="326" fill="#f87171" font-size="9.5">★ Aが更新しても、cache(B) は古いまま</text>
+            <text x="610" y="346" fill="#fca5a5" font-size="9.5">★ Bが見つめ続けている間、画面は変わらない</text>
+
+            <rect x="40" y="380" width="960" height="70" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="56" y="404" fill="#bae6fd" font-size="12" font-weight="bold">Bが最新になるタイミング</text>
+            <text x="56" y="428" fill="#e0f2fe">リロード / タブ再フォーカス（React Query既定で自動refetch）/ staleTime経過後の再マウント / B自身の操作</text>
+            <text x="56" y="444" fill="#f87171">★ 「見つめ続けている間は変わらない」。全員に即反映するには push（サーバーからの通知）が必要</text>
+          </g>
+        </svg>
+        <p class="figcap">図19-1 cacheは各ブラウザのメモリ。invalidateは自分にしか効かない。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 全員に即反映する3つの手段</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>手段</th><th>仕組み</th><th>コスト</th><th>適する場面</th></tr></thead>
+            <tbody>
+              <tr><td><b>ポーリング</b>（<span class="k">refetchInterval</span>）</td><td>N秒ごとに再fetch（疑似リアルタイム）</td><td class="good">最も簡単（1行）。サーバー負荷は増える</td><td class="good">「数秒〜数十秒の遅れは許容」できる場合。<b class="text-emerald-400">まずこれを試す</b></td></tr>
+              <tr><td><b>SSE</b>（Server-Sent Events）</td><td>サーバー → クライアントの一方向push</td><td class="warn">中（接続の維持・再接続処理）</td><td>通知・進捗表示・「更新があった」の合図</td></tr>
+              <tr><td><b>WebSocket</b></td><td>双方向・低レイテンシ</td><td class="bad">高（接続管理・スケール時のルーティング・認証）</td><td>チャット・共同編集・リアルタイム対戦</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="ts" data-cap="まずはポーリングで足りるか検討する" data-tone="good"><script type="text/plain">
+const { data } = useQuery({
+  queryKey: ['reservations'],
+  queryFn: fetchReservations,
+@@+  refetchInterval: 30_000,              // 30秒ごとに再取得
+@@+  refetchIntervalInBackground: false,   // ★ タブが非アクティブなら止める（重要）
+});
+
+// ★ 判断の目安:
+//   ・ユーザー数 × 更新頻度 でサーバー負荷を見積もる
+//     例: 同時50人 × 30秒間隔 = 1.7 req/s → 全く問題ない
+//     例: 同時5000人 × 5秒間隔 = 1000 req/s → 設計を見直す
+//   ・「更新があったか」だけを軽いAPIで確認し、
+//     変わっていたら本体を取り直す（ETag / updated_at の比較）という折衷もある
+//
+// ★ StayFlow の管理画面のようなケース:
+//   ユーザー限定・同時操作が稀 → 通常の refetch（タブ再フォーカス）で十分。
+//   同時編集の要件が出て初めて push を検討する。
+//   ★ 「リアルタイムにしたい」という要望は、多くの場合
+//     「古いデータで操作して事故るのが怖い」という不安が本体。
+//     → 楽観ロック（409を返す）で解決できることが多い（ddd-practice.html ch5）
+</script></div>
+      </div>
+    </section>
+
+    <section id="ch20" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">20</span> 認証（NextAuth）の全体像</h2>
+      <p class="lede">結論。<b class="text-emerald-400">NextAuth = session管理（ログイン状態）／ Goバックエンド = tokenの真偽判定（認可の本体）</b>。<b class="text-rose-400">本当の判定はバックエンドにある</b>。フロントのsession有無はUXのためであり、バックが署名検証しない限り詐称可能。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1060 520" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1060" height="520" fill="#0f172a" rx="10"/>
+          <text x="530" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">値はどこで作られ、どこに保存され、いつ検証されるか</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="490" height="230" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="46" y="74" fill="#fecaca" font-size="12" font-weight="bold">保存場所マップ（誤解の修正）</text>
+            <text x="46" y="98" fill="#f87171">★ ブラウザは「鍵」を持たない。持つのは暗号化cookie = token だけ</text>
+            <text x="46" y="124" fill="#fde68a">秘密鍵（署名用）</text>
+            <text x="230" y="124" fill="#e2e8f0">→ Goサーバーのみ（env）・絶対秘密</text>
+            <text x="46" y="144" fill="#fde68a">検証鍵（公開鍵）</text>
+            <text x="230" y="144" fill="#e2e8f0">→ 検証するサーバー（Go / JWKS）・公開可</text>
+            <text x="46" y="164" fill="#fde68a">NEXTAUTH_SECRET</text>
+            <text x="230" y="164" fill="#e2e8f0">→ Nextサーバーのみ（env）・session暗号用</text>
+            <text x="46" y="184" fill="#fde68a">accessToken（JWT）</text>
+            <text x="230" y="184" fill="#e2e8f0">→ Goが発行 → session内 → cookie</text>
+            <text x="46" y="204" fill="#fde68a">session cookie</text>
+            <text x="230" y="204" fill="#e2e8f0">→ NextAuthが暗号化 → ブラウザ（httpOnly）</text>
+            <text x="46" y="224" fill="#fde68a">user 行</text>
+            <text x="230" y="224" fill="#e2e8f0">→ DB</text>
+            <text x="46" y="244" fill="#fde68a">session 行</text>
+            <text x="230" y="244" fill="#e2e8f0">→ DB（DB戦略のときのみ）</text>
+            <text x="46" y="270" fill="#4ade80">★ httpOnly なので、cookieはJSからも読めない（XSS対策）</text>
+
+            <rect x="540" y="50" width="490" height="230" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="556" y="74" fill="#bae6fd" font-size="12" font-weight="bold">3つの重要な区別</text>
+            <text x="556" y="100" fill="#7dd3fc">① session と cookie は「入れ子」（対等な2つではない）</text>
+            <text x="572" y="118" fill="#e2e8f0" font-size="9.5">session = 状態のまとまり { user, accessToken, expires }</text>
+            <text x="572" y="134" fill="#e2e8f0" font-size="9.5">cookie  = それを運び保存するHTTPの箱</text>
+            <text x="572" y="150" fill="#e0f2fe" font-size="9.5">JWT戦略では session 全体を暗号化してcookieに丸ごと入れる</text>
+            <text x="572" y="164" fill="#f87171" font-size="9.5">（「JWTだけ抜いて入れる」ではない）</text>
+            <text x="556" y="190" fill="#7dd3fc">② JWTは「暗号化」ではなく「署名」</text>
+            <text x="572" y="208" fill="#e2e8f0" font-size="9.5">中身（userId / role）はbase64で誰でも読める = 秘密ではない</text>
+            <text x="572" y="224" fill="#e2e8f0" font-size="9.5">安全性の根拠は「改ざんできない」こと（署名）</text>
+            <text x="572" y="238" fill="#4ade80" font-size="9.5">→ 生JWTを渡しても危険ではない（守るべきは盗難 → httpOnly + HTTPS）</text>
+            <text x="556" y="262" fill="#7dd3fc">③ 期限は2種類ある</text>
+            <text x="572" y="278" fill="#e2e8f0" font-size="9.5">session.expires（ログイン全体・例30日）と JWTのexp（API有効期限・例1時間）は別物</text>
+
+            <rect x="30" y="300" width="490" height="215" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="324" fill="#dcfce7" font-size="12" font-weight="bold">発行フロー</text>
+            <text x="46" y="348" fill="#bbf7d0">1. ログイン（email + password）</text>
+            <text x="46" y="366" fill="#bbf7d0">2. Go: DB照合（パスワードハッシュの検証）</text>
+            <text x="46" y="384" fill="#bbf7d0">3. Go: accessToken を秘密鍵で署名して発行</text>
+            <text x="62" y="400" fill="#e2e8f0" font-size="9.5">　 payload: { userId, role, exp }</text>
+            <text x="46" y="420" fill="#bbf7d0">4. NextAuth: session に格納</text>
+            <text x="46" y="438" fill="#bbf7d0">5. NextAuth: NEXTAUTH_SECRET で暗号化 → Set-Cookie</text>
+            <text x="62" y="454" fill="#e2e8f0" font-size="9.5">　 httpOnly / Secure / SameSite</text>
+            <text x="46" y="474" fill="#bbf7d0">6. ブラウザが保存（以降、対象ドメインへ自動送信）</text>
+            <text x="46" y="500" fill="#86efac" font-size="9.5">★ session読取: SCは auth() / CCは useSession()</text>
+
+            <rect x="540" y="300" width="490" height="215" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="556" y="324" fill="#fef3c7" font-size="12" font-weight="bold">検証タイミングは2箇所</text>
+            <text x="556" y="350" fill="#fde68a">A. ページ表示のたび（Next.js側）</text>
+            <text x="572" y="368" fill="#e2e8f0" font-size="9.5">Next が NEXTAUTH_SECRET で復号 → ログイン状態を確認</text>
+            <text x="572" y="384" fill="#e2e8f0" font-size="9.5">→ middleware.ts でページ保護</text>
+            <text x="572" y="400" fill="#fcd34d" font-size="9.5">★ これは「UXのため」（未ログインなら早めにログイン画面へ）</text>
+            <text x="556" y="426" fill="#fde68a">B. API呼び出しのたび（Go側）</text>
+            <text x="572" y="444" fill="#e2e8f0" font-size="9.5">Authorization: Bearer &lt;accessToken&gt; を受け取り</text>
+            <text x="572" y="460" fill="#e2e8f0" font-size="9.5">検証鍵で署名検証 + exp確認 + role認可</text>
+            <text x="572" y="476" fill="#4ade80" font-size="9.5">★ ここが「本当の認可」</text>
+            <text x="556" y="502" fill="#f87171" font-size="9.5">★ Aだけでは防げない: curl で直接Goを叩かれたら意味がない</text>
+          </g>
+        </svg>
+        <p class="figcap">図20-1 認証の全体像。「フロントのsessionはUX、バックの署名検証が本体」。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ NextAuth の2戦略</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>観点</th><th>JWT戦略（既定）</th><th>DB戦略</th></tr></thead>
+            <tbody>
+              <tr><td>session の保存場所</td><td>暗号化cookieに丸ごと</td><td>DBの sessions テーブル（cookieはIDだけ）</td></tr>
+              <tr><td>DBアクセス</td><td class="good">不要</td><td class="bad">毎リクエスト</td></tr>
+              <tr><td>スケール</td><td class="good">容易（ステートレス）</td><td class="warn">DBがボトルネックになりうる</td></tr>
+              <tr><td>即時ログアウト（強制失効）</td><td class="bad">しづらい（exp まで有効）</td><td class="good">できる（行を削除する）</td></tr>
+              <tr><td>cookieサイズ</td><td class="warn">session全体が入るので大きくなる（4KB上限に注意）</td><td class="good">小さい</td></tr>
+              <tr><td>適する場面</td><td class="good">一般的なWebアプリ</td><td>「今すぐ全端末からログアウト」が要件にある場合</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="ts" data-cap="実装の要点" data-tone="good"><script type="text/plain">
+// ---- auth.ts ----
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 }, // 30日
+  providers: [
+    Credentials({
+      async authorize(credentials) {
+@@+        // ★ Goバックエンドに認証を委譲する（パスワード検証はGo側）
+        const res = await fetch(`${process.env.API_URL}/auth/login`, {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) return null;
+        const { user, accessToken } = await res.json();
+        return { ...user, accessToken }; // ★ accessTokenをsessionに含める
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.accessToken = (user as any).accessToken;
+      return token;
+    },
+    async session({ session, token }) {
+@@+      session.accessToken = token.accessToken as string; // CCから読めるようにする
+      return session;
+    },
+  },
+});
+
+// ---- Server Component から読む ----
+const session = await auth();
+if (!session) redirect('/login');
+
+// ---- Client Component から読む ----
+'use client';
+const { data: session, status } = useSession();
+
+// ---- APIを叩くとき（accessTokenを付与）----
+const res = await fetch(`${API_URL}/reservations`, {
+@@+  headers: { Authorization: `Bearer ${session.accessToken}` },
+});
+// ★ Go側で署名検証 + exp + role をチェックする（本当の認可）
+
+// ---- middleware.ts でページ保護 ----
+export { auth as middleware } from '@/auth';
+export const config = { matcher: ['/dashboard/:path*', '/reservations/:path*'] };
+</script></div>
+      </div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ 認証のレビュー観点</p>
+        <ul>
+          <li><b class="text-rose-400">認可をフロントだけで判定していないか</b> — 「管理者だけボタンを隠す」はUX。バックが検証していなければ意味がない</li>
+          <li>accessToken を <span class="k">localStorage</span> に入れていないか（XSSで盗まれる。<b class="text-emerald-400">httpOnly cookie が正解</b>）</li>
+          <li>秘密鍵・APIトークンが <span class="k">NEXT_PUBLIC_</span> 接頭辞の環境変数に入っていないか（<b class="text-rose-400">バンドルに含まれ、ブラウザから見える</b>）</li>
+          <li>Server Action で認可チェックをしているか（Clientから呼べる = 誰でも呼べる）</li>
+          <li>cookie に <span class="k">Secure</span> / <span class="k">SameSite</span> が付いているか</li>
+          <li>token の exp が切れたときの挙動（自動リフレッシュ / 再ログイン誘導）が決まっているか</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="ch21" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">21</span> データ整形をどこに置くか</h2>
+      <p class="lede">結論。<b class="text-emerald-400">意味はバック・見た目はフロント・集約はBFF</b>。<b class="text-rose-400">「全部バックエンドで整形」というバックエンド主義は罠</b>で、APIがUI専用に肥大し、UIの小変更でバックのデプロイが必要になるほど結合が強まる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">3種類の「整形」を区別する</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="320" height="300" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="190" y="80" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">意味の整形（ロジック）</text>
+            <text x="190" y="100" fill="#86efac" font-size="10.5" text-anchor="middle">→ バックエンド（Go）</text>
+            <text x="46" y="128" fill="#bbf7d0">・合計金額・税・割引の計算</text>
+            <text x="46" y="148" fill="#bbf7d0">・権限による出し分け（見せてよい項目）</text>
+            <text x="46" y="168" fill="#bbf7d0">・複数ソースの結合（在庫 + 予約）</text>
+            <text x="46" y="188" fill="#bbf7d0">・状態の判定（キャンセル可能か）</text>
+            <text x="46" y="208" fill="#bbf7d0">・並び順のビジネスルール</text>
+            <text x="46" y="236" fill="#4ade80">理由:</text>
+            <text x="46" y="256" fill="#bbf7d0">・改ざんされてはいけない</text>
+            <text x="46" y="276" fill="#bbf7d0">・複数クライアント（Web/モバイル/</text>
+            <text x="62" y="292" fill="#bbf7d0">　バッチ）で同じ結果が必要</text>
+            <text x="46" y="312" fill="#bbf7d0">・テストしやすい（Part 1のdomain層）</text>
+            <text x="46" y="340" fill="#fbbf24">★ フロントで計算すると、値が2つの実装で</text>
+            <text x="46" y="352" fill="#fde68a">　 食い違う（そして必ず食い違う）</text>
+
+            <rect x="360" y="55" width="320" height="300" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="520" y="80" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">見た目の整形（表示）</text>
+            <text x="520" y="100" fill="#7dd3fc" font-size="10.5" text-anchor="middle">→ フロントエンド</text>
+            <text x="376" y="128" fill="#e0f2fe">・日付のフォーマット（2026/08/23）</text>
+            <text x="376" y="148" fill="#e0f2fe">・数値の桁区切り（12,000円）</text>
+            <text x="376" y="168" fill="#e0f2fe">・ラベルの文言（"確定" / "Confirmed"）</text>
+            <text x="376" y="188" fill="#e0f2fe">・i18n（多言語対応）</text>
+            <text x="376" y="208" fill="#e0f2fe">・UIのグルーピング（カテゴリ別表示）</text>
+            <text x="376" y="228" fill="#e0f2fe">・相対時間（"3分前"）</text>
+            <text x="376" y="256" fill="#38bdf8">理由:</text>
+            <text x="376" y="276" fill="#e0f2fe">・ユーザーのロケール・タイムゾーンに依存</text>
+            <text x="376" y="296" fill="#e0f2fe">・デザイン変更で頻繁に変わる</text>
+            <text x="376" y="316" fill="#e0f2fe">・バックのデプロイを待ちたくない</text>
+            <text x="376" y="344" fill="#fbbf24">★ APIは「意味のある値」を返し、</text>
+            <text x="376" y="356" fill="#fde68a">　 表示形式はフロントが決める</text>
+
+            <rect x="690" y="55" width="320" height="300" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="850" y="80" fill="#ede9fe" font-size="12" font-weight="bold" text-anchor="middle">画面都合の集約</text>
+            <text x="850" y="100" fill="#c4b5fd" font-size="10.5" text-anchor="middle">→ BFF / Route Handler</text>
+            <text x="706" y="128" fill="#ddd6fe">・複数APIを1画面用に束ねる</text>
+            <text x="706" y="148" fill="#ddd6fe">・over-fetch の削減（必要な列だけ）</text>
+            <text x="706" y="168" fill="#ddd6fe">・N+1 の解消（フロントのwaterfall回避）</text>
+            <text x="706" y="188" fill="#ddd6fe">・秘密情報の秘匿（APIキーの付与）</text>
+            <text x="706" y="216" fill="#a78bfa">理由:</text>
+            <text x="706" y="236" fill="#ddd6fe">・「この画面のためだけ」の形は</text>
+            <text x="722" y="252" fill="#ddd6fe">　バックエンドに置きたくない</text>
+            <text x="706" y="272" fill="#ddd6fe">・でもブラウザで3回fetchするのは遅い</text>
+            <text x="706" y="300" fill="#4ade80">★ Server Component でも同じ効果が得られる</text>
+            <text x="706" y="320" fill="#86efac">（複数awaitを1つのSCの中で並列実行する）</text>
+            <text x="706" y="348" fill="#fbbf24">★ ここにビジネスロジックを書かない</text>
+          </g>
+        </svg>
+        <p class="figcap">図21-1 3種類の整形。「意味 / 見た目 / 集約」を混ぜないのが原則。</p>
+      </div>
+
+      <div class="step why">
+        <p class="step-h">③ 「全部バックで整形」が罠になる理由</p>
+        <div class="kv">
+          <div class="kvi"><p>症状1: APIがUI専用に肥大する</p><p><span class="k">GET /reservations-for-dashboard-list-v2</span> のようなエンドポイントが増える。<b class="text-rose-400">1画面 = 1エンドポイントになり、再利用性がゼロになる</b>。</p></div>
+          <div class="kvi"><p>症状2: UIの小変更でバックのデプロイが必要</p><p>「日付の形式を変えたい」「ラベルを『確定』から『予約確定』に変えたい」でバックエンドのPRが必要になる。<b class="text-amber-400">これは結合が強すぎる状態</b>。</p></div>
+          <div class="kvi"><p>症状3: 多言語化ができない</p><p>バックがラベル文言を返していると、i18nをバックに実装することになる。<b class="text-slate-100">ユーザーのロケールはフロントが持つ情報</b>。</p></div>
+          <div class="kvi"><p>逆の罠: 全部フロントで計算する</p><p><b class="text-rose-400">金額計算をフロントでやると、必ずバックの計算と食い違う</b>（税の丸め・割引の適用順）。<b class="text-emerald-400">「お金・権限・状態判定」はバックの独占領域</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="step goog">
+        <p class="step-h">Part 3 のまとめ</p>
+        <ol>
+          <li><b class="text-lime-300">Server Component は「サーバーで動くUI」</b>。BFFではないが、BFFの責務を吸収している</li>
+          <li><b class="text-lime-300"><span class="k">'use client'</span> は境界、<span class="k">'use server'</span> は関数</b>。レイヤーが違う</li>
+          <li><b class="text-lime-300">Server → Client は props のみ</b>。逆方向は Server Action</li>
+          <li><b class="text-lime-300">再取得が必要なら hydration、不要なら props</b>。両方使うと二重管理</li>
+          <li><b class="text-lime-300">レンダリング方式は1画面ごとに決める</b>。管理画面はCSR + 静的配信で十分</li>
+          <li><b class="text-lime-300">cacheは各ブラウザのメモリ</b>。invalidateは自分にしか効かない</li>
+          <li><b class="text-lime-300">認可の本体はバックエンド</b>。フロントのsessionはUX</li>
+          <li><b class="text-lime-300">意味はバック・見た目はフロント・集約はBFF</b></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="cheat" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">付</span> チートシート / レビュー観点</h2>
+
+      <div class="step note">
+        <p class="step-h">1画面チートシート</p>
+        <div class="cb" data-lang="ts" data-cap="迷ったらここを見る"><script type="text/plain">
+// ===== 状態の置き場所（上から順に問う） =====
+// 1. 他のstateから計算できる？        → 計算する（useMemo / 式）  ★ stateにしない
+// 2. 変わっても画面は変わらない？      → useRef
+// 3. 正本はサーバー？                → useQuery（絶対にuseStateにしない）
+// 4. URLで共有・リロードしたい？       → useSearchParams / router.push
+// 5. 離れた複数箇所で必要？            → Context / Zustand
+// 6. フォームの入力・検証・送信状態？   → useForm（RHF）
+// 7. 上記全部No                      → useState
+
+// ===== React Query =====
+useQuery({ queryKey: ['x', dep1, dep2], queryFn, staleTime: 30_000 })
+// ★ queryKeyに依存を全部入れる / isPending・isErrorを必ず出す
+useMutation({ mutationFn, onSuccess: () => qc.invalidateQueries({ queryKey: ['x'] }) })
+
+// ===== RHF =====
+初期ロード → useForm({ values }) or reset(data)
+1項目更新 → setValue(path, v, { shouldDirty: true })   ★ resetを使わない
+配列      → useFieldArray（key は field.id）
+値を読む  → getValues（購読なし） / useWatch（購読あり・小さく囲む）
+error     → formState.errors（★ useStateで持たない）
+検証      → zodResolver + z.object（ルールを1箇所に）
+Form型    → UI階層に合わせる。API型 ↔ Form型 の adapter を1ファイルに
+
+// ===== Next.js =====
+Server Component（既定）: await fetch OK / 秘密鍵OK / useState不可
+Client Component（'use client'）: useState OK / 秘密鍵不可 / 初回はSSRもされる
+Server Action（'use server'）: Clientから呼べるサーバー関数（★ 認可を必ず書く）
+Route Handler（app/api/*/route.ts）: 軽量BFF（集約・秘匿・Webhook受信）
+SC → CC: props のみ（シリアライズ可能な値だけ）
+再取得が必要 → prefetchQuery + dehydrate + HydrationBoundary
+環境変数: NEXT_PUBLIC_* はブラウザに露出する（★ 秘密を入れない）
+</script></div>
+      </div>
+
+      <div class="step rev">
+        <p class="step-h">コードレビュー用チェックリスト</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>見るもの</th><th>NGのサイン</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><span class="k">useEffect</span> + <span class="k">setState</span></td><td class="bad">派生状態を同期している（計算に置き換える）</td></tr>
+              <tr><td>2</td><td>APIデータの保持</td><td class="bad"><span class="k">useState</span> + <span class="k">useEffect</span> で fetch している</td></tr>
+              <tr><td>3</td><td>検索条件・ページ番号</td><td class="bad"><span class="k">useState</span> にある（URLにすべき）</td></tr>
+              <tr><td>4</td><td><span class="k">queryKey</span></td><td class="bad">依存（検索条件・ID）が入っていない</td></tr>
+              <tr><td>5</td><td><span class="k">isPending</span> / <span class="k">isError</span></td><td class="bad">ハンドリングしていない（data が undefined でクラッシュ）</td></tr>
+              <tr><td>6</td><td>mutation後の処理</td><td class="bad"><span class="k">invalidateQueries</span> がない（画面が古いまま）</td></tr>
+              <tr><td>7</td><td><span class="k">useState(props.xxx)</span></td><td class="bad">propsで初期化（key でリセットする）</td></tr>
+              <tr><td>8</td><td><span class="k">watch()</span></td><td class="bad">引数なしの全体購読</td></tr>
+              <tr><td>9</td><td><span class="k">reset</span></td><td class="bad">1項目の更新に使っている</td></tr>
+              <tr><td>10</td><td>map の key</td><td class="bad">配列インデックス（<span class="k">field.id</span> にする）</td></tr>
+              <tr><td>11</td><td>フォーム型</td><td class="bad">API型のコピー / <span class="k">as unknown as</span> が出ている</td></tr>
+              <tr><td>12</td><td>描画ループ</td><td class="bad">中で <span class="k">groupBy</span> / <span class="k">sort</span> している</td></tr>
+              <tr><td>13</td><td><span class="k">'use client'</span> の位置</td><td class="bad">ページ最上位に付いている（葉に近づける）</td></tr>
+              <tr><td>14</td><td>環境変数</td><td class="bad">秘密情報が <span class="k">NEXT_PUBLIC_</span> に入っている</td></tr>
+              <tr><td>15</td><td>Server Action</td><td class="bad">認可チェックがない</td></tr>
+              <tr><td>16</td><td>SC + CC の組み合わせ</td><td class="bad">props で渡したデータを CC で <span class="k">useQuery</span> でも取っている（二重管理）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step zoom">
+        <p class="step-h">関連ノート</p>
+        <ul>
+          <li><b>react-state-map.html</b> — 7バケツのビジュアルマップ + 実画面例（予約管理画面のどこが何状態か）+ 裏側の配管（orval codegen → React Query cache → UI）</li>
+          <li><b>ddd-practice.html</b> — <span class="k">defaultValues</span> vs <span class="k">values</span> は「永続化状態 vs 編集中状態」= DDDの状態分離と同型。変換層（adapter）はDTO ⇄ Entityと同じ構造</li>
+          <li><b>software-design-micro.html</b> — Part 6（API境界の設計・4段変換・Validation 3層）はフロント側の変換層と対称。<b>「意味はバック」の根拠</b></li>
+          <li><b>deploy-infra-basics.html</b> — ホスティング方式（静的 / SSR）の選択とコスト</li>
+          <li><b>React公式ドキュメント</b>「You Might Not Need an Effect」「Resetting state with a key」— ch3・ch4の原典</li>
+          <li><b>TanStack Query 公式ドキュメント</b>「Advanced Server Rendering」— ch16のhydrationの正確な手順</li>
+        </ul>
+      </div>
+    </section>
+    <footer class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono leading-relaxed">
+      図解React/Next.js設計 — 状態の分類・フォーム・サーバー境界<br>
+      Part 1: 状態の分類（7バケツ / 2つの軸 / 4大アンチパターン / 派生状態 / React Query / 非同期の基礎）<br>
+      Part 2: フォーム設計（RHFのメンタルモデル / formStateとerrorの反映機構 / useFieldArray / 動的配列が難しい5つの原因 / 変換層）<br>
+      Part 3: Server/Client境界（RSC・CC・hydrate / use client と use server / BFFとRoute Handler / props vs hydration / レンダリング4方式 / 5層のライフサイクル / cacheは共有されない / 認証 / 整形の置き場所）<br>
+      付録: チートシート / レビューチェックリスト16項目<br>
+      <span class="text-slate-600">関連ノート: react-state-map.html（7バケツのビジュアルマップ） / ddd-practice.html（変換層はDTO⇄Entityと同型） / software-design-micro.html（Part 6 API境界） / deploy-infra-basics.html</span>
+    </footer>
+
+  </main>
+</div>
+<button id="topBtn" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-500 text-slate-950 w-12 h-12 shadow-lg font-bold text-lg z-40" aria-label="先頭へ戻る">↑</button>
+
+<script>
+/* =========================================================
+   1. コードブロックのシンタックスハイライト（自前・依存なし）
+   div.cb[data-lang][data-cap][data-tone] の中に置いた
+   script[type=text/plain] のテキストを読み、色付けした pre に差し替える。
+   行頭の @@- / @@+ / @@! / @@* で行単位の強調を付ける。
+   ========================================================= */
+(function () {
+  const LANGS = {
+    go: {
+      kw: ['func','if','else','for','range','return','var','const','type','struct','interface',
+           'map','chan','go','defer','select','switch','case','default','break','continue',
+           'fallthrough','package','import','goto'],
+      cn: ['nil','true','false','iota'],
+      ty: ['string','int','int8','int16','int32','int64','uint','uint8','uint16','uint32','uint64',
+           'float32','float64','bool','byte','rune','error','any','uintptr','complex64','complex128'],
+      lineComment: '//'
+    },
+    sql: {
+      kw: ['SELECT','FROM','WHERE','UPDATE','SET','INSERT','INTO','VALUES','DELETE','JOIN','LEFT',
+           'RIGHT','INNER','OUTER','ON','AND','OR','NOT','NULL','ORDER','BY','GROUP','HAVING','LIMIT',
+           'OFFSET','BEGIN','COMMIT','ROLLBACK','CREATE','TABLE','INDEX','UNIQUE','PRIMARY','KEY',
+           'FOR','SHARE','LOCK','IN','AS','WITH','RETURNING','CASE','WHEN','THEN','END','EXISTS','ASC','DESC'],
+      cn: ['TRUE','FALSE'],
+      ty: ['INT','BIGINT','VARCHAR','TEXT','DATE','DATETIME','TIMESTAMP','DECIMAL','BOOLEAN'],
+      lineComment: '--',
+      upper: true
+    },
+    ts: {
+      kw: ['const','let','var','function','return','if','else','for','while','do','switch','case',
+           'default','break','continue','new','class','extends','import','export','from','as','async',
+           'await','try','catch','finally','throw','typeof','instanceof','in','of','delete','void',
+           'yield','interface','type','enum','implements','public','private','protected','readonly',
+           'static','abstract','declare','namespace','satisfies','keyof','infer','is','asserts','get','set'],
+      cn: ['null','undefined','true','false','this','super','NaN','Infinity'],
+      ty: ['string','number','boolean','any','unknown','never','void','object','symbol','bigint',
+           'Array','Promise','Record','Partial','Pick','Omit','Readonly','Map','Set','Date','JSON','Math'],
+      lineComment: '//'
+    },
+    json: { kw: [], cn: ['true','false','null'], ty: [], lineComment: '//' },
+    bash: { kw: ['if','then','fi','for','do','done','export','echo','cd','function'], cn: [], ty: [], lineComment: '#' },
+    text: { kw: [], cn: [], ty: [], lineComment: '#' }
+  };
+  LANGS.tsx = LANGS.ts; LANGS.js = LANGS.ts; LANGS.jsx = LANGS.ts;
+  LANGS.yaml = LANGS.text; LANGS.yml = LANGS.text; LANGS.sh = LANGS.bash;
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function highlightLine(line, spec) {
+    // トークン: 行コメント / 文字列 / 数値 / 識別子 / 記号
+    const cm = spec.lineComment === '--' ? '--' : (spec.lineComment === '#' ? '#' : '\\/\\/');
+    const re = new RegExp(
+      '(' + cm + '.*$)' +                                      // 1 comment
+      '|("(?:\\\\.|[^"\\\\])*"|`[^`]*`|\'(?:\\\\.|[^\'\\\\])*\')' + // 2 string
+      '|(\\b0[xX][0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?\\b)' +   // 3 number
+      '|([A-Za-z_][A-Za-z0-9_]*)' +                            // 4 ident
+      '|([{}()\\[\\].,;:=+\\-*/%<>!&|^~?]+)',                   // 5 punct
+      'g'
+    );
+    let out = '', last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) out += esc(line.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) { out += '<span class="t-cm">' + esc(m[1]) + '</span>'; }
+      else if (m[2]) { out += '<span class="t-st">' + esc(m[2]) + '</span>'; }
+      else if (m[3]) { out += '<span class="t-nu">' + esc(m[3]) + '</span>'; }
+      else if (m[4]) {
+        const w = m[4];
+        const key = spec.upper ? w.toUpperCase() : w;
+        const next = line.slice(last).match(/^\s*\(/);
+        if (spec.kwSet.has(key)) out += '<span class="t-kw">' + esc(w) + '</span>';
+        else if (spec.cnSet.has(key)) out += '<span class="t-cn">' + esc(w) + '</span>';
+        else if (spec.tySet.has(key)) out += '<span class="t-ty">' + esc(w) + '</span>';
+        else if (next) out += '<span class="t-fn">' + esc(w) + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="t-id">' + esc(w) + '</span>';
+        else out += esc(w);
+      }
+      else { out += '<span class="t-pn">' + esc(m[5]) + '</span>'; }
+    }
+    if (last < line.length) out += esc(line.slice(last));
+    return out;
+  }
+
+  function render(block) {
+    const src = block.querySelector('script[type="text/plain"]');
+    if (!src) return;
+    const lang = (block.dataset.lang || 'go').toLowerCase();
+    const spec = Object.assign({}, LANGS[lang] || LANGS.text);
+    spec.kwSet = new Set(spec.kw); spec.cnSet = new Set(spec.cn); spec.tySet = new Set(spec.ty);
+
+    const raw = src.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    const html = raw.split('\n').map((line) => {
+      let cls = '';
+      const mk = line.slice(0, 3);
+      if (mk === '@@-') { cls = 'ln-bad'; line = line.slice(3); }
+      else if (mk === '@@+') { cls = 'ln-good'; line = line.slice(3); }
+      else if (mk === '@@!') { cls = 'ln-warn'; line = line.slice(3); }
+      else if (mk === '@@*') { cls = 'ln-focus'; line = line.slice(3); }
+      const body = lang === 'text' ? highlightLine(line, spec) : highlightLine(line, spec);
+      return '<span class="ln ' + cls + '">' + (body || '&nbsp;') + '</span>';
+    }).join('\n');
+
+    const bar = document.createElement('div');
+    bar.className = 'cb-bar';
+    const cap = block.dataset.cap ? '<span class="cb-cap">' + esc(block.dataset.cap) + '</span>' : '';
+    bar.innerHTML = '<span class="cb-lang">' + esc(lang) + '</span>' + cap;
+    const copy = document.createElement('button');
+    copy.textContent = 'copy';
+    copy.style.cssText = 'margin-left:auto;color:#64748b;border:1px solid #334155;border-radius:5px;padding:1px 7px;font-size:10px;cursor:pointer;background:transparent';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(raw.replace(/^@@[-+!*]/gm, '')).then(() => {
+        copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1200);
+      });
+    });
+    bar.appendChild(copy);
+
+    const pre = document.createElement('pre');
+    pre.innerHTML = html;
+    block.insertBefore(pre, src);
+    block.insertBefore(bar, pre);
+    src.remove();
+  }
+
+  document.querySelectorAll('.cb').forEach(render);
+})();
+
+/* =========================================================
+   2. 目次・スクロール連動・トップへ戻る
+   ========================================================= */
+(function () {
+  const toc = document.getElementById('toc');
+  const btn = document.getElementById('tocBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('hidden');
+      toc.classList.toggle('block');
+    });
+  }
+  const links = [...document.querySelectorAll('#tocNav a')];
+  links.forEach((a) => {
+    a.addEventListener('click', () => {
+      if (window.innerWidth < 1024) { toc.classList.add('hidden'); toc.classList.remove('block'); }
+    });
+  });
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => l.classList.remove('active'));
+        const active = links.find((l) => l.getAttribute('href') === '#' + e.target.id);
+        if (active) {
+          active.classList.add('active');
+          const r = active.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            active.scrollIntoView({ block: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach((s) => observer.observe(s));
+
+  const topBtn = document.getElementById('topBtn');
+  window.addEventListener('scroll', () => {
+    topBtn.classList.toggle('hidden', window.scrollY < 600);
+  });
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>

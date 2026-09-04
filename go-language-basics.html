@@ -1,0 +1,2561 @@
+<!doctype html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解Go言語の基礎 — 値・ポインタ・ゼロ値・nil・出力</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] } } }
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .chapter { @apply scroll-mt-20 mb-20 pb-8 border-b border-slate-800; }
+    .ch-h { @apply text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3 mb-4 leading-tight; }
+    .ch-n { @apply shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-slate-800 text-sky-400 font-mono text-lg; }
+    .part-h { @apply mt-24 mb-10 rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-950 px-6 py-7 scroll-mt-20; }
+    .part-h p.eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.25em] text-sky-400 mb-2; }
+    .part-h h2 { @apply text-2xl sm:text-4xl font-bold text-slate-50 leading-tight mb-3; }
+    .part-h p.sub { @apply text-slate-400 leading-relaxed max-w-3xl; }
+    .lede { @apply text-slate-400 mb-6 leading-relaxed; }
+    .metaphor { @apply rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 text-amber-100 leading-relaxed; }
+    .metaphor b { @apply text-amber-300; }
+    .step { @apply rounded-xl border px-5 py-4 mb-4; }
+    .step-h { @apply font-mono text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2; }
+    /* 10ステップの色分け */
+    .prob { @apply border-rose-500/40 bg-rose-500/5; }
+    .prob .step-h { @apply text-rose-400; }
+    .naive { @apply border-orange-500/40 bg-orange-500/5; }
+    .naive .step-h { @apply text-orange-400; }
+    .why { @apply border-amber-500/40 bg-amber-500/5; }
+    .why .step-h { @apply text-amber-400; }
+    .principle { @apply border-teal-500/40 bg-teal-500/5; }
+    .principle .step-h { @apply text-teal-400; }
+    .sol { @apply border-emerald-500/40 bg-emerald-500/5; }
+    .sol .step-h { @apply text-emerald-400; }
+    .ba { @apply border-sky-500/40 bg-sky-500/5; }
+    .ba .step-h { @apply text-sky-400; }
+    .impact { @apply border-indigo-500/40 bg-indigo-500/5; }
+    .impact .step-h { @apply text-indigo-400; }
+    .trade { @apply border-violet-500/40 bg-violet-500/5; }
+    .trade .step-h { @apply text-violet-400; }
+    .over { @apply border-dashed border-slate-500 bg-slate-800/40; }
+    .over .step-h { @apply text-slate-300; }
+    .rev { @apply border-fuchsia-500/40 bg-fuchsia-500/5; }
+    .rev .step-h { @apply text-fuchsia-400; }
+    /* 補助ブロック */
+    .zoom { @apply border-cyan-500/40 bg-cyan-500/5; }
+    .zoom .step-h { @apply text-cyan-400; }
+    .goog { @apply border-lime-500/40 bg-lime-500/5; }
+    .goog .step-h { @apply text-lime-400; }
+    .note { @apply border-slate-600 bg-slate-900; }
+    .note .step-h { @apply text-slate-400; }
+    .step p { @apply text-slate-300 leading-relaxed; }
+    .step ul { @apply list-disc pl-5 space-y-1.5 text-slate-300; }
+    .step ol { @apply list-decimal pl-5 space-y-1.5 text-slate-300; }
+    .step ul ul, .step ol ul { @apply mt-1.5; }
+    .fig { @apply my-4 rounded-xl border border-slate-700 bg-slate-900 p-3 overflow-x-auto; }
+    .fig svg { @apply w-full h-auto min-w-[700px]; }
+    .figcap { @apply mt-2 text-xs text-slate-400 font-mono px-1; }
+    .tbl { @apply my-3 overflow-x-auto rounded-xl border border-slate-700; }
+    .tbl table { @apply w-full text-sm border-collapse min-w-[640px]; }
+    .tbl th { @apply bg-slate-800 text-left px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400; }
+    .tbl td { @apply border-t border-slate-800 px-3 py-2 align-top text-slate-300; }
+    .tbl tr:hover td { @apply bg-slate-800/40; }
+    .k { @apply font-mono text-[13px] px-1.5 py-0.5 rounded bg-slate-800 text-sky-300; }
+    .good { @apply text-emerald-400 font-semibold; }
+    .bad { @apply text-rose-400 font-semibold; }
+    .warn { @apply text-amber-400 font-semibold; }
+    .toc-a { @apply block px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition; }
+    .toc-a.active { @apply bg-sky-500/15 text-sky-300 font-semibold; }
+    .toc-grp { @apply px-3 pt-4 pb-1 font-mono text-[10px] uppercase tracking-widest text-slate-500; }
+    .qa { @apply rounded-xl border border-slate-700 bg-slate-900 mb-3 overflow-hidden; }
+    .qa summary { @apply cursor-pointer px-5 py-4 font-semibold text-slate-100 hover:bg-slate-800/60 flex gap-3 items-start; }
+    .qa .ans { @apply px-5 pb-5 pt-1 text-slate-300 leading-relaxed border-t border-slate-800; }
+    .kv { @apply grid sm:grid-cols-2 gap-3 my-3; }
+    .kvi { @apply rounded-xl border border-slate-700 bg-slate-900 p-4; }
+    .kvi > p:first-child { @apply font-mono text-[11px] text-sky-400 mb-1; }
+    .kvi > p:last-child { @apply text-sm text-slate-300 leading-relaxed; }
+    .flow { @apply my-4 rounded-xl border border-slate-700 bg-[#0b1220] p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-slate-300 whitespace-pre; }
+  }
+</style>
+<style>
+  /* ===== コードブロック（自前ハイライタ） ===== */
+  .cb { margin: 0.9rem 0; border-radius: 0.75rem; border: 1px solid #334155; background: #0b1220; overflow: hidden; }
+  .cb-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.8rem; background: #111c31; border-bottom: 1px solid #1f2c45;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.04em; }
+  .cb-lang { color: #7dd3fc; text-transform: uppercase; font-weight: 700; }
+  .cb-cap { color: #94a3b8; }
+  .cb[data-tone="bad"] { border-color: rgba(244,63,94,.45); }
+  .cb[data-tone="bad"] .cb-bar { background: rgba(244,63,94,.10); border-bottom-color: rgba(244,63,94,.3); }
+  .cb[data-tone="bad"] .cb-cap { color: #fda4af; }
+  .cb[data-tone="good"] { border-color: rgba(16,185,129,.45); }
+  .cb[data-tone="good"] .cb-bar { background: rgba(16,185,129,.10); border-bottom-color: rgba(16,185,129,.3); }
+  .cb[data-tone="good"] .cb-cap { color: #6ee7b7; }
+  .cb[data-tone="warn"] { border-color: rgba(245,158,11,.45); }
+  .cb[data-tone="warn"] .cb-bar { background: rgba(245,158,11,.10); border-bottom-color: rgba(245,158,11,.3); }
+  .cb[data-tone="warn"] .cb-cap { color: #fcd34d; }
+  .cb pre { margin: 0; padding: 0.85rem 0.9rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.65; color: #cbd5e1; white-space: pre; }
+  .cb .ln { display: block; padding: 0 0.9rem; margin: 0 -0.9rem; }
+  .cb .ln-bad { background: rgba(244,63,94,.13); box-shadow: inset 3px 0 0 #f43f5e; }
+  .cb .ln-good { background: rgba(16,185,129,.13); box-shadow: inset 3px 0 0 #10b981; }
+  .cb .ln-warn { background: rgba(245,158,11,.13); box-shadow: inset 3px 0 0 #f59e0b; }
+  .cb .ln-focus { background: rgba(56,189,248,.13); box-shadow: inset 3px 0 0 #38bdf8; }
+  .t-cm { color: #64748b; }
+  .t-st { color: #86efac; }
+  .t-kw { color: #f472b6; }
+  .t-cn { color: #e879f9; }
+  .t-ty { color: #38bdf8; }
+  .t-id { color: #7dd3fc; }
+  .t-fn { color: #fde047; }
+  .t-nu { color: #fb923c; }
+  .t-pn { color: #94a3b8; }
+  .t-tag { color: #f9a8d4; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased">
+
+<!-- モバイル用ヘッダー -->
+<div class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+  <button id="tocBtn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-mono text-slate-300">☰ 目次</button>
+  <span class="text-sm font-bold text-slate-100 truncate">図解Go言語の基礎</span>
+</div>
+
+<div class="lg:grid lg:grid-cols-[300px_minmax(0,1fr)]">
+
+  <!-- ===== 目次 ===== -->
+  <aside id="toc" class="hidden lg:block lg:sticky lg:top-0 lg:h-screen overflow-y-auto border-r border-slate-800 bg-slate-900/60 px-3 py-6">
+    <div class="px-3 mb-4">
+      <p class="font-mono text-[10px] uppercase tracking-widest text-sky-400">Go Fundamentals · 図解</p>
+      <p class="text-lg font-bold text-slate-100 leading-tight mt-1">図解Go言語の基礎</p>
+      <p class="text-xs text-slate-500 mt-1">値・ポインタ・ゼロ値・nil・出力</p>
+    </div>
+    <nav id="tocNav">
+      <a class="toc-a" href="#intro">00 はじめに — メモリの3つの絵</a>
+      <a class="toc-a" href="#map">00.5 全体地図</a>
+
+      <div class="toc-grp">Part 1 値とポインタ</div>
+      <a class="toc-a" href="#ch1">01 値（struct）— 実体そのもの</a>
+      <a class="toc-a" href="#ch2">02 ポインタとアドレス（&amp; と *）</a>
+      <a class="toc-a" href="#ch3">03 フィールドアクセスと自動デリファレンス</a>
+      <a class="toc-a" href="#ch4">04 値レシーバ vs ポインタレシーバ</a>
+      <a class="toc-a" href="#ch5">05 いつポインタを使うか（判断フロー）</a>
+      <a class="toc-a" href="#ch6">06 slice / map / chan の「参照的」な性質</a>
+
+      <div class="toc-grp">Part 2 ゼロ値・nil・空</div>
+      <a class="toc-a" href="#ch7">07 ゼロ値 struct — nilにならない</a>
+      <a class="toc-a" href="#ch8">08 nilポインタと panic</a>
+      <a class="toc-a" href="#ch9">09 空struct struct{} — サイズ0</a>
+      <a class="toc-a" href="#ch10">10 スライス: nil / 空 / 値あり</a>
+      <a class="toc-a" href="#ch11">11 nilになる6つの型と、nil interfaceの罠</a>
+      <a class="toc-a" href="#ch12">12 判断フローとまとめ表</a>
+
+      <div class="toc-grp">Part 3 出力とフォーマット</div>
+      <a class="toc-a" href="#ch13">13 fmt の命名規則（直交マトリクス）</a>
+      <a class="toc-a" href="#ch14">14 フォーマット指定子と %v/%+v/%#v</a>
+      <a class="toc-a" href="#ch15">15 組み込み print / println を使わない理由</a>
+      <a class="toc-a" href="#ch16">16 実務: Stringer / error / slog</a>
+
+      <div class="toc-grp">付録</div>
+      <a class="toc-a" href="#cheat">チートシート / 落とし穴12選</a>
+    </nav>
+  </aside>
+
+  <!-- ===== 本文 ===== -->
+  <main class="min-w-0 px-4 sm:px-8 lg:px-12 py-10 max-w-[1180px]">
+
+    <header class="mb-14">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-sky-400 mb-3">Go · メモリモデル · 図解版</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-50 leading-tight mb-5">図解Go言語の基礎<br><span class="text-slate-400 text-2xl sm:text-3xl">値・ポインタ・ゼロ値・nil・出力</span></h1>
+      <p class="text-slate-400 max-w-3xl leading-relaxed">Goで最初につまずく3つの領域を、<b class="text-slate-200">全部「メモリの絵」で説明する</b>。<br>
+      ①<b class="text-emerald-400">値とポインタ</b>（コピーされるのか、共有されるのか）②<b class="text-emerald-400">ゼロ値・nil・空</b>（存在するのか、しないのか、サイズ0なのか）③<b class="text-emerald-400">fmt の出力</b>（どこへ、どんな形で出るのか）。</p>
+      <div class="mt-6 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張1</p><p class="text-sm text-slate-300">Goのポインタは<b class="text-slate-100">「難しい機能」ではなく「コピーするかしないかの選択」</b>。C言語のようなポインタ演算はできないので、覚えることは <span class="k">&amp;</span> と <span class="k">*</span> の2つだけ。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張2</p><p class="text-sm text-slate-300"><b class="text-slate-100">「存在するが空」と「存在しない」は別物</b>。この区別が付くと、nil panic・JSONの <span class="k">null</span> vs <span class="k">[]</span>・nil interfaceの罠が全部同じ原理で説明できる。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張3</p><p class="text-sm text-slate-300">fmt の関数名は<b class="text-slate-100">3つの軸の掛け算</b>（出力先 × 改行 × フォーマット）。暗記対象は9個ではなく<b class="text-emerald-400">3文字の規則だけ</b>。</p></div>
+      </div>
+    </header>
+
+    <!-- ===== intro ===== -->
+    <section id="intro" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00</span> はじめに — メモリの3つの絵</h2>
+      <p class="lede">Goの入門でつまずく質問はほぼ全部、<b class="text-emerald-400">「そのとき、メモリはどうなっているか」</b>を絵にすれば解決する。まずこの3枚を頭に入れる。以降の全章はこの3枚の変奏である。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 380" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="380" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">3枚の絵 — これだけで9割説明できる</text>
+          <defs><marker id="ga" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/></marker></defs>
+          <g font-family="monospace">
+            <!-- 1 -->
+            <rect x="30" y="55" width="310" height="290" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="185" y="80" fill="#dcfce7" font-size="13" font-weight="bold" text-anchor="middle">① 値（実体がある）</text>
+            <text x="46" y="104" fill="#86efac" font-size="10.5">u := User{ID: 1, Name: "Tanaka"}</text>
+            <rect x="70" y="120" width="230" height="76" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="86" y="142" fill="#bbf7d0" font-size="11">u</text>
+            <text x="86" y="164" fill="#e2e8f0" font-size="11">ID   = 1</text>
+            <text x="86" y="184" fill="#e2e8f0" font-size="11">Name = "Tanaka"</text>
+            <text x="46" y="222" fill="#4ade80" font-size="10.5">・実体そのものを持っている</text>
+            <text x="46" y="242" fill="#4ade80" font-size="10.5">・代入・関数渡しで<tspan font-weight="bold">コピーされる</tspan></text>
+            <text x="46" y="262" fill="#4ade80" font-size="10.5">・nil にならない（常に存在する）</text>
+            <text x="46" y="290" fill="#fbbf24" font-size="10.5">この絵で答えられる質問:</text>
+            <text x="46" y="310" fill="#fde68a" font-size="10">「関数に渡したら元の値は変わる？」</text>
+            <text x="46" y="328" fill="#fde68a" font-size="10">→ 変わらない（コピーだから）</text>
+
+            <!-- 2 -->
+            <rect x="360" y="55" width="310" height="290" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="515" y="80" fill="#bae6fd" font-size="13" font-weight="bold" text-anchor="middle">② ポインタ（住所を持つ）</text>
+            <text x="376" y="104" fill="#7dd3fc" font-size="10.5">p := &amp;u</text>
+            <rect x="400" y="120" width="120" height="42" rx="6" fill="#0b1220" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="416" y="138" fill="#bae6fd" font-size="11">p</text>
+            <text x="416" y="155" fill="#e2e8f0" font-size="11">0x1000</text>
+            <rect x="545" y="112" width="110" height="66" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+            <text x="557" y="130" fill="#bbf7d0" font-size="9.5">u @ 0x1000</text>
+            <text x="557" y="148" fill="#e2e8f0" font-size="9.5">ID = 1</text>
+            <text x="557" y="164" fill="#e2e8f0" font-size="9.5">Name = ...</text>
+            <line x1="524" y1="142" x2="541" y2="142" stroke="#38bdf8" stroke-width="2" marker-end="url(#ga)"/>
+            <text x="376" y="206" fill="#38bdf8" font-size="10.5">・住所（アドレス）だけを持つ</text>
+            <text x="376" y="226" fill="#38bdf8" font-size="10.5">・コピーされるのは<tspan font-weight="bold">住所だけ</tspan></text>
+            <text x="376" y="246" fill="#38bdf8" font-size="10.5">・だから<tspan font-weight="bold">実体を共有できる</tspan></text>
+            <text x="376" y="274" fill="#fbbf24" font-size="10.5">この絵で答えられる質問:</text>
+            <text x="376" y="294" fill="#fde68a" font-size="10">「なぜ *User を渡すと変更が反映される？」</text>
+            <text x="376" y="312" fill="#fde68a" font-size="10">→ 住所のコピーは同じ実体を指すから</text>
+            <text x="376" y="332" fill="#fde68a" font-size="10">「p は8バイト。u は何バイトでも関係ない」</text>
+
+            <!-- 3 -->
+            <rect x="690" y="55" width="320" height="290" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="850" y="80" fill="#fecaca" font-size="13" font-weight="bold" text-anchor="middle">③ nil（どこも指していない）</text>
+            <text x="706" y="104" fill="#fca5a5" font-size="10.5">var p *User</text>
+            <rect x="740" y="120" width="120" height="42" rx="6" fill="#1a0a0a" stroke="#f87171" stroke-width="1.5"/>
+            <text x="756" y="138" fill="#fecaca" font-size="11">p</text>
+            <text x="756" y="155" fill="#f87171" font-size="11">nil</text>
+            <text x="880" y="146" fill="#94a3b8" font-size="10">指す先がない</text>
+            <text x="706" y="192" fill="#f87171" font-size="10.5">・実体が<tspan font-weight="bold">存在しない</tspan></text>
+            <text x="706" y="212" fill="#f87171" font-size="10.5">・p.ID にアクセスすると panic</text>
+            <text x="706" y="232" fill="#f87171" font-size="10.5">・「値がないこと」を表現できる</text>
+            <text x="706" y="260" fill="#fbbf24" font-size="10.5">この絵で答えられる質問:</text>
+            <text x="706" y="280" fill="#fde68a" font-size="10">「なぜ nil pointer dereference が出る？」</text>
+            <text x="706" y="298" fill="#fde68a" font-size="10">「なぜ var u User は panic しない？」</text>
+            <text x="706" y="318" fill="#fde68a" font-size="10">→ 値には実体がある。ポインタにはない</text>
+            <text x="706" y="338" fill="#4ade80" font-size="10">★ 「空」と「存在しない」は別物（Part 2）</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-1 値・ポインタ・nil。Goの質問の9割は、この3枚のどれかを描けば答えが出る。</p>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">この本で使うサンプル型（全章共通）</p>
+        <div class="cb" data-lang="go" data-cap="以降ずっとこの型を使う"><script type="text/plain">
+type User struct {
+    ID   int
+    Name string
+}
+</script></div>
+        <p>フィールドが2つだけの単純な型だが、<b class="text-slate-100">値/ポインタ・ゼロ値/nil・出力形式の全ての論点を説明できる</b>。実務の型はフィールドが20個あるが、原理は同じ。</p>
+      </div>
+    </section>
+
+    <!-- ===== map ===== -->
+    <section id="map" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00.5</span> 全体地図 — 3つの問いに分解する</h2>
+      <p class="lede">Goの「よく分からない」は、次の3つの問いに分類できる。<b class="text-emerald-400">どの問いなのかを言い当てられれば、答えは本書のどこかにある</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">3つの問いと、対応する章</text>
+          <g font-family="monospace">
+            <rect x="30" y="55" width="320" height="360" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="190" y="80" fill="#bae6fd" font-size="13" font-weight="bold" text-anchor="middle">問い1: コピーされるのか？</text>
+            <text x="46" y="106" fill="#7dd3fc" font-size="10.5">＝ 値かポインタか（Part 1）</text>
+            <text x="46" y="132" fill="#e2e8f0" font-size="10">・関数に渡したら元は変わる？</text>
+            <text x="46" y="150" fill="#e2e8f0" font-size="10">・メソッドで変更したら反映される？</text>
+            <text x="46" y="168" fill="#e2e8f0" font-size="10">・for range のループ変数は？</text>
+            <text x="46" y="186" fill="#e2e8f0" font-size="10">・slice を渡したら中身は変わる？</text>
+            <text x="46" y="204" fill="#e2e8f0" font-size="10">・struct が大きいと遅い？</text>
+            <text x="46" y="232" fill="#38bdf8" font-size="10.5">答えの原則:</text>
+            <text x="46" y="252" fill="#bae6fd" font-size="10">Goは<tspan font-weight="bold">常に値コピー</tspan>。ポインタを</text>
+            <text x="46" y="268" fill="#bae6fd" font-size="10">渡した場合は「住所がコピー」される。</text>
+            <text x="46" y="288" fill="#bae6fd" font-size="10">slice/map/chan は内部にポインタを</text>
+            <text x="46" y="304" fill="#bae6fd" font-size="10">持つ構造体なので「参照的」に見える。</text>
+            <text x="46" y="332" fill="#fbbf24" font-size="10.5">章: ch1〜ch6</text>
+            <text x="46" y="360" fill="#4ade80" font-size="10">★ 実務で最も事故るのは</text>
+            <text x="46" y="378" fill="#4ade80" font-size="10">　「値レシーバで変更したつもり」（ch4）</text>
+            <text x="46" y="400" fill="#4ade80" font-size="10">　「map の値がstructで変更できない」（ch6）</text>
+
+            <rect x="360" y="55" width="320" height="360" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="520" y="80" fill="#dcfce7" font-size="13" font-weight="bold" text-anchor="middle">問い2: 存在するのか？</text>
+            <text x="376" y="106" fill="#86efac" font-size="10.5">＝ ゼロ値 / nil / 空（Part 2）</text>
+            <text x="376" y="132" fill="#e2e8f0" font-size="10">・なぜ panic した？</text>
+            <text x="376" y="150" fill="#e2e8f0" font-size="10">・JSONが null になるのはなぜ？</text>
+            <text x="376" y="168" fill="#e2e8f0" font-size="10">・「未設定」と「0」を区別したい</text>
+            <text x="376" y="186" fill="#e2e8f0" font-size="10">・err != nil が true なのに中身がない</text>
+            <text x="376" y="204" fill="#e2e8f0" font-size="10">・struct{} は何のためにある？</text>
+            <text x="376" y="232" fill="#4ade80" font-size="10.5">答えの原則:</text>
+            <text x="376" y="252" fill="#bbf7d0" font-size="10">3状態を区別する:</text>
+            <text x="376" y="270" fill="#bbf7d0" font-size="10">①実体あり・値あり ②実体あり・ゼロ値</text>
+            <text x="376" y="286" fill="#bbf7d0" font-size="10">③実体なし（nil）</text>
+            <text x="376" y="306" fill="#bbf7d0" font-size="10">「②と③を混同する」が事故の原因。</text>
+            <text x="376" y="334" fill="#fbbf24" font-size="10.5">章: ch7〜ch12</text>
+            <text x="376" y="362" fill="#4ade80" font-size="10">★ 実務で最も事故るのは</text>
+            <text x="376" y="380" fill="#4ade80" font-size="10">　nil interface（ch11）と</text>
+            <text x="376" y="398" fill="#4ade80" font-size="10">　JSONの null vs [] （ch10）</text>
+
+            <rect x="690" y="55" width="320" height="360" rx="10" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="850" y="80" fill="#ede9fe" font-size="13" font-weight="bold" text-anchor="middle">問い3: どう出すのか？</text>
+            <text x="706" y="106" fill="#c4b5fd" font-size="10.5">＝ fmt と出力（Part 3）</text>
+            <text x="706" y="132" fill="#e2e8f0" font-size="10">・Print と Printf と Println の違い</text>
+            <text x="706" y="150" fill="#e2e8f0" font-size="10">・Sprintf は何のため？</text>
+            <text x="706" y="168" fill="#e2e8f0" font-size="10">・%v と %+v と %#v の違い</text>
+            <text x="706" y="186" fill="#e2e8f0" font-size="10">・struct を出したら住所が出た</text>
+            <text x="706" y="204" fill="#e2e8f0" font-size="10">・本番のログはどう書くべき？</text>
+            <text x="706" y="232" fill="#a78bfa" font-size="10.5">答えの原則:</text>
+            <text x="706" y="252" fill="#ddd6fe" font-size="10">関数名 = 3軸の掛け算</text>
+            <text x="706" y="270" fill="#ddd6fe" font-size="10">F* → io.Writerへ / S* → 文字列を返す</text>
+            <text x="706" y="286" fill="#ddd6fe" font-size="10">*ln → 改行 / *f → フォーマット指定</text>
+            <text x="706" y="314" fill="#fbbf24" font-size="10.5">章: ch13〜ch16</text>
+            <text x="706" y="342" fill="#4ade80" font-size="10">★ 実務では fmt.Printf でデバッグし、</text>
+            <text x="706" y="360" fill="#4ade80" font-size="10">　本番ログは slog（構造化）にする。</text>
+            <text x="706" y="378" fill="#4ade80" font-size="10">　fmt.Sprintf は「エラー文の組み立て」と</text>
+            <text x="706" y="396" fill="#4ade80" font-size="10">　「文字列生成」で毎日使う。</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-2 3つの問い。詰まったら「これはどの問いか？」を先に決める。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part1">
+      <p class="eyebrow">Part 1</p>
+      <h2>値とポインタ</h2>
+      <p class="sub">Goには「参照型」という概念がない。<b class="text-emerald-400">代入・関数渡しは常に値のコピー</b>である。ポインタを使うと「コピーされるのが住所になる」だけ。この一貫したルールを理解すると、<b class="text-slate-200">slice/map/chan が「参照っぽく」振る舞う理由も、値レシーバで変更が反映されない理由も、同じ原理で説明できる</b>。</p>
+    </div>
+
+    <!-- ===== ch1 ===== -->
+    <section id="ch1" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">01</span> 値（struct）— 実体そのもの</h2>
+      <p class="lede">結論。<b class="text-emerald-400"><span class="k">u := User{...}</span> の <span class="k">u</span> は実体そのもの</b>。箱の中に中身が直接入っている。<b class="text-slate-200">だから代入も関数渡しも「中身の複製」になる</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="値の生成"><script type="text/plain">
+u := User{ID: 1, Name: "Tanaka"}
+</script></div>
+
+      <div class="fig">
+        <svg viewBox="0 0 1000 320" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1000" height="320" fill="#0f172a" rx="10"/>
+          <text x="500" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">代入すると「中身が複製される」</text>
+          <defs><marker id="g1" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#fbbf24"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="62" fill="#7dd3fc">u := User{ID: 1, Name: "Tanaka"}</text>
+            <rect x="40" y="74" width="200" height="70" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="54" y="94" fill="#bbf7d0">u  @ 0x1000</text>
+            <text x="54" y="114" fill="#e2e8f0">ID   = 1</text>
+            <text x="54" y="134" fill="#e2e8f0">Name = "Tanaka"</text>
+
+            <text x="300" y="62" fill="#fbbf24">v := u   ← ここでコピーが起きる</text>
+            <line x1="245" y1="110" x2="330" y2="110" stroke="#fbbf24" stroke-width="2" marker-end="url(#g1)"/>
+            <rect x="340" y="74" width="200" height="70" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="354" y="94" fill="#bbf7d0">v  @ 0x2000  ★別の住所</text>
+            <text x="354" y="114" fill="#e2e8f0">ID   = 1</text>
+            <text x="354" y="134" fill="#e2e8f0">Name = "Tanaka"</text>
+
+            <text x="600" y="62" fill="#f87171">v.Name = "Sato"  ← v だけが変わる</text>
+            <rect x="600" y="74" width="200" height="70" rx="6" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="614" y="94" fill="#fecaca">v  @ 0x2000</text>
+            <text x="614" y="114" fill="#e2e8f0">ID   = 1</text>
+            <text x="614" y="134" fill="#fca5a5">Name = "Sato"</text>
+            <text x="830" y="114" fill="#4ade80" font-size="10">u.Name は</text>
+            <text x="830" y="130" fill="#4ade80" font-size="10">"Tanaka" のまま</text>
+
+            <rect x="40" y="170" width="920" height="130" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="56" y="194" fill="#bae6fd" font-size="12" font-weight="bold">「コピー」で何がコピーされるのか（正確に）</text>
+            <text x="56" y="218" fill="#e0f2fe">・int / bool / float などは値そのものがコピーされる</text>
+            <text x="56" y="238" fill="#e0f2fe">・string は「ポインタ + 長さ」の16バイトがコピーされる（★ 文字列の中身はコピーされない・immutableなので安全）</text>
+            <text x="56" y="258" fill="#e0f2fe">・slice は「ポインタ + len + cap」の24バイトがコピーされる（★ <tspan font-weight="bold">中身の配列は共有される</tspan> → ch6）</text>
+            <text x="56" y="278" fill="#e0f2fe">・map / chan は内部ポインタがコピーされる（★ 同じ実体を指す → ch6）</text>
+            <text x="56" y="296" fill="#4ade80">★ つまり「shallow copy（浅いコピー）」。structの中にポインタやsliceがあると、それは共有される。</text>
+          </g>
+        </svg>
+        <p class="figcap">図1-1 値の代入はコピー。ただし「浅いコピー」なので、内部のポインタ・slice・mapは共有される。</p>
+      </div>
+
+      <div class="step prob">
+        <p class="step-h">① よくある事故 — 「浅いコピー」を「完全なコピー」と思い込む</p>
+        <div class="cb" data-lang="go" data-cap="コピーしたはずなのに、両方変わる" data-tone="bad"><script type="text/plain">
+type Order struct {
+    ID    int
+    Items []string // ★ slice を持っている
+}
+
+o1 := Order{ID: 1, Items: []string{"apple", "banana"}}
+@@-o2 := o1              // コピーした「つもり」
+@@-o2.Items[0] = "cake"  // o2 だけを変えた「つもり」
+
+fmt.Println(o1.Items[0]) // → "cake"  ★ o1 も変わっている！
+fmt.Println(o2.ID)       // → 1（ID は本当にコピーされている）
+
+// 何が起きたか:
+//   ID（int）はコピーされた → 独立している
+//   Items（slice）は「配列へのポインタ + len + cap」がコピーされた
+//   → 2つの slice ヘッダが、同じ配列を指している
+</script></div>
+        <div class="cb" data-lang="go" data-cap="正しく独立させる（deep copy）" data-tone="good"><script type="text/plain">
+o2 := o1
+@@+o2.Items = make([]string, len(o1.Items))
+@@+copy(o2.Items, o1.Items)   // 中身を明示的に複製する
+
+o2.Items[0] = "cake"
+fmt.Println(o1.Items[0]) // → "apple"  ★ 独立した
+
+// ★ Go 1.21+ なら slices.Clone が使える
+o2.Items = slices.Clone(o1.Items)
+
+// ★ 実務での指針:
+//   「コピーして安全に変更したい」なら、slice/map を持つ型には
+//   明示的な Clone() メソッドを用意する。
+func (o Order) Clone() Order {
+    return Order{ID: o.ID, Items: slices.Clone(o.Items)}
+}
+</script></div>
+      </div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ レビュー観点</p>
+        <ul>
+          <li><b class="text-slate-100">slice / map / ポインタを持つ struct を「コピーして変更」しているコード</b> — 元も変わる</li>
+          <li>Entity（Part 3のDDD参照）を値でコピーして返す関数 — 内部のsliceが共有されていないか</li>
+          <li><span class="k">append</span> をコピー後の slice に対して行っている — <b class="text-amber-400">cap に余裕があると元の配列を書き換え、余裕がないと新配列になる（挙動が不定に見える）</b>。ch6で詳述</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== ch2 ===== -->
+    <section id="ch2" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">02</span> ポインタとアドレス — <span class="k">&amp;</span> と <span class="k">*</span></h2>
+      <p class="lede">Goのポインタで覚えることは<b class="text-emerald-400">2つの演算子だけ</b>。<span class="k">&amp;</span> = 住所を取る、<span class="k">*</span> = 住所から実体を取る。<b class="text-rose-400">C言語のようなポインタ演算（p+1 で次の要素へ）はできない</b>ので、危険な使い方が言語レベルで封じられている。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1000 360" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1000" height="360" fill="#0f172a" rx="10"/>
+          <text x="500" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">&amp; と * は逆向きの操作</text>
+          <defs>
+            <marker id="g2a" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#38bdf8"/></marker>
+            <marker id="g2b" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#4ade80"/></marker>
+          </defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="80" y="70" width="230" height="86" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="96" y="92" fill="#bbf7d0" font-size="11">u（実体） @ 0x1000</text>
+            <text x="96" y="114" fill="#e2e8f0">ID   = 1</text>
+            <text x="96" y="136" fill="#e2e8f0">Name = "Tanaka"</text>
+
+            <rect x="640" y="86" width="200" height="54" rx="6" fill="#0b1220" stroke="#38bdf8" stroke-width="2"/>
+            <text x="656" y="106" fill="#bae6fd" font-size="11">p（ポインタ）</text>
+            <text x="656" y="128" fill="#e2e8f0">0x1000（8バイト）</text>
+
+            <path d="M 315,100 Q 480,60 635,100" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#g2a)"/>
+            <text x="475" y="62" fill="#38bdf8" font-size="12" text-anchor="middle" font-weight="bold">p := &amp;u</text>
+            <text x="475" y="78" fill="#7dd3fc" font-size="10" text-anchor="middle">住所を取り出す（Address of）</text>
+
+            <path d="M 635,130 Q 480,180 315,140" fill="none" stroke="#4ade80" stroke-width="2.5" marker-end="url(#g2b)"/>
+            <text x="475" y="182" fill="#4ade80" font-size="12" text-anchor="middle" font-weight="bold">v := *p</text>
+            <text x="475" y="198" fill="#86efac" font-size="10" text-anchor="middle">住所から実体を取り出す（Dereference）</text>
+
+            <rect x="40" y="215" width="920" height="130" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="56" y="239" fill="#fef3c7" font-size="12" font-weight="bold">* は2つの意味を持つ（初心者が最も混乱する点）</text>
+            <text x="56" y="263" fill="#fde68a">① <tspan font-weight="bold">型として</tspan>: var p *User  → 「User へのポインタ型」という<tspan font-weight="bold">型の名前の一部</tspan></text>
+            <text x="56" y="285" fill="#fde68a">② <tspan font-weight="bold">演算子として</tspan>: v := *p  → 「p の指す先の値を取り出す」という<tspan font-weight="bold">操作</tspan></text>
+            <text x="56" y="309" fill="#e2e8f0">見分け方: <tspan fill="#4ade80">型が来る位置にあれば①（var / 引数 / 戻り値 / フィールド定義）、式の中にあれば②</tspan></text>
+            <text x="56" y="331" fill="#f87171">★ さらに掛け算の * とも記号が同じ（a * b）。文脈で読む必要がある — これは慣れの問題。</text>
+          </g>
+        </svg>
+        <p class="figcap">図2-1 &amp; と * は逆向きの操作。* が「型の一部」でもあることが混乱の原因。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 演算子まとめ</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>書き方</th><th>意味</th><th>例</th><th>結果の型</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">&amp;u</span></td><td>u のアドレスを取る</td><td><span class="k">p := &amp;u</span></td><td><span class="k">*User</span></td></tr>
+              <tr><td><span class="k">*p</span>（式）</td><td>p の指す先の値を取る</td><td><span class="k">v := *p</span></td><td><span class="k">User</span></td></tr>
+              <tr><td><span class="k">*User</span>（型）</td><td>User へのポインタ型</td><td><span class="k">var p *User</span></td><td>—</td></tr>
+              <tr><td><span class="k">&amp;User{...}</span></td><td>生成と同時にアドレスを取る（複合リテラル）</td><td><span class="k">p := &amp;User{ID: 1}</span></td><td><span class="k">*User</span></td></tr>
+              <tr><td><span class="k">new(User)</span></td><td>ゼロ値のUserを作り、そのアドレスを返す</td><td><span class="k">p := new(User)</span></td><td><span class="k">*User</span></td></tr>
+              <tr><td><span class="k">*p = User{...}</span></td><td>指す先の実体を丸ごと置き換える</td><td><span class="k">*p = User{ID: 2}</span></td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-2"><b class="text-teal-300"><span class="k">&amp;User{}</span> と <span class="k">new(User)</span> の使い分け</b>: 実務では<b class="text-emerald-400">ほぼ常に <span class="k">&amp;User{...}</span></b> を使う（初期値を同時に書けるため）。<span class="k">new</span> が便利なのは <span class="k">new(int)</span> のようにリテラルが書けない型のポインタが欲しいときだけ。</p>
+      </div>
+
+      <div class="step naive">
+        <p class="step-h">② よくある落とし穴 — アドレスが取れないもの</p>
+        <div class="cb" data-lang="go" data-cap="「addressable でない」というエラー" data-tone="bad"><script type="text/plain">
+// ✗ 関数の戻り値のアドレスは取れない
+@@-p := &getUser()          // cannot take the address of getUser()
+
+// ✗ map の要素のアドレスは取れない（map は再配置されうるため）
+m := map[string]User{"a": {ID: 1}}
+@@-p := &m["a"]             // cannot take the address of m["a"]
+
+// ✗ 定数・リテラルのアドレスは取れない（複合リテラルは例外）
+@@-p := &42                 // invalid operation
+
+// ✓ 変数に入れれば取れる
+u := getUser()
+p := &u
+
+// ✓ slice の要素は取れる（slice は再配置されない範囲で連続領域を持つ）
+s := []User{{ID: 1}}
+p := &s[0]                 // OK
+// ★ ただし append で cap を超えると再配置されるので、
+//   その後 p は「古い配列」を指したままになる（危険）
+
+// ✓ 複合リテラルは特別に許されている
+p := &User{ID: 1}          // OK（頻出）
+</script></div>
+        <p class="mt-2"><b class="text-amber-400">なぜ map の要素はアドレスが取れないのか</b>: mapは内部でリハッシュ（再配置）が起きるため、要素の住所が動く。<b class="text-slate-100">動く住所を渡すと危険なので、言語仕様で禁止されている</b>。ch6でこの制約の実務的な影響を扱う。</p>
+      </div>
+    </section>
+
+    <!-- ===== ch3 ===== -->
+    <section id="ch3" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">03</span> フィールドアクセスと自動デリファレンス</h2>
+      <p class="lede">結論。<b class="text-emerald-400"><span class="k">p.ID</span> と書けば、Goが自動で <span class="k">(*p).ID</span> に変換する</b>。だから実務でポインタを扱っていても <span class="k">*</span> を書く機会はほとんどない。<b class="text-slate-200">これがGoのポインタが「他言語より簡単」に感じる最大の理由</b>。</p>
+
+      <div class="cb" data-lang="go" data-cap="この3行は全部同じ意味"><script type="text/plain">
+p := &u
+
+p.ID        // Goが自動で (*p).ID に変換する（実務ではこれだけ書く）
+(*p).ID     // 明示的に書いた形（書く必要はない）
+u.ID        // 元の変数から直接アクセス
+</script></div>
+
+      <div class="fig">
+        <svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1000" height="340" fill="#0f172a" rx="10"/>
+          <text x="500" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">フィールド単位でアドレスを取る</text>
+          <defs><marker id="g3" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f472b6"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="60" fill="#7dd3fc">idPtr := &amp;u.ID   // struct 全体ではなく、フィールドだけを指す</text>
+
+            <rect x="80" y="80" width="260" height="96" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="96" y="102" fill="#bbf7d0" font-size="11">u @ 0x1000（合計24バイト）</text>
+            <rect x="96" y="112" width="228" height="26" rx="4" fill="#0b1220" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="106" y="130" fill="#f9a8d4">ID   = 1        @ 0x1000（8バイト）</text>
+            <rect x="96" y="142" width="228" height="26" rx="4" fill="#0b1220" stroke="#475569"/>
+            <text x="106" y="160" fill="#94a3b8">Name = "Tanaka" @ 0x1008（16バイト）</text>
+
+            <rect x="620" y="106" width="200" height="46" rx="6" fill="#3b0764" stroke="#f472b6" stroke-width="2"/>
+            <text x="636" y="126" fill="#f9a8d4" font-size="11">idPtr（*int）</text>
+            <text x="636" y="144" fill="#e2e8f0">0x1000</text>
+            <line x1="616" y1="128" x2="336" y2="128" stroke="#f472b6" stroke-width="2" marker-end="url(#g3)"/>
+
+            <rect x="40" y="200" width="920" height="130" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="56" y="224" fill="#bae6fd" font-size="12" font-weight="bold">これが実務で意味を持つ場面</text>
+            <text x="56" y="248" fill="#e0f2fe">① <tspan font-weight="bold">「未設定」と「ゼロ値」を区別したいとき</tspan>: *int / *string / *time.Time をフィールドに使う</text>
+            <text x="72" y="266" fill="#7dd3fc">例: ConfirmedAt *time.Time — nil なら「まだ確定していない」、値があれば確定時刻（ch7で詳述）</text>
+            <text x="56" y="288" fill="#e0f2fe">② <tspan font-weight="bold">JSONの「キーが無い」と「null」と「0」を区別したいとき</tspan>（PATCH APIの部分更新）</text>
+            <text x="56" y="310" fill="#e0f2fe">③ 巨大なフィールドだけを渡したいとき（実務では稀。structごと渡す方が読みやすい）</text>
+            <text x="56" y="326" fill="#fbbf24">★ 逆に「なんとなくポインタ」は避ける。nilチェックが増え、コードが読みにくくなるだけ。</text>
+          </g>
+        </svg>
+        <p class="figcap">図3-1 フィールド単位のアドレス。実務での主な用途は「未設定を表現する」ためのポインタフィールド。</p>
+      </div>
+
+      <div class="step sol">
+        <p class="step-h">⑤ 実務で最も使うポインタの用途 — 「未設定」の表現</p>
+        <div class="cb" data-lang="go" data-cap="ポインタフィールドで「値がない」を表現する" data-tone="good"><script type="text/plain">
+type Reservation struct {
+    ID          string
+    Status      string
+@@+    ConfirmedAt *time.Time // nil = まだ確定していない
+@@+    CanceledAt  *time.Time // nil = キャンセルされていない
+    GuestCount  int        // 0 は「0人」ではなく「未入力」と区別できない ← 問題
+@@+    Discount    *int      // nil = 割引なし / 0 = 0円割引（明示的に0）
+}
+
+// 使う側
+if r.ConfirmedAt != nil {
+    fmt.Printf("確定日時: %s\n", r.ConfirmedAt.Format(time.RFC3339))
+} else {
+    fmt.Println("未確定")
+}
+
+// ★ 代替案（ポインタを使わない方法）:
+//   ① 別のフィールドで表現する
+type Reservation2 struct {
+    ConfirmedAt   time.Time
+    IsConfirmed   bool   // 明示的なフラグ
+}
+//   ② sql.NullTime / sql.NullInt64（DBとのやり取りではこちらが定番）
+//   ③ Go 1.18+ なら自作の Optional[T] ジェネリクス
+//   ④ time.Time なら IsZero() で判定できる（★ 実は最も簡単）
+if r.ConfirmedAt.IsZero() { /* 未確定 */ }
+
+// ★ 判断:
+//   ・time.Time → IsZero() で足りる。ポインタにしない（nilチェックが増えるだけ）
+//   ・int / string / bool → 「0/空文字/false」が有効な値なら、ポインタか別フラグが必要
+//   ・DBのNULLを扱う → sql.Null* 型か、ポインタ
+//   ・JSONのPATCH（未指定と明示的null を区別）→ ポインタが必要
+</script></div>
+      </div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 過剰になる境界 — ポインタフィールドを使いすぎる害</p>
+        <ul>
+          <li><b>全フィールドをポインタにする</b> → 使う側が全部 nil チェックすることになる。<b class="text-rose-400">コードが2倍になり、nil panicのリスクも増える</b></li>
+          <li><b>スライスをポインタにする（<span class="k">*[]string</span>）</b> → ほぼ常に不要。<b class="text-slate-100">slice自体が nil になれる</b>ので、ポインタで包む意味がない</li>
+          <li><b>判定基準</b>: <b class="text-emerald-400">「ゼロ値が有効な値として意味を持つか？」がYesのときだけポインタにする</b>。「0円の割引」と「割引なし」を区別する必要があるならポインタ、なければ int で十分</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== ch4 ===== -->
+    <section id="ch4" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">04</span> 値レシーバ vs ポインタレシーバ</h2>
+      <p class="lede">実務で<b class="text-rose-400">最も事故が多いのがここ</b>。<b class="text-emerald-400">値レシーバのメソッドで状態を変更しても、呼び出し元には反映されない</b>。しかもコンパイルは通り、エラーも出ない。静かにバグる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">値レシーバは「コピーに対して」操作している</text>
+          <defs><marker id="g4" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <!-- 値レシーバ -->
+            <rect x="20" y="50" width="490" height="350" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="265" y="76" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">値レシーバ func (u User) Rename(...)</text>
+            <text x="36" y="102" fill="#fca5a5">u := User{Name: "Tanaka"}</text>
+            <rect x="36" y="114" width="180" height="46" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="50" y="132" fill="#fecaca">u（呼び出し元）</text>
+            <text x="50" y="150" fill="#e2e8f0">Name = "Tanaka"</text>
+
+            <text x="36" y="186" fill="#fca5a5">u.Rename("Sato") を呼ぶ</text>
+            <line x1="130" y1="196" x2="130" y2="216" stroke="#94a3b8" stroke-width="2" marker-end="url(#g4)"/>
+            <text x="150" y="212" fill="#94a3b8" font-size="9.5">★ ここでコピーが作られる</text>
+
+            <rect x="36" y="222" width="180" height="46" rx="6" fill="#1a0a0a" stroke="#fbbf24" stroke-dasharray="4 2"/>
+            <text x="50" y="240" fill="#fde68a">u（メソッド内のコピー）</text>
+            <text x="50" y="258" fill="#e2e8f0">Name = "Sato" ← 変わる</text>
+
+            <text x="36" y="294" fill="#fca5a5">メソッドが終わると…</text>
+            <rect x="36" y="304" width="180" height="46" rx="6" fill="#1a0a0a" stroke="#64748b" stroke-dasharray="4 2"/>
+            <text x="50" y="322" fill="#64748b">コピーは破棄される</text>
+            <text x="50" y="340" fill="#64748b">Name = "Sato"（消える）</text>
+
+            <text x="250" y="330" fill="#f87171" font-size="11" font-weight="bold">結果: u.Name は "Tanaka" のまま</text>
+            <text x="250" y="350" fill="#fca5a5" font-size="10">コンパイルエラーなし・警告なし</text>
+            <text x="250" y="370" fill="#fbbf24" font-size="10">★ 「変更したのに反映されない」の正体</text>
+            <text x="250" y="390" fill="#fbbf24" font-size="10">★ go vet も検出しない（正当なコードなので）</text>
+
+            <!-- ポインタレシーバ -->
+            <rect x="530" y="50" width="490" height="350" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="775" y="76" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">ポインタレシーバ func (u *User) Rename(...)</text>
+            <text x="546" y="102" fill="#86efac">u := User{Name: "Tanaka"}</text>
+            <rect x="546" y="114" width="180" height="46" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="560" y="132" fill="#bbf7d0">u @ 0x1000</text>
+            <text x="560" y="150" fill="#e2e8f0">Name = "Tanaka"</text>
+
+            <text x="546" y="186" fill="#86efac">u.Rename("Sato") を呼ぶ</text>
+            <text x="546" y="204" fill="#94a3b8" font-size="9.5">★ Goが自動で (&amp;u).Rename("Sato") にする</text>
+            <line x1="640" y1="212" x2="640" y2="232" stroke="#94a3b8" stroke-width="2" marker-end="url(#g4)"/>
+
+            <rect x="546" y="238" width="180" height="46" rx="6" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="560" y="256" fill="#bae6fd">u（メソッド内）= *User</text>
+            <text x="560" y="274" fill="#e2e8f0">0x1000 を持っている</text>
+            <text x="740" y="264" fill="#38bdf8" font-size="9.5">住所のコピー（8バイト）</text>
+
+            <text x="546" y="310" fill="#86efac">u.Name = "Sato" は</text>
+            <text x="546" y="328" fill="#86efac">0x1000 の実体を書き換える</text>
+
+            <text x="546" y="360" fill="#4ade80" font-size="11" font-weight="bold">結果: u.Name は "Sato" になる ✓</text>
+            <text x="546" y="382" fill="#86efac" font-size="10">★ 状態を変えるメソッドは常にポインタレシーバ</text>
+          </g>
+        </svg>
+        <p class="figcap">図4-1 値レシーバはコピーに対する操作。「変更したのに反映されない」の原因はほぼこれ。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実際に踏むコード（コンパイルは通る）" data-tone="bad"><script type="text/plain">
+type Counter struct {
+    n int
+}
+
+@@-func (c Counter) Inc() { // ★ 値レシーバ
+@@-    c.n++                // コピーの n が増えるだけ
+@@-}
+
+func main() {
+    c := Counter{}
+    c.Inc()
+    c.Inc()
+    c.Inc()
+    fmt.Println(c.n) // → 0 （期待は 3）
+}
+</script></div>
+      <div class="cb" data-lang="go" data-cap="正しい形" data-tone="good"><script type="text/plain">
+@@+func (c *Counter) Inc() { // ポインタレシーバ
+    c.n++
+}
+
+func main() {
+    c := Counter{}
+    c.Inc(); c.Inc(); c.Inc()
+    fmt.Println(c.n) // → 3 ✓
+}
+
+// ★ 補足: c は Counter（値）だが、c.Inc() と書ける。
+//   Goが自動で (&c).Inc() に変換する（addressable な変数に限る）。
+//   逆に、値でしか持てない場面ではコンパイルエラーになる:
+//     Counter{}.Inc()              // ✗ cannot call pointer method
+//     m := map[string]Counter{}
+//     m["a"].Inc()                 // ✗ map の要素は addressable でない（ch6）
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ レシーバの選択基準（判断表）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>状況</th><th>レシーバ</th><th>理由</th></tr></thead>
+            <tbody>
+              <tr><td>状態を変更する（setter・Inc・Append）</td><td class="good">ポインタ <span class="k">*T</span></td><td>値だと反映されない</td></tr>
+              <tr><td>structが大きい（目安: 64バイト超 / フィールド5個超）</td><td class="good">ポインタ <span class="k">*T</span></td><td>コピーコストを避ける</td></tr>
+              <tr><td>slice / map / mutex を含む</td><td class="good">ポインタ <span class="k">*T</span></td><td><b class="text-rose-400">sync.Mutex を値でコピーすると別のロックになり、排他が効かなくなる</b></td></tr>
+              <tr><td>nilを受け取る可能性がある</td><td class="good">ポインタ <span class="k">*T</span></td><td>nilレシーバでも動くメソッドを書ける（後述）</td></tr>
+              <tr><td>不変な値（Value Object・Money・時刻）</td><td class="good">値 <span class="k">T</span></td><td><b class="text-emerald-400">変更されないことを型で表現できる</b>。並行実行でも安全</td></tr>
+              <tr><td>小さくて読み取りだけ（<span class="k">func (p Point) X() int</span>）</td><td class="good">値 <span class="k">T</span></td><td>コピーコストが無視できる。呼び出し側が nil を気にしなくてよい</td></tr>
+              <tr><td class="warn">同じ型で混在させる</td><td class="bad">避ける</td><td><b class="text-amber-400">Goの慣習: 1つの型のメソッドは、レシーバを統一する</b>。1つでもポインタレシーバがあるなら、全部ポインタに揃えるのが定石</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step why">
+        <p class="step-h">③ レシーバの型がinterfaceの実装に影響する（重要な落とし穴）</p>
+        <div class="cb" data-lang="go" data-cap="値では interface を満たさないケース" data-tone="bad"><script type="text/plain">
+type Stringer interface {
+    String() string
+}
+
+type User struct{ Name string }
+
+// ポインタレシーバで実装した
+func (u *User) String() string { return u.Name }
+
+func main() {
+    var s Stringer
+
+@@-    s = User{Name: "Tanaka"}   // ✗ コンパイルエラー
+    //   User does not implement Stringer
+    //   (method String has pointer receiver)
+
+@@+    s = &User{Name: "Tanaka"}  // ✓ OK
+
+    // ★ 逆（値レシーバで実装）なら、値もポインタも両方OK
+    //   func (u User) String() string { ... }
+    //   → User も *User も Stringer を満たす
+}
+
+// ★ 規則:
+//   値レシーバで実装   → T と *T の両方が interface を満たす
+//   ポインタレシーバで実装 → *T だけが interface を満たす
+//
+// ★ 実務での意味:
+//   「Repositoryの実装を返すとき、必ず &impl{} を返す」のはこの規則のため。
+//   func NewRepo(db *gorm.DB) domain.Repo { return &repoImpl{db: db} }
+</script></div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">補足 — nilレシーバでも動くメソッド（知っておくと役立つ）</p>
+        <div class="cb" data-lang="go" data-cap="nil を受け取れるメソッドを書く" data-tone="good"><script type="text/plain">
+type Config struct {
+    Timeout time.Duration
+}
+
+// ★ レシーバが nil でも panic しない書き方
+func (c *Config) GetTimeout() time.Duration {
+@@+    if c == nil {
+@@+        return 3 * time.Second // デフォルト値
+@@+    }
+    return c.Timeout
+}
+
+func main() {
+    var c *Config // nil
+    fmt.Println(c.GetTimeout()) // → 3s（panicしない！）
+}
+
+// ★ なぜ panic しないのか:
+//   メソッド呼び出しは「レシーバを引数として渡す関数呼び出し」に等価。
+//   GetTimeout(nil) と同じなので、中で nil を触らなければ安全。
+//   → フィールドアクセス（c.Timeout）をした瞬間に panic する。
+//
+// ★ 実務での使いどころ: オプショナルな設定・ツリー構造の再帰
+//   func (n *Node) Size() int {
+//       if n == nil { return 0 }   // 葉の先を気にせず再帰できる
+//       return 1 + n.Left.Size() + n.Right.Size()
+//   }
+//
+// ★ ただし多用しない。「nilでも動く」ことがAPIの契約として
+//   明示されていないと、読む人が混乱する。コメントで宣言すること。
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch5 ===== -->
+    <section id="ch5" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">05</span> いつポインタを使うか — 判断フロー</h2>
+      <p class="lede">結論。<b class="text-emerald-400">迷ったら値。ポインタは「理由があるときだけ」使う</b>。「ポインタの方が速いから」は多くの場合誤り（後述）。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 520" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="520" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">ポインタを使うか判断フロー</text>
+          <defs><marker id="g5" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="400" y="48" width="240" height="34" rx="7" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+            <text x="520" y="70" fill="#e2e8f0" text-anchor="middle" font-weight="bold">値かポインタか迷った</text>
+            <line x1="520" y1="84" x2="520" y2="98" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+
+            <rect x="370" y="100" width="300" height="40" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="125" fill="#bae6fd" text-anchor="middle">Q1. 呼び出し元の値を変更したいか？</text>
+            <line x1="370" y1="120" x2="290" y2="120" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <text x="328" y="113" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="60" y="102" width="225" height="36" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="172" y="125" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ポインタ（必須）</text>
+
+            <line x1="520" y1="142" x2="520" y2="156" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <rect x="370" y="158" width="300" height="40" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="183" fill="#bae6fd" text-anchor="middle">Q2. 「値がない」状態を表現したいか？</text>
+            <line x1="670" y1="178" x2="750" y2="178" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <text x="710" y="171" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="755" y="160" width="240" height="36" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="875" y="183" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ポインタ or sql.Null*</text>
+
+            <line x1="520" y1="200" x2="520" y2="214" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <rect x="370" y="216" width="300" height="40" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="241" fill="#bae6fd" text-anchor="middle">Q3. Mutex / WaitGroup を含むか？</text>
+            <line x1="370" y1="236" x2="290" y2="236" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <text x="328" y="229" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="60" y="218" width="225" height="36" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="172" y="241" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ポインタ（コピー禁止）</text>
+
+            <line x1="520" y1="258" x2="520" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <rect x="370" y="274" width="300" height="40" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="299" fill="#bae6fd" text-anchor="middle">Q4. interfaceを実装する型か？</text>
+            <line x1="670" y1="294" x2="750" y2="294" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <text x="710" y="287" fill="#fbbf24" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="755" y="272" width="240" height="46" rx="7" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="875" y="290" fill="#fef3c7" text-anchor="middle" font-weight="bold">→ ポインタで統一する</text>
+            <text x="875" y="308" fill="#fde68a" text-anchor="middle" font-size="9">実装が状態を持つ場合はほぼこれ</text>
+
+            <line x1="520" y1="316" x2="520" y2="330" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <rect x="370" y="332" width="300" height="40" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="357" fill="#bae6fd" text-anchor="middle">Q5. 実測してコピーがボトルネックか？</text>
+            <line x1="370" y1="352" x2="290" y2="352" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <text x="328" y="345" fill="#fbbf24" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="60" y="334" width="225" height="36" rx="7" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="172" y="357" fill="#fef3c7" text-anchor="middle" font-weight="bold">→ ポインタ（計測が根拠）</text>
+
+            <line x1="520" y1="374" x2="520" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g5)"/>
+            <rect x="340" y="390" width="360" height="46" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="520" y="412" fill="#dcfce7" text-anchor="middle" font-size="12" font-weight="bold">→ 値を使う（デフォルト）</text>
+            <text x="520" y="429" fill="#86efac" text-anchor="middle" font-size="9">nilチェックが不要 / 並行安全 / 意図が明確</text>
+
+            <rect x="40" y="452" width="960" height="56" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="1.5"/>
+            <text x="56" y="474" fill="#fecaca" font-size="11.5" font-weight="bold">「ポインタの方が速い」は多くの場合誤り</text>
+            <text x="56" y="496" fill="#fca5a5">小さなstruct（〜4フィールド）は値渡しの方が速いことが多い。理由: ポインタ経由のアクセスはキャッシュミスを生み、さらに<tspan font-weight="bold">エスケープ解析でヒープ割り当てになりGCの負荷が増える</tspan>。必ず benchmark で確認する。</text>
+          </g>
+        </svg>
+        <p class="figcap">図5-1 判断フロー。Q1〜Q4がNoなら値を使う。「速いから」は計測してから言う。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="計測してから判断する（benchmarkの書き方）" data-tone="good"><script type="text/plain">
+type Small struct{ A, B int }
+type Large struct{ A, B, C, D, E, F, G, H int; Name, Email, Addr string }
+
+func BenchmarkSmallValue(b *testing.B) {
+    s := Small{1, 2}
+    for i := 0; i < b.N; i++ { sinkSmallValue(s) }
+}
+func BenchmarkSmallPointer(b *testing.B) {
+    s := Small{1, 2}
+    for i := 0; i < b.N; i++ { sinkSmallPointer(&s) }
+}
+
+//go:noinline
+func sinkSmallValue(s Small) int   { return s.A + s.B }
+//go:noinline
+func sinkSmallPointer(s *Small) int { return s.A + s.B }
+
+// 実行: go test -bench=. -benchmem
+//
+// ★ 典型的な結果の傾向（環境で変わるので必ず自分で測る）:
+//   Small:  値渡しの方が速い or 同等（16バイトのコピー vs 8バイト + 間接参照）
+//   Large:  ポインタの方が速い（104バイトのコピーを避けられる）
+//   ★ 境界は「だいたい 数十バイト」。ただしインライン化・エスケープ解析で変わる
+//
+// ★ より重要な確認: エスケープ解析
+//   go build -gcflags='-m' ./...
+//   → "moved to heap: x" が出たら、その変数はヒープに置かれる（GC負荷）
+//   → ポインタを返す関数はエスケープしやすい
+</script></div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ トレードオフ — ポインタのコスト</p>
+        <div class="kv">
+          <div class="kvi"><p>コスト1: nilチェックの伝染</p><p>ポインタを返す関数は、呼び出し側に nil チェックを強制する。<b class="text-rose-400">これが10箇所に増えると、コードの半分がnilチェックになる</b>。</p></div>
+          <div class="kvi"><p>コスト2: 意図が不明になる</p><p><span class="k">func Process(u *User)</span> を見た人は「この関数はuを変更するのか？」と考える必要がある。<b class="text-emerald-400">値で受けていれば「変更しない」ことが型で保証される</b>。</p></div>
+          <div class="kvi"><p>コスト3: 並行安全性が失われる</p><p>ポインタを複数のgoroutineに渡すと、同じ実体を共有する。<b class="text-slate-100">値ならコピーなので競合しない</b>。<span class="k">go test -race</span> で検出される事故の多くがこれ。</p></div>
+          <div class="kvi"><p>コスト4: GC負荷</p><p>ポインタはエスケープ解析でヒープに逃げやすい。<b class="text-amber-400">スタック割り当てなら実質ゼロコストだが、ヒープならGCの対象になる</b>。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ch6 ===== -->
+    <section id="ch6" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">06</span> slice / map / chan の「参照的」な性質</h2>
+      <p class="lede">結論。<b class="text-emerald-400">slice / map / chan は「内部にポインタを持つ構造体」</b>。だから値としてコピーされるのに、中身は共有される。<b class="text-slate-200">「参照型」ではなく「ポインタを含む値型」と理解するのが正確</b>で、そう理解するとappendの謎の挙動も説明できる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">slice の正体 — 3つのフィールドを持つ構造体</text>
+          <defs><marker id="g6" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <text x="40" y="60" fill="#7dd3fc">s := []int{1, 2, 3}   // 内部的には次の構造体（24バイト）</text>
+            <rect x="60" y="74" width="220" height="82" rx="6" fill="#0b1220" stroke="#38bdf8" stroke-width="2"/>
+            <text x="76" y="94" fill="#bae6fd">s（slice header）</text>
+            <text x="76" y="114" fill="#e2e8f0">ptr = 0x2000  ─────┐</text>
+            <text x="76" y="132" fill="#e2e8f0">len = 3</text>
+            <text x="76" y="150" fill="#e2e8f0">cap = 3</text>
+
+            <rect x="380" y="86" width="240" height="58" rx="6" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="396" y="106" fill="#bbf7d0">実際の配列 @ 0x2000</text>
+            <text x="396" y="130" fill="#e2e8f0">[ 1 ][ 2 ][ 3 ]</text>
+            <line x1="285" y1="115" x2="375" y2="115" stroke="#38bdf8" stroke-width="2" marker-end="url(#g6)"/>
+
+            <text x="660" y="106" fill="#fbbf24">★ s をコピーすると</text>
+            <text x="660" y="124" fill="#fde68a">ヘッダ（24バイト）だけが複製され、</text>
+            <text x="660" y="142" fill="#fde68a">ptr は同じ配列を指す</text>
+
+            <!-- append の挙動 -->
+            <rect x="40" y="180" width="470" height="285" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="275" y="204" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">append: cap に余裕があるとき</text>
+            <text x="56" y="228" fill="#fde68a">s := make([]int, 3, 5)  // len=3, cap=5</text>
+            <text x="56" y="246" fill="#fde68a">t := s                  // ヘッダをコピー</text>
+            <text x="56" y="264" fill="#fde68a">t = append(t, 99)       // cap に余裕あり</text>
+            <rect x="70" y="278" width="400" height="50" rx="6" fill="#052e16" stroke="#4ade80"/>
+            <text x="86" y="298" fill="#bbf7d0">同じ配列 @ 0x2000（cap=5）</text>
+            <text x="86" y="318" fill="#e2e8f0">[ 0 ][ 0 ][ 0 ][ 99 ][ - ]  ← 既存の配列に書き込む</text>
+            <text x="56" y="352" fill="#f87171">結果: s（len=3）からは 99 が見えない</text>
+            <text x="56" y="372" fill="#f87171">が、配列は共有されている。</text>
+            <text x="56" y="396" fill="#fbbf24">★ さらに危険なケース:</text>
+            <text x="56" y="414" fill="#fde68a">a := s[:2]; b := s[:3]</text>
+            <text x="56" y="432" fill="#fde68a">a = append(a, 7)  → b[2] が 7 に書き換わる！</text>
+            <text x="56" y="454" fill="#4ade80">対策: s[:2:2] のように cap を制限する（full slice expr）</text>
+
+            <rect x="530" y="180" width="470" height="285" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="765" y="204" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">append: cap が足りないとき</text>
+            <text x="546" y="228" fill="#bbf7d0">s := []int{1, 2, 3}  // len=3, cap=3</text>
+            <text x="546" y="246" fill="#bbf7d0">t := s</text>
+            <text x="546" y="264" fill="#bbf7d0">t = append(t, 99)    // cap 不足 → 新配列</text>
+            <rect x="560" y="278" width="180" height="44" rx="6" fill="#0b1220" stroke="#64748b"/>
+            <text x="574" y="296" fill="#94a3b8">旧配列 @ 0x2000</text>
+            <text x="574" y="314" fill="#94a3b8">[1][2][3]  ← s が指す</text>
+            <rect x="760" y="278" width="220" height="44" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="774" y="296" fill="#bbf7d0">新配列 @ 0x3000（cap=6）</text>
+            <text x="774" y="314" fill="#e2e8f0">[1][2][3][99][-][-] ← t</text>
+            <text x="546" y="348" fill="#4ade80">結果: s と t は別の配列になる（独立）</text>
+            <text x="546" y="374" fill="#f87171" font-weight="bold">★ ここが最も厄介な点:</text>
+            <text x="546" y="394" fill="#fca5a5">同じコードが、cap の状態によって</text>
+            <text x="546" y="412" fill="#fca5a5">「共有される」か「独立する」かが変わる。</text>
+            <text x="546" y="436" fill="#fbbf24">→ だから append の戻り値を必ず受け取り、</text>
+            <text x="546" y="454" fill="#fbbf24">　 元の変数を使い続けない設計にする。</text>
+          </g>
+        </svg>
+        <p class="figcap">図6-1 sliceの正体とappendの挙動。「capの状態で挙動が変わる」ことがGoで最も混乱を招く仕様。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実際に踏むコード — 関数内のappendが呼び出し元に影響する/しない" data-tone="bad"><script type="text/plain">
+func addItem(items []string) {
+@@-    items = append(items, "new") // 呼び出し元には反映されない（ヘッダはコピーだから）
+}
+
+func main() {
+    s := []string{"a"}
+    addItem(s)
+    fmt.Println(s) // → [a]  ★ "new" が入っていない
+}
+
+// ★ しかし「中身の書き換え」は反映される（配列が共有されているから）
+func setFirst(items []string) {
+@@!    items[0] = "changed" // ★ これは反映される
+}
+func main() {
+    s := []string{"a"}
+    setFirst(s)
+    fmt.Println(s) // → [changed]  ★ 変わっている
+}
+
+// ★ この非対称性が「slice は参照型？値型？」という混乱の原因。
+//   正解: 値型（ヘッダがコピーされる）。ただしヘッダ内の ptr が同じ配列を指す。
+</script></div>
+      <div class="cb" data-lang="go" data-cap="正しい書き方 — 戻り値で返す" data-tone="good"><script type="text/plain">
+@@+func addItem(items []string) []string {
+    return append(items, "new")
+}
+
+func main() {
+    s := []string{"a"}
+@@+    s = addItem(s) // 戻り値を受け取る
+    fmt.Println(s)  // → [a new] ✓
+}
+
+// ★ これが append が「戻り値を返す関数」である理由。
+//   組み込み関数なのに戻り値を返すのは、この仕様のため。
+//   s = append(s, x) というイディオムを崩さないこと。
+
+// ★ どうしても関数内で追加したいなら、ポインタを渡す（可読性は落ちる）
+func addItemPtr(items *[]string) {
+    *items = append(*items, "new")
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ map と chan の性質（sliceとの違い）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>型</th><th>内部構造</th><th>コピーすると</th><th>注意点</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">[]T</span> slice</td><td>ptr + len + cap（24バイト）</td><td>ヘッダがコピー。配列は共有</td><td class="bad"><b>appendでcap不足なら独立する</b>（挙動が変わる）</td></tr>
+              <tr><td><span class="k">map[K]V</span></td><td>hmap へのポインタ（8バイト）</td><td>ポインタがコピー。<b class="text-emerald-400">完全に同じmapを共有</b></td><td>要素の追加・削除も共有される。<b class="text-rose-400">要素のアドレスは取れない</b></td></tr>
+              <tr><td><span class="k">chan T</span></td><td>hchan へのポインタ</td><td>同じチャネルを共有</td><td>これが意図された使い方（goroutine間で渡す）</td></tr>
+              <tr><td><span class="k">string</span></td><td>ptr + len（16バイト）</td><td>ヘッダがコピー。バイト列は共有</td><td class="good">immutableなので安全（書き換えられない）</td></tr>
+              <tr><td><span class="k">func</span></td><td>コードへのポインタ + クロージャ環境</td><td>同じ関数を指す</td><td>クロージャが捕捉した変数は共有される</td></tr>
+              <tr><td><span class="k">interface</span></td><td>type + value の2ワード</td><td>2ワードがコピー</td><td class="bad"><b>nil interfaceの罠</b>（ch11）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="mapの罠 — 値がstructだと変更できない" data-tone="bad"><script type="text/plain">
+m := map[string]User{"a": {ID: 1, Name: "Tanaka"}}
+
+@@-m["a"].Name = "Sato"
+// ✗ コンパイルエラー: cannot assign to struct field m["a"].Name in map
+//
+// 理由: m["a"] は「mapから取り出したコピー」であり、addressable でない。
+//       書き換えても意味がないので、Goはコンパイルエラーにしてくれる（親切）
+
+// ---- 解決策1: 取り出して、変更して、書き戻す ----
+u := m["a"]
+u.Name = "Sato"
+@@+m["a"] = u
+
+// ---- 解決策2: 値をポインタにする（★ 実務ではこちらが多い）----
+m2 := map[string]*User{"a": {ID: 1, Name: "Tanaka"}}
+@@+m2["a"].Name = "Sato" // OK（ポインタ経由なので addressable）
+
+// ★ ただしポインタmapの注意点:
+//   ・存在しないキーを引くと nil が返り、その後 panic する
+//     m2["zzz"].Name = "x"  → nil pointer dereference
+//   ・必ず存在確認する
+if u, ok := m2["zzz"]; ok && u != nil {
+    u.Name = "x"
+}
+</script></div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ レビュー観点（Part 1 まとめ）</p>
+        <ul>
+          <li><b class="text-slate-100">状態を変えるメソッドが値レシーバになっていないか</b>（最頻出の事故）</li>
+          <li>1つの型でレシーバが混在していないか（Goの慣習違反）</li>
+          <li><span class="k">sync.Mutex</span> を含む型を値でコピーしていないか（<span class="k">go vet</span> が検出してくれる）</li>
+          <li><span class="k">append</span> の戻り値を捨てていないか</li>
+          <li>slice を関数に渡して「中身を書き換える」設計になっていないか（意図が伝わらない）</li>
+          <li>ポインタフィールドが多すぎないか（nilチェック地獄）</li>
+          <li><b class="text-emerald-400"><span class="k">go vet</span> と <span class="k">go test -race</span> をCIに入れているか</b> — Part 1の事故の半分は機械的に検出できる</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part2">
+      <p class="eyebrow">Part 2</p>
+      <h2>ゼロ値・nil・空</h2>
+      <p class="sub">結論を先に: <b class="text-emerald-400">「存在するが空」と「存在しない」と「サイズ0の型」は全部別物</b>。この3つを区別できると、nil panic・JSONの <span class="k">null</span> vs <span class="k">[]</span>・<span class="k">err != nil</span> なのに中身がない罠が、全部同じ原理で説明できる。<b class="text-slate-200">Goの「ゼロ値が使える」という設計は強力だが、「ゼロ値と未設定を区別できない」という代償を伴う</b>。</p>
+    </div>
+
+    <!-- ===== ch7 ===== -->
+    <section id="ch7" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">07</span> ゼロ値 struct — nilにならない</h2>
+      <p class="lede">結論。<b class="text-emerald-400"><span class="k">var u User</span> は nil にならない</b>。実体が存在し、各フィールドが型のゼロ値で埋まっている。<b class="text-slate-200">これがGoの「zero value is useful」という設計思想</b>で、他言語（Javaの<span class="k">null</span>）との最大の違い。</p>
+
+      <div class="cb" data-lang="go" data-cap="3つの書き方はすべて同じ結果"><script type="text/plain">
+var u User            // ゼロ値
+u := User{}           // 空の複合リテラル（同じ）
+u := *new(User)       // new のデリファレンス（同じ・実務では書かない）
+
+fmt.Printf("%+v\n", u) // → {ID:0 Name:}
+fmt.Println(u == User{}) // → true
+</script></div>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">型ごとのゼロ値 — 「必ず何かが入っている」</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="230" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="265" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">ゼロ値が「使える」型（nilにならない）</text>
+            <text x="46" y="100" fill="#bbf7d0">int / int64 / uint ...   → 0</text>
+            <text x="46" y="120" fill="#bbf7d0">float32 / float64        → 0</text>
+            <text x="46" y="140" fill="#bbf7d0">bool                     → false</text>
+            <text x="46" y="160" fill="#bbf7d0">string                   → ""（空文字列・nilではない）</text>
+            <text x="46" y="180" fill="#bbf7d0">struct                   → 全フィールドがゼロ値</text>
+            <text x="46" y="200" fill="#bbf7d0">array [3]int             → [0 0 0]</text>
+            <text x="46" y="220" fill="#bbf7d0">time.Time                → 0001-01-01 00:00:00 UTC</text>
+            <text x="46" y="248" fill="#4ade80">★ 宣言しただけで安全に使える</text>
+            <text x="46" y="268" fill="#86efac">var s string; s += "a"  // OK</text>
+
+            <rect x="530" y="50" width="470" height="230" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="765" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">ゼロ値が nil の型（使い方に注意）</text>
+            <text x="546" y="100" fill="#fca5a5">*T（ポインタ）  → nil ★ アクセスで panic</text>
+            <text x="546" y="120" fill="#fca5a5">[]T（slice）    → nil ★ 読めるが append で伸ばす</text>
+            <text x="546" y="140" fill="#fca5a5">map[K]V         → nil ★ 読めるが<tspan font-weight="bold">書くと panic</tspan></text>
+            <text x="546" y="160" fill="#fca5a5">chan T          → nil ★ 送受信で永久ブロック</text>
+            <text x="546" y="180" fill="#fca5a5">func            → nil ★ 呼ぶと panic</text>
+            <text x="546" y="200" fill="#fca5a5">interface       → nil ★ メソッド呼び出しで panic</text>
+            <text x="546" y="220" fill="#fca5a5">error           → nil（interfaceなので）</text>
+            <text x="546" y="248" fill="#fbbf24">★ nil でも「安全に使える操作」がある（ch10-11）</text>
+            <text x="546" y="268" fill="#fde68a">len(nilSlice) → 0 / range nilSlice → 0回 / OK</text>
+
+            <rect x="30" y="300" width="970" height="125" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="324" fill="#bae6fd" font-size="12" font-weight="bold">「ゼロ値が使える」設計の利点と代償</text>
+            <text x="46" y="348" fill="#4ade80">利点: 初期化を書かなくてよい。var buf bytes.Buffer / var mu sync.Mutex / var wg sync.WaitGroup は</text>
+            <text x="62" y="366" fill="#86efac">宣言しただけで使える（コンストラクタが不要）。★ これはGoのAPIデザインの核</text>
+            <text x="46" y="390" fill="#f87171">代償: <tspan font-weight="bold">「未設定」と「ゼロ値」が区別できない</tspan>。GuestCount=0 は「0人」か「未入力」か分からない。</text>
+            <text x="62" y="408" fill="#fca5a5">→ 区別が必要なら *int / sql.NullInt64 / 別フラグ / Optional[T] を使う（ch3）</text>
+          </g>
+        </svg>
+        <p class="figcap">図7-1 型ごとのゼロ値。左（nilにならない群）と右（nilになる群）を分けて覚える。</p>
+      </div>
+
+      <div class="step sol">
+        <p class="step-h">⑤ ゼロ値を活かす設計（Goらしい書き方）</p>
+        <div class="cb" data-lang="go" data-cap="ゼロ値で使える型を作る（Goの標準ライブラリの流儀）" data-tone="good"><script type="text/plain">
+// ★ 標準ライブラリの例: 宣言だけで使える
+var buf bytes.Buffer
+buf.WriteString("hello")     // 初期化不要
+fmt.Println(buf.String())
+
+var mu sync.Mutex
+mu.Lock()                    // 初期化不要
+defer mu.Unlock()
+
+var wg sync.WaitGroup
+wg.Add(1)                    // 初期化不要
+
+// ★ 自分の型でも同じ設計にできる
+type Counter struct {
+    mu sync.Mutex
+    n  map[string]int         // ★ nil map なので、そのままだと書き込みでpanic
+}
+
+func (c *Counter) Inc(key string) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+@@+    if c.n == nil {
+@@+        c.n = make(map[string]int) // 遅延初期化（lazy init）
+@@+    }
+    c.n[key]++
+}
+
+func main() {
+@@+    var c Counter  // コンストラクタ不要で使える
+    c.Inc("a")
+    c.Inc("a")
+    fmt.Println(c.n["a"]) // → 2
+}
+
+// ★ 設計の指針:
+//   ・「var T で使えるか」を意識して型を設計する
+//   ・map / slice を持つ場合は遅延初期化か、コンストラクタを必須にする
+//   ・コンストラクタを必須にするなら、ゼロ値では動かないことをコメントで明示する
+//     （不変条件が必要な型は、むしろコンストラクタ必須が正しい → DDDのVO）
+</script></div>
+      </div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ トレードオフ — 「ゼロ値で使える」vs「コンストラクタ必須」</p>
+        <div class="kv">
+          <div class="kvi"><p>ゼロ値で使える設計</p><p><b class="text-emerald-400">向く型</b>: バッファ・カウンタ・Mutex・オプション構造体。<b class="text-slate-100">「空の状態」に意味がある型</b>。使う側が楽。</p></div>
+          <div class="kvi"><p>コンストラクタ必須の設計</p><p><b class="text-emerald-400">向く型</b>: 不変条件を持つ型（Money・StayPeriod・Email）。<b class="text-slate-100">「ゼロ値が不正な状態」である型</b>。<span class="k">Money{}</span> が通ってしまうと不変条件が破れる。</p></div>
+          <div class="kvi"><p>判定</p><p><b class="text-slate-100">「その型のゼロ値は、業務的に正しい状態か？」</b> Yesならゼロ値で使える設計、Noならコンストラクタ必須（+ フィールドをunexportedにして外から作れなくする）。</p></div>
+          <div class="kvi"><p>Goの弱点として認識すべき点</p><p><b class="text-amber-400">Goには「コンストラクタを強制する」言語機能がない</b>。同じパッケージ内なら <span class="k">Money{}</span> と書けてしまう。<b class="text-slate-300">パッケージ境界とレビューで守るしかない</b>。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ch8 ===== -->
+    <section id="ch8" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">08</span> nilポインタと panic</h2>
+      <p class="lede">結論。<b class="text-rose-400"><span class="k">nil pointer dereference</span> は「存在しない実体のフィールドを触った」</b>という1種類の事故しかない。<b class="text-emerald-400">だから対策も1つ: 触る前に nil を確認する</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">nil ポインタで panic する瞬間</text>
+          <defs><marker id="g8" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f87171"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="60" y="60" width="180" height="50" rx="6" fill="#1a0a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="76" y="80" fill="#fecaca">p（*User）</text>
+            <text x="76" y="100" fill="#f87171">nil</text>
+
+            <text x="280" y="76" fill="#e2e8f0">p != nil の確認をせずに…</text>
+            <text x="280" y="98" fill="#fca5a5">p.ID を読む / p.Name = "x" を書く</text>
+            <line x1="245" y1="88" x2="272" y2="88" stroke="#f87171" stroke-width="2" marker-end="url(#g8)"/>
+
+            <rect x="620" y="56" width="380" height="58" rx="6" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="636" y="78" fill="#fecaca" font-weight="bold">panic: runtime error:</text>
+            <text x="636" y="98" fill="#fecaca" font-weight="bold">invalid memory address or nil pointer dereference</text>
+            <line x1="590" y1="88" x2="615" y2="88" stroke="#f87171" stroke-width="2" marker-end="url(#g8)"/>
+
+            <rect x="30" y="135" width="470" height="245" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="1.5"/>
+            <text x="46" y="159" fill="#fecaca" font-size="12" font-weight="bold">panic する操作</text>
+            <text x="46" y="183" fill="#fca5a5">p.ID          // フィールド読み取り</text>
+            <text x="46" y="203" fill="#fca5a5">p.Name = "x"  // フィールド書き込み</text>
+            <text x="46" y="223" fill="#fca5a5">*p            // デリファレンス</text>
+            <text x="46" y="243" fill="#fca5a5">p.Method()    // ★ 値レシーバのメソッド</text>
+            <text x="62" y="261" fill="#94a3b8" font-size="9.5">（内部で *p が起きるため）</text>
+            <text x="46" y="285" fill="#fbbf24" font-size="11">panic しない操作（意外）</text>
+            <text x="46" y="307" fill="#fde68a">p == nil       // 比較はOK</text>
+            <text x="46" y="327" fill="#fde68a">p.Method()     // ★ ポインタレシーバで、</text>
+            <text x="62" y="345" fill="#94a3b8" font-size="9.5">中で nil チェックしている場合（ch4）</text>
+            <text x="46" y="367" fill="#fde68a">fmt.Println(p) // → &lt;nil&gt; と出力される</text>
+
+            <rect x="530" y="135" width="470" height="245" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="546" y="159" fill="#dcfce7" font-size="12" font-weight="bold">nil が生まれる典型パターン（実務）</text>
+            <text x="546" y="183" fill="#bbf7d0">① 「見つからなかった」戻り値</text>
+            <text x="562" y="201" fill="#e2e8f0" font-size="9.5">u, err := repo.FindByID(id) → u が nil</text>
+            <text x="546" y="223" fill="#bbf7d0">② エラーを無視した結果</text>
+            <text x="562" y="241" fill="#e2e8f0" font-size="9.5">u, _ := repo.Find(id) → err を捨てると u は nil</text>
+            <text x="562" y="255" fill="#f87171" font-size="9.5">★ 最頻出。errcheck linter で防ぐ</text>
+            <text x="546" y="277" fill="#bbf7d0">③ JSON の unmarshal で omit されたフィールド</text>
+            <text x="562" y="295" fill="#e2e8f0" font-size="9.5">ポインタフィールドはキーがなければ nil</text>
+            <text x="546" y="317" fill="#bbf7d0">④ map から取れなかった値（値がポインタ型）</text>
+            <text x="562" y="335" fill="#e2e8f0" font-size="9.5">m["notfound"] → nil（ok を見ていない）</text>
+            <text x="546" y="357" fill="#bbf7d0">⑤ 構造体の途中がnil（a.B.C で B が nil）</text>
+            <text x="562" y="375" fill="#e2e8f0" font-size="9.5">★ ドット連鎖は nil の温床（Law of Demeter）</text>
+          </g>
+        </svg>
+        <p class="figcap">図8-1 nil panicの発生源。実務では②「エラーを無視」が圧倒的に多い。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="事故のパターンと防ぎ方" data-tone="bad"><script type="text/plain">
+// ---- パターン②: エラーを無視する（最頻出） ----
+@@-u, _ := repo.FindByID(ctx, id)  // err を捨てた
+@@-fmt.Println(u.Name)             // u が nil なら panic
+
+// ✓ 正しい形
+u, err := repo.FindByID(ctx, id)
+if err != nil {
+    return fmt.Errorf("find user: %w", err)
+}
+fmt.Println(u.Name) // ここに来た時点で u != nil が保証される（契約次第）
+
+// ★ 重要: 「err == nil なら値は非nil」という契約を関数側が守る必要がある。
+//   守っていない関数（err も nil、値も nil を返す）は、契約違反（Part 8 LSP）。
+
+// ---- パターン⑤: ドット連鎖 ----
+@@-fmt.Println(order.Guest.Membership.Rank.Name) // どこか1つでもnilならpanic
+
+// ✓ 対策1: 途中でチェックする（読みにくい）
+if order.Guest != nil && order.Guest.Membership != nil { ... }
+
+// ✓ 対策2: メソッドに委譲する（Tell, Don't Ask）
+fmt.Println(order.RankName()) // 内部で nil を吸収する
+
+func (o *Order) RankName() string {
+    if o == nil || o.Guest == nil || o.Guest.Membership == nil {
+        return "一般"  // デフォルト値
+    }
+    return o.Guest.Membership.Rank.Name
+}
+
+// ✓ 対策3: そもそもポインタにしない（値にする）
+type Order struct {
+    Guest Guest // ポインタでなく値 → nilにならない
+}
+// ★ 「Guestが存在しない注文」があり得るならポインタが正しい。
+//   あり得ないなら値にする。設計の問題であって、nilチェックの問題ではない。
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ nil panic を機械的に減らす4つの手段</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>手段</th><th>効果</th><th>導入コスト</th></tr></thead>
+            <tbody>
+              <tr><td><b><span class="k">errcheck</span> / <span class="k">golangci-lint</span></b></td><td class="good">エラー無視（<span class="k">_</span>）を検出。<b>nil panicの半分が消える</b></td><td class="good">低（設定1行）</td></tr>
+              <tr><td><b><span class="k">nilaway</span>（Uber製）/ <span class="k">nilness</span></b></td><td class="good">静的解析でnil到達を検出</td><td class="warn">中（誤検知の調整が必要）</td></tr>
+              <tr><td><b>ポインタフィールドを減らす</b></td><td class="good">構造的に減る。<b class="text-emerald-400">最も効果的</b></td><td class="warn">中（設計の見直し）</td></tr>
+              <tr><td><b><span class="k">recover</span> でpanicを捕まえる</b></td><td class="warn">プロセスは落ちないが、バグは隠れる</td><td class="good">低</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-amber-400">recover についての注意</b>: HTTPサーバのMiddlewareに <span class="k">recover</span> を置くのは<b class="text-emerald-400">正しい</b>（1リクエストの失敗が全体を落とさないため）。しかし<b class="text-rose-400">「recoverしているから安心」は誤り</b> — panicは必ずログに出して修正する。<span class="k">recover</span> は「サービスを守る」ためのもので、「バグを許す」ためのものではない。</p>
+      </div>
+    </section>
+
+    <!-- ===== ch9 ===== -->
+    <section id="ch9" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">09</span> 空struct <span class="k">struct{}</span> — サイズ0の型</h2>
+      <p class="lede">結論。<b class="text-emerald-400"><span class="k">struct{}</span> は「値を持たないが、存在を示せる型」</b>。メモリサイズが0なので、<b class="text-slate-200">「集合」と「シグナル」に使うと無駄がゼロになる</b>。Goらしいイディオムの1つ。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">struct{} の2大用途</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="330" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="265" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">用途1: Set（集合）</text>
+            <text x="46" y="100" fill="#86efac">Goには set 型がない → map の値を struct{} にする</text>
+            <text x="46" y="126" fill="#bbf7d0">seen := map[string]struct{}{}</text>
+            <text x="46" y="146" fill="#bbf7d0">seen["a"] = struct{}{}</text>
+            <text x="46" y="166" fill="#bbf7d0">if _, ok := seen["a"]; ok { ... }</text>
+            <text x="46" y="196" fill="#fbbf24">なぜ bool ではなく struct{} か:</text>
+            <rect x="60" y="208" width="400" height="80" rx="6" fill="#0b1220" stroke="#475569"/>
+            <text x="76" y="228" fill="#e2e8f0">map[string]bool     → 値に1バイト×要素数</text>
+            <text x="76" y="248" fill="#e2e8f0">map[string]struct{} → 値に0バイト</text>
+            <text x="76" y="270" fill="#4ade80">100万要素で 1MB の差（実測レベルの差）</text>
+            <text x="46" y="310" fill="#fbbf24">ただし可読性のトレードオフ:</text>
+            <text x="46" y="330" fill="#fde68a">・bool: seen["a"] で直接判定できる（読みやすい）</text>
+            <text x="46" y="348" fill="#fde68a">・struct{}: 必ず 2値代入（_, ok）が必要</text>
+            <text x="46" y="370" fill="#4ade80">★ 要素数が数千以下なら bool でよい。実務ではどちらもよく見る</text>
+
+            <rect x="530" y="50" width="470" height="330" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="765" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">用途2: シグナル（chan struct{}）</text>
+            <text x="546" y="100" fill="#7dd3fc">「値ではなく、出来事」を伝えるチャネル</text>
+            <text x="546" y="126" fill="#e0f2fe">done := make(chan struct{})</text>
+            <text x="546" y="148" fill="#e0f2fe">go func() {</text>
+            <text x="546" y="166" fill="#e0f2fe">    work()</text>
+            <text x="546" y="184" fill="#e0f2fe">    close(done)  // ★ 送信より close が定石</text>
+            <text x="546" y="202" fill="#e0f2fe">}()</text>
+            <text x="546" y="222" fill="#e0f2fe">&lt;-done  // 完了を待つ</text>
+            <text x="546" y="252" fill="#fbbf24">なぜ close を使うか:</text>
+            <text x="546" y="272" fill="#fde68a">・close なら「待っている全員」に同時に伝わる</text>
+            <text x="546" y="290" fill="#fde68a">・送信（done &lt;- struct{}{}）は1人にしか届かない</text>
+            <text x="546" y="308" fill="#fde68a">・close 済みチャネルからの受信は即座にゼロ値を返す</text>
+            <text x="546" y="334" fill="#4ade80">★ context.Context の Done() も chan struct{} を返す</text>
+            <text x="546" y="352" fill="#86efac">　ctx.Done() &lt;- これがまさにこのイディオム</text>
+            <text x="546" y="372" fill="#f87171">★ 注意: 二重 close は panic する（sync.Once で守る）</text>
+          </g>
+        </svg>
+        <p class="figcap">図9-1 struct{}の2大用途。context.Done() が chan struct{} である理由も同じ発想。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実務でよく見る3つの使い方" data-tone="good"><script type="text/plain">
+// ---- 1) 重複除去（実務で最も頻繁に書く） ----
+func unique(ids []string) []string {
+@@+    seen := make(map[string]struct{}, len(ids))
+    out := make([]string, 0, len(ids))
+    for _, id := range ids {
+        if _, ok := seen[id]; ok {
+            continue
+        }
+        seen[id] = struct{}{}
+        out = append(out, id)
+    }
+    return out
+}
+
+// ---- 2) セマフォ（同時実行数の制限） ----
+@@+sem := make(chan struct{}, 5) // 同時5並列まで
+var wg sync.WaitGroup
+for _, task := range tasks {
+    wg.Add(1)
+    go func(t Task) {
+        defer wg.Done()
+        sem <- struct{}{}        // 空きが出るまで待つ
+        defer func() { <-sem }() // 解放
+        process(t)
+    }(task)
+}
+wg.Wait()
+// ★ ただし実務では golang.org/x/sync/errgroup の SetLimit を使う方が簡潔
+
+// ---- 3) メソッドだけを持つ型（状態を持たない実装） ----
+@@+type SystemClock struct{} // フィールドなし = サイズ0
+
+func (SystemClock) Now() time.Time { return time.Now() }
+
+// 使う側: 依存注入に使う（Part 9のテスト容易性）
+uc := NewUseCase(repo, SystemClock{})
+// ★ SystemClock{} は0バイト。ポインタにする理由がない
+</script></div>
+
+      <div class="step note">
+        <p class="step-h">補足 — <span class="k">[]struct{}{{}, {}}</span> は「値あり」か？</p>
+        <div class="cb" data-lang="go" data-cap="要素の中身がゼロ値でも「値あり」" data-tone="good"><script type="text/plain">
+s := []struct{}{{}, {}}
+fmt.Println(len(s), cap(s), s == nil) // → 2 2 false
+
+// ★ 判定の原則: 「要素が存在するか」は len > 0 で決まる。
+//   要素の中身がゼロ値かどうかは無関係。
+//
+// 同じことがUserでも成り立つ:
+s2 := []User{{}, {}}
+fmt.Println(len(s2)) // → 2（各要素は User{ID:0, Name:""}）
+
+// ★ メモリ上の意味:
+//   []struct{} は要素サイズ0なので、要素が100万個あっても
+//   確保されるのは slice ヘッダ（24バイト）+ ほぼ0
+//   （実装上は同じダミーアドレスを指す）
+</script></div>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>書き方</th><th>len</th><th><span class="k">== nil</span></th><th>分類</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">var s []struct{}</span></td><td>0</td><td class="bad">true</td><td>nilスライス</td></tr>
+              <tr><td><span class="k">[]struct{}{}</span></td><td>0</td><td>false</td><td>空スライス</td></tr>
+              <tr><td><span class="k">[]struct{}{{}}</span></td><td>1</td><td>false</td><td class="good">値あり</td></tr>
+              <tr><td><span class="k">[]struct{}{{},{}}</span></td><td>2</td><td>false</td><td class="good">値あり</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ch10 ===== -->
+    <section id="ch10" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">10</span> スライス: nil / 空 / 値あり</h2>
+      <p class="lede">結論。<b class="text-emerald-400">コード上ではnilスライスと空スライスを区別する必要はほぼない</b>（<span class="k">len</span> / <span class="k">range</span> / <span class="k">append</span> が全部安全に動く）。<b class="text-rose-400">唯一の例外がJSONシリアライズで、ここは実務で必ず事故る</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">nilスライスと空スライス — 違いが出るのはJSONだけ</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="310" height="180" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="185" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">nilスライス</text>
+            <text x="46" y="100" fill="#fca5a5">var s []int</text>
+            <rect x="60" y="112" width="250" height="46" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="76" y="132" fill="#fecaca">ptr = nil</text>
+            <text x="76" y="150" fill="#fecaca">len = 0 / cap = 0</text>
+            <text x="46" y="182" fill="#e2e8f0">s == nil     → true</text>
+            <text x="46" y="200" fill="#e2e8f0">len(s)       → 0</text>
+            <text x="46" y="220" fill="#f87171">JSON         → null</text>
+
+            <rect x="360" y="50" width="310" height="180" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="515" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">空スライス</text>
+            <text x="376" y="100" fill="#86efac">s := []int{} / make([]int, 0)</text>
+            <rect x="390" y="112" width="250" height="46" rx="6" fill="#052e16" stroke="#4ade80"/>
+            <text x="406" y="132" fill="#bbf7d0">ptr = 0x???（有効なアドレス）</text>
+            <text x="406" y="150" fill="#bbf7d0">len = 0 / cap = 0</text>
+            <text x="376" y="182" fill="#e2e8f0">s == nil     → false</text>
+            <text x="376" y="200" fill="#e2e8f0">len(s)       → 0</text>
+            <text x="376" y="220" fill="#4ade80">JSON         → []</text>
+
+            <rect x="690" y="50" width="310" height="180" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="845" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">値あり</text>
+            <text x="706" y="100" fill="#7dd3fc">s := []int{1, 2, 3}</text>
+            <rect x="720" y="112" width="250" height="46" rx="6" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="736" y="132" fill="#bae6fd">ptr = 0x2000</text>
+            <text x="736" y="150" fill="#bae6fd">len = 3 / cap = 3</text>
+            <text x="706" y="182" fill="#e2e8f0">s == nil     → false</text>
+            <text x="706" y="200" fill="#e2e8f0">len(s)       → 3</text>
+            <text x="706" y="220" fill="#38bdf8">JSON         → [1,2,3]</text>
+
+            <rect x="30" y="250" width="970" height="70" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="274" fill="#dcfce7" font-size="12" font-weight="bold">nilスライスでも安全に動く操作（覚えると nil チェックが激減する）</text>
+            <text x="46" y="298" fill="#bbf7d0">len(s) → 0 ／ cap(s) → 0 ／ for range s → 0回 ／ <tspan font-weight="bold">append(s, x) → 新しいスライスが作られる</tspan> ／ s[0:0] → OK</text>
+            <text x="46" y="314" fill="#f87171">✗ panic するのは s[0] のようなインデックスアクセスだけ（これは空スライスでも同じ）</text>
+
+            <rect x="30" y="336" width="970" height="72" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="360" fill="#fef3c7" font-size="12" font-weight="bold">実務での結論</text>
+            <text x="46" y="384" fill="#fde68a">・内部処理: 区別しない。<tspan font-weight="bold">var s []T で宣言し、append で伸ばす</tspan>のがGoらしい（make は容量が分かるときだけ）</text>
+            <text x="46" y="402" fill="#fde68a">・API レスポンス: <tspan fill="#4ade80" font-weight="bold">必ず空スライスで初期化する</tspan>。フロントエンドが null で落ちる事故を防ぐ</text>
+          </g>
+        </svg>
+        <p class="figcap">図10-1 3状態の違い。実質的な差はJSONだけ。だからAPI境界で明示的に初期化する。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="実務で必ず踏む: APIレスポンスが null になる" data-tone="bad"><script type="text/plain">
+type ListResponse struct {
+    Items []Item `json:"items"`
+    Total int    `json:"total"`
+}
+
+func (h *Handler) List(c echo.Context) error {
+@@-    var items []Item                    // nilスライス
+    rows, err := h.db.Query(...)
+    // ... 0件だったので items に何も append されない ...
+    return c.JSON(200, ListResponse{Items: items, Total: 0})
+}
+
+// レスポンス: {"items": null, "total": 0}
+//
+// ★ フロントエンドで起きること:
+//   items.map(...)        → TypeError: Cannot read properties of null
+//   items.length          → TypeError
+//   → フロントが必ず `items ?? []` を書く羽目になる（全エンドポイントで）
+</script></div>
+      <div class="cb" data-lang="go" data-cap="正しい形 — API境界で空スライスを保証する" data-tone="good"><script type="text/plain">
+func (h *Handler) List(c echo.Context) error {
+@@+    items := make([]Item, 0)  // または []Item{}
+    rows, err := h.db.Query(...)
+    // ...
+    return c.JSON(200, ListResponse{Items: items, Total: len(items)})
+}
+// レスポンス: {"items": [], "total": 0} ✓
+
+// ★ さらに堅い方法1: DTOのコンストラクタで保証する
+func newListResponse(items []Item) ListResponse {
+    if items == nil {
+@@+        items = []Item{} // nil を空スライスに正規化する
+    }
+    return ListResponse{Items: items, Total: len(items)}
+}
+
+// ★ さらに堅い方法2: 型で保証する（大規模なら検討）
+//   json.Marshaler を実装した独自スライス型を作る
+type Items []Item
+
+func (i Items) MarshalJSON() ([]byte, error) {
+    if i == nil {
+        return []byte("[]"), nil // nil でも [] を返す
+    }
+    return json.Marshal([]Item(i))
+}
+
+// ★ 方法3（Go 1.21+）: omitempty との併用に注意
+type Resp struct {
+    Items []Item `json:"items,omitempty"` // ★ 空でもキー自体が消える
+}
+// → {"total":0} だけになる。フロントが items 未定義で落ちる
+// ★ 配列フィールドに omitempty は付けない、が実務の定石
+</script></div>
+
+      <div class="step rev">
+        <p class="step-h">⑩ レビュー観点</p>
+        <ul>
+          <li><b class="text-slate-100">APIレスポンスの配列フィールドが nil になり得ないか</b> — 0件のときのレスポンスを必ずテストする</li>
+          <li>配列フィールドに <span class="k">omitempty</span> が付いていないか</li>
+          <li>内部処理で <span class="k">if s != nil</span> という不要なチェックをしていないか（<span class="k">len(s) == 0</span> で足りる）</li>
+          <li><span class="k">make([]T, n)</span> と <span class="k">make([]T, 0, n)</span> を混同していないか — <b class="text-rose-400">前者は「n個のゼロ値が入ったスライス」</b>。append すると n+1 個目に追加される</li>
+        </ul>
+        <div class="cb" data-lang="go" data-cap="make の第2・第3引数を間違える（実務で頻出）" data-tone="bad"><script type="text/plain">
+@@-s := make([]int, 5)        // len=5, cap=5 → [0,0,0,0,0]
+@@-s = append(s, 1)           // → [0,0,0,0,0,1] （6要素）★ 意図と違う
+
+@@+s := make([]int, 0, 5)     // len=0, cap=5 → []
+@@+s = append(s, 1)           // → [1] ✓
+
+// ★ 使い分け:
+//   make([]T, n)    : n個の要素を「インデックスで埋める」とき  s[i] = x
+//   make([]T, 0, n) : append で追加していくとき（容量だけ先に確保）
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch11 ===== -->
+    <section id="ch11" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">11</span> nilになる6つの型と、nil interfaceの罠</h2>
+      <p class="lede"><b class="text-rose-400">Goで最も有名で、最も理解されていない罠</b>。<b class="text-emerald-400">「nilを入れたはずのinterfaceが nil ではない」</b>。これはGoのFAQに載っている仕様で、実務では <span class="k">error</span> の扱いで踏む。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">interface は「型」と「値」の2ワード — 両方nilでなければ nil ではない</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="200" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="265" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">本当の nil interface</text>
+            <text x="46" y="100" fill="#86efac">var err error   // 何も代入していない</text>
+            <rect x="60" y="114" width="400" height="66" rx="6" fill="#0b1220" stroke="#4ade80"/>
+            <text x="76" y="136" fill="#bbf7d0">type  = nil   ← 型情報もない</text>
+            <text x="76" y="158" fill="#bbf7d0">value = nil   ← 値もない</text>
+            <text x="46" y="206" fill="#4ade80">err == nil  → true ✓</text>
+            <text x="46" y="228" fill="#86efac">これが「エラーがない」正常な状態</text>
+
+            <rect x="530" y="50" width="470" height="200" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2.5"/>
+            <text x="765" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">nil ではない nil interface（罠）</text>
+            <text x="546" y="100" fill="#fca5a5">var p *MyError = nil</text>
+            <text x="546" y="118" fill="#fca5a5">var err error = p   // ポインタを代入</text>
+            <rect x="560" y="130" width="400" height="66" rx="6" fill="#1a0a0a" stroke="#f87171"/>
+            <text x="576" y="152" fill="#fecaca">type  = *MyError  ← ★ 型情報が入った！</text>
+            <text x="576" y="174" fill="#fecaca">value = nil</text>
+            <text x="546" y="220" fill="#f87171" font-weight="bold">err == nil  → false ✗</text>
+            <text x="546" y="240" fill="#fca5a5">「型がある」ので nil ではないと判定される</text>
+
+            <rect x="30" y="270" width="970" height="200" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="294" fill="#fef3c7" font-size="12" font-weight="bold">実務で踏むコード（これが本当に起きる）</text>
+            <text x="46" y="320" fill="#fde68a">type ValidationError struct{ Field string }</text>
+            <text x="46" y="338" fill="#fde68a">func (e *ValidationError) Error() string { return e.Field }</text>
+            <text x="46" y="362" fill="#f87171">func validate(u User) *ValidationError {   // ★ 戻り値が具体型（ここが原因）</text>
+            <text x="62" y="380" fill="#fca5a5">if u.Name == "" { return &amp;ValidationError{"name"} }</text>
+            <text x="62" y="398" fill="#fca5a5">return nil                              // nil の *ValidationError</text>
+            <text x="46" y="416" fill="#f87171">}</text>
+            <text x="46" y="440" fill="#e2e8f0">func handle(u User) error { return validate(u) }  // ★ ここで error に変換される</text>
+            <text x="46" y="462" fill="#f87171" font-weight="bold">→ handle() は「エラーがない場合でも non-nil な error」を返す。全ての if err != nil が true になる。</text>
+          </g>
+        </svg>
+        <p class="figcap">図11-1 nil interfaceの罠。「具体型のポインタをinterfaceに代入する」瞬間に発生する。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="罠の完全な再現コード" data-tone="bad"><script type="text/plain">
+type ValidationError struct{ Field string }
+
+func (e *ValidationError) Error() string {
+    return "invalid field: " + e.Field
+}
+
+// ★ 問題のある関数: 戻り値が具体型 *ValidationError
+@@-func validate(name string) *ValidationError {
+    if name == "" {
+        return &ValidationError{Field: "name"}
+    }
+@@-    return nil // nil の *ValidationError
+}
+
+// error型に変換して返す関数
+@@-func handle(name string) error {
+@@-    return validate(name) // ★ ここで nil *ValidationError → non-nil error になる
+}
+
+func main() {
+    err := handle("Tanaka") // 検証は成功している
+@@-    if err != nil {
+@@-        fmt.Println("エラー:", err) // ★ ここに入る！
+@@-        // panic: runtime error: invalid memory address（Error()内でe.Fieldを触る）
+@@-    }
+    fmt.Println(err == nil) // → false（期待は true）
+}
+</script></div>
+      <div class="cb" data-lang="go" data-cap="対策 — 3つの方法" data-tone="good"><script type="text/plain">
+// ---- 対策1（最良）: 戻り値の型を error にする ----
+@@+func validate(name string) error {
+    if name == "" {
+        return &ValidationError{Field: "name"}
+    }
+@@+    return nil // ★ nil の error（type も value も nil）
+}
+// ★ これが「Goでは具体的なエラー型を返さず、error interfaceを返す」という
+//   慣習の理由。単なるスタイルの話ではなく、この罠を避けるための規則。
+
+// ---- 対策2: 具体型を返す必要があるなら、変換時に明示的にチェック ----
+func handle(name string) error {
+    if e := validate(name); e != nil {
+        return e
+    }
+@@+    return nil // 明示的に nil error を返す
+}
+
+// ---- 対策3: linter で検出する ----
+// golangci-lint: nilnil / nilerr / govet の nilness
+// → 「具体型のエラーを返す関数」を検出できる
+
+// ★ 同じ罠は error 以外の interface でも起きる
+type Notifier interface{ Notify() error }
+type SlackNotifier struct{}
+func (s *SlackNotifier) Notify() error { return nil }
+
+func newNotifier(enabled bool) Notifier {
+@@-    var s *SlackNotifier
+@@-    if enabled { s = &SlackNotifier{} }
+@@-    return s   // ★ enabled=false でも non-nil な Notifier が返る
+}
+// ✓ 正しい形
+func newNotifier2(enabled bool) Notifier {
+    if !enabled {
+@@+        return nil // 明示的に nil を返す
+    }
+    return &SlackNotifier{}
+}
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ nilになる型の一覧と「nilでの挙動」（実務で必要な表）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>型</th><th>nilでの読み取り</th><th>nilでの書き込み</th><th>注意</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">*T</span> ポインタ</td><td class="bad">panic</td><td class="bad">panic</td><td>nilチェック必須（ポインタレシーバのメソッドは例外あり ch4）</td></tr>
+              <tr><td><span class="k">[]T</span> slice</td><td class="good">安全（len=0, range 0回）</td><td class="good">append でOK</td><td class="bad"><span class="k">s[0]</span> はpanic（空スライスでも同じ）</td></tr>
+              <tr><td><span class="k">map[K]V</span></td><td class="good">安全（読むとゼロ値が返る）</td><td class="bad"><b>panic: assignment to entry in nil map</b></td><td class="bad"><b class="text-rose-400">読めるが書けない</b> — 最も混乱しやすい非対称性</td></tr>
+              <tr><td><span class="k">chan T</span></td><td class="warn">永久ブロック（deadlock）</td><td class="warn">永久ブロック</td><td><b class="text-amber-400">panicではなくブロックする</b>。<span class="k">select</span> では「永久に選ばれない枝」として使える（テクニック）</td></tr>
+              <tr><td><span class="k">func</span></td><td>—</td><td class="bad">panic（呼ぶと）</td><td>コールバックフィールドは呼ぶ前に <span class="k">!= nil</span> を確認</td></tr>
+              <tr><td><span class="k">interface</span></td><td class="bad">panic（メソッド呼び出し）</td><td>—</td><td class="bad"><b>型情報が入ると nil ではなくなる（上記の罠）</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="go" data-cap="nil map の非対称性（実務で踏む）" data-tone="bad"><script type="text/plain">
+var m map[string]int
+
+fmt.Println(m["a"])      // → 0（読み取りは安全！ゼロ値が返る）
+fmt.Println(len(m))      // → 0（安全）
+v, ok := m["a"]          // → 0, false（安全）
+for k := range m { }     // → 0回（安全）
+
+@@-m["a"] = 1               // ★ panic: assignment to entry in nil map
+
+// ✓ 必ず初期化する
+@@+m = make(map[string]int)
+m["a"] = 1               // OK
+
+// ★ 構造体のフィールドで最も踏む:
+type Cache struct {
+    data map[string]string // ★ ゼロ値では nil
+}
+func main() {
+    var c Cache
+@@-    c.data["key"] = "v"  // panic
+}
+// ✓ コンストラクタで初期化する / 遅延初期化する（ch7）
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch12 ===== -->
+    <section id="ch12" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">12</span> 判断フローとまとめ表</h2>
+      <p class="lede">Part 2 の総まとめ。<b class="text-emerald-400">「存在しない」を表現する必要があるかどうか</b>から判断する。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">「値がない」をどう表現するか</text>
+          <defs><marker id="g12" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="390" y="48" width="260" height="36" rx="7" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+            <text x="520" y="71" fill="#e2e8f0" text-anchor="middle" font-weight="bold">「値がない」を表現したい</text>
+            <line x1="520" y1="86" x2="520" y2="100" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g12)"/>
+
+            <rect x="360" y="102" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="122" fill="#bae6fd" text-anchor="middle">Q1. その型のゼロ値は「値がない」を意味できるか？</text>
+            <text x="520" y="138" fill="#7dd3fc" text-anchor="middle" font-size="9">例: time.Time のゼロ値、string の ""、slice の nil</text>
+            <line x1="360" y1="123" x2="280" y2="123" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <text x="318" y="116" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="50" y="104" width="225" height="42" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="162" y="122" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ゼロ値をそのまま使う</text>
+            <text x="162" y="138" fill="#86efac" text-anchor="middle" font-size="9">IsZero() / len()==0 / =="" で判定</text>
+
+            <line x1="520" y1="146" x2="520" y2="160" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <rect x="360" y="162" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="182" fill="#bae6fd" text-anchor="middle">Q2. DBのNULLとやり取りするか？</text>
+            <text x="520" y="198" fill="#7dd3fc" text-anchor="middle" font-size="9">Scan / Value で NULL を扱う必要がある</text>
+            <line x1="680" y1="183" x2="760" y2="183" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <text x="720" y="176" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="765" y="164" width="235" height="42" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="882" y="182" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ sql.NullString 等</text>
+            <text x="882" y="198" fill="#86efac" text-anchor="middle" font-size="9">Valid フィールドで明示的に判定</text>
+
+            <line x1="520" y1="206" x2="520" y2="220" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <rect x="360" y="222" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="242" fill="#bae6fd" text-anchor="middle">Q3. JSONで「未指定」と「null」を区別するか？</text>
+            <text x="520" y="258" fill="#7dd3fc" text-anchor="middle" font-size="9">PATCH API の部分更新など</text>
+            <line x1="360" y1="243" x2="280" y2="243" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <text x="318" y="236" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="50" y="224" width="225" height="42" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="162" y="242" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ポインタ *T</text>
+            <text x="162" y="258" fill="#86efac" text-anchor="middle" font-size="9">キー無し=nil / null=nil / 値=非nil</text>
+
+            <line x1="520" y1="266" x2="520" y2="280" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <rect x="360" y="282" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="302" fill="#bae6fd" text-anchor="middle">Q4. 「有効な0/空文字」と区別する必要があるか？</text>
+            <text x="520" y="318" fill="#7dd3fc" text-anchor="middle" font-size="9">「0円の割引」と「割引なし」を区別したい</text>
+            <line x1="680" y1="303" x2="760" y2="303" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <text x="720" y="296" fill="#fbbf24" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="765" y="284" width="235" height="42" rx="7" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="882" y="302" fill="#fef3c7" text-anchor="middle" font-weight="bold">→ ポインタ or 別フラグ</text>
+            <text x="882" y="318" fill="#fde68a" text-anchor="middle" font-size="9">nilチェックのコストを受け入れる</text>
+
+            <line x1="520" y1="326" x2="520" y2="340" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#g12)"/>
+            <rect x="340" y="342" width="360" height="46" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="520" y="364" fill="#dcfce7" text-anchor="middle" font-size="12" font-weight="bold">→ 値型を使う（ポインタにしない）</text>
+            <text x="520" y="381" fill="#86efac" text-anchor="middle" font-size="9">nilチェック不要・panic不可能・読みやすい</text>
+
+            <rect x="40" y="404" width="960" height="46" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="56" y="426" fill="#fef3c7" font-size="11">★ 判断の重み: 「nil を導入するコスト（全呼び出し側にnilチェックが伝染する）」は想像以上に大きい。</text>
+            <text x="56" y="444" fill="#fde68a" font-size="11">　 Q1〜Q4 のどれかが明確にYesでない限り、値型を選ぶ。「念のためポインタ」は最も高価な選択。</text>
+          </g>
+        </svg>
+        <p class="figcap">図12-1 判断フロー。ポインタは「必要な理由が言えるとき」だけ使う。</p>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">Part 2 の総まとめ表</p>
+        <div class="cb" data-lang="text" data-cap="5行で覚える"><script type="text/plain">
+User{}      → 実体あり、フィールドはゼロ値      （nilにならない・安全）
+*User(nil)  → 実体なし                          （アクセスで panic）
+struct{}{}  → 実体あり、サイズ0                 （値でなく「存在」を示す）
+[]int(nil)  → スライスなし                      （JSON: null / len/range/append は安全）
+[]int{}     → 空のスライス                      （JSON: []）
+map(nil)    → ★ 読めるが書くと panic
+chan(nil)   → ★ panicせず永久ブロック
+error(nil)  → type も value も nil のときだけ nil
+</script></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part3">
+      <p class="eyebrow">Part 3</p>
+      <h2>出力とフォーマット</h2>
+      <p class="sub"><span class="k">fmt</span> の関数は9個あるように見えるが、実際は<b class="text-emerald-400">3つの軸（出力先 × 改行 × フォーマット）の掛け算</b>にすぎない。規則を覚えれば暗記は不要。さらに<b class="text-slate-200">「デバッグ出力」と「本番のログ」は別の道具</b>である、という区別を付ける。</p>
+    </div>
+
+    <!-- ===== ch13 ===== -->
+    <section id="ch13" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">13</span> fmt の命名規則 — 直交マトリクス</h2>
+      <p class="lede">結論。<b class="text-emerald-400">関数名は「接頭辞（出力先）+ Print + 接尾辞（形式）」</b>という機械的な組み合わせ。実務で使うのは <span class="k">Printf</span> / <span class="k">Sprintf</span> / <span class="k">Println</span> / <span class="k">Fprintf</span> の4つ。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">fmt = 3つの軸の掛け算（暗記は3文字の規則だけ）</text>
+          <g font-family="monospace" font-size="10.5">
+            <!-- 軸の説明 -->
+            <rect x="30" y="50" width="310" height="120" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="74" fill="#bae6fd" font-size="12" font-weight="bold">軸1: どこへ出すか（接頭辞）</text>
+            <text x="46" y="98" fill="#e0f2fe">なし → 標準出力（os.Stdout）</text>
+            <text x="46" y="118" fill="#e0f2fe">S    → 文字列を<tspan font-weight="bold">返す</tspan>（String）</text>
+            <text x="46" y="138" fill="#e0f2fe">F    → io.Writer へ（File）</text>
+            <text x="46" y="160" fill="#7dd3fc" font-size="9.5">★ E（Errorf）は「errorを返す」で別カテゴリ</text>
+
+            <rect x="360" y="50" width="310" height="120" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="376" y="74" fill="#dcfce7" font-size="12" font-weight="bold">軸2: 改行するか（接尾辞）</text>
+            <text x="376" y="98" fill="#bbf7d0">なし → 改行しない</text>
+            <text x="376" y="118" fill="#bbf7d0">ln   → 末尾に \n を付ける</text>
+            <text x="376" y="140" fill="#86efac" font-size="9.5">★ ln は引数の間にスペースも自動で入れる</text>
+            <text x="376" y="158" fill="#86efac" font-size="9.5">　 Println("a","b") → "a b\n"</text>
+
+            <rect x="690" y="50" width="310" height="120" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="706" y="74" fill="#ede9fe" font-size="12" font-weight="bold">軸3: フォーマット指定（接尾辞）</text>
+            <text x="706" y="98" fill="#ddd6fe">なし → 値をそのまま並べる</text>
+            <text x="706" y="118" fill="#ddd6fe">f    → 第1引数がフォーマット文字列</text>
+            <text x="706" y="140" fill="#c4b5fd" font-size="9.5">★ f と ln は同時に使えない</text>
+            <text x="706" y="158" fill="#c4b5fd" font-size="9.5">　 （Printlnf は存在しない。\n を自分で書く）</text>
+
+            <!-- マトリクス -->
+            <text x="60" y="200" fill="#94a3b8">出力先 ＼ 形式</text>
+            <text x="290" y="200" fill="#a78bfa" font-weight="bold">そのまま</text>
+            <text x="450" y="200" fill="#4ade80" font-weight="bold">+ 改行（ln）</text>
+            <text x="640" y="200" fill="#fbbf24" font-weight="bold">+ フォーマット（f）</text>
+            <text x="840" y="200" fill="#94a3b8">実務での使用頻度</text>
+            <line x1="50" y1="208" x2="990" y2="208" stroke="#475569" stroke-width="1.5"/>
+
+            <text x="60" y="234" fill="#e2e8f0">標準出力</text>
+            <text x="290" y="234" fill="#cbd5e1">fmt.Print</text>
+            <text x="450" y="234" fill="#4ade80">fmt.Println ★</text>
+            <text x="640" y="234" fill="#fbbf24">fmt.Printf ★★</text>
+            <text x="840" y="234" fill="#94a3b8" font-size="9.5">デバッグ・CLIツール</text>
+
+            <text x="60" y="262" fill="#e2e8f0">文字列を返す（S）</text>
+            <text x="290" y="262" fill="#cbd5e1">fmt.Sprint</text>
+            <text x="450" y="262" fill="#cbd5e1">fmt.Sprintln</text>
+            <text x="640" y="262" fill="#fbbf24">fmt.Sprintf ★★★</text>
+            <text x="840" y="262" fill="#94a3b8" font-size="9.5">最頻出（文字列生成）</text>
+
+            <text x="60" y="290" fill="#e2e8f0">io.Writer へ（F）</text>
+            <text x="290" y="290" fill="#cbd5e1">fmt.Fprint</text>
+            <text x="450" y="290" fill="#cbd5e1">fmt.Fprintln</text>
+            <text x="640" y="290" fill="#fbbf24">fmt.Fprintf ★</text>
+            <text x="840" y="290" fill="#94a3b8" font-size="9.5">ファイル・HTTPレスポンス</text>
+
+            <text x="60" y="318" fill="#f472b6">error を返す（E）</text>
+            <text x="290" y="318" fill="#64748b">—</text>
+            <text x="450" y="318" fill="#64748b">—</text>
+            <text x="640" y="318" fill="#f472b6">fmt.Errorf ★★★</text>
+            <text x="840" y="318" fill="#94a3b8" font-size="9.5">%w でラップ（超頻出）</text>
+            <line x1="50" y1="330" x2="990" y2="330" stroke="#475569" stroke-width="1"/>
+
+            <rect x="50" y="345" width="940" height="46" rx="6" fill="#052e16" stroke="#4ade80"/>
+            <text x="66" y="366" fill="#dcfce7">★ 覚えるのは4つ: <tspan fill="#fbbf24" font-weight="bold">Printf</tspan>（画面へ整形）/ <tspan fill="#fbbf24" font-weight="bold">Sprintf</tspan>（文字列を作る）/ <tspan fill="#4ade80" font-weight="bold">Println</tspan>（雑にデバッグ）/ <tspan fill="#f472b6" font-weight="bold">Errorf</tspan>（エラーを作る）</text>
+            <text x="66" y="384" fill="#86efac">残り5つは「必要になったら思い出せばよい」。規則が分かっていれば名前を推測できる。</text>
+          </g>
+        </svg>
+        <p class="figcap">図13-1 fmt の直交マトリクス。9関数を暗記するのではなく、3文字の規則（S / F / ln / f）を覚える。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="4つの主力関数の使い分け" data-tone="good"><script type="text/plain">
+u := User{ID: 1, Name: "Tanaka"}
+
+// ---- 1) fmt.Printf: 画面に整形して出す（デバッグ・CLI）----
+fmt.Printf("user: id=%d name=%s\n", u.ID, u.Name)
+// → user: id=1 name=Tanaka
+// ★ \n を自分で書く必要がある（忘れると出力が繋がる）
+
+// ---- 2) fmt.Sprintf: 文字列を組み立てる（最頻出）----
+msg := fmt.Sprintf("予約 %s の確認 (%d名)", "R-0001", 2)
+// → "予約 R-0001 の確認 (2名)"
+// ★ 用途: エラーメッセージ / SQLのログ / ファイル名 / キャッシュキー
+
+// ---- 3) fmt.Println: 雑にデバッグする ----
+fmt.Println("ここまで来た", u.ID, err)
+// → ここまで来た 1 <nil>
+// ★ 引数の間に自動でスペースが入り、末尾に改行が付く
+// ★ 本番コードには残さない（後述）
+
+// ---- 4) fmt.Errorf: エラーを作る・ラップする ----
+if err != nil {
+    return fmt.Errorf("予約の保存に失敗 (id=%s): %w", id, err)
+}
+// ★ %w が最重要（errors.Is / errors.As で判定できるようになる）
+// ★ %v にすると型情報が失われる → software-design-micro.html ch50 参照
+
+// ---- おまけ: fmt.Fprintf（io.Writerへ）----
+f, _ := os.Create("out.txt")
+defer f.Close()
+fmt.Fprintf(f, "id=%d\n", u.ID)           // ファイルへ
+
+fmt.Fprintf(w, "hello")                   // http.ResponseWriter へ
+fmt.Fprintln(os.Stderr, "警告メッセージ")  // 標準エラー出力へ
+
+// ★ 実は Printf は Fprintf(os.Stdout, ...) のショートカット
+//   → 「Fが基本形で、他はその特殊化」と理解するのが正確
+</script></div>
+
+      <div class="step note">
+        <p class="step-h">補足 — <span class="k">Sprint</span> 系の連結ルール（微妙で忘れやすい）</p>
+        <div class="cb" data-lang="go" data-cap="スペースが入る/入らないの規則" data-tone="warn"><script type="text/plain">
+fmt.Sprint("a", "b")       // → "ab"     （両方とも文字列 → スペースなし）
+fmt.Sprint("a", 1, "b")    // → "a1 b"   ★ 文字列でない値の「両隣」にスペースが入る
+fmt.Sprint(1, 2)           // → "1 2"    （両方とも非文字列 → スペースあり）
+fmt.Sprintln("a", "b")     // → "a b\n"  （ln は常にスペース + 改行）
+
+// ★ 規則: Sprint / Print / Fprint は
+//   「隣り合う引数の両方が文字列でないとき」にスペースを入れる。
+// ★ 覚えにくいので、実務では Sprintf を使って明示するのが正解:
+fmt.Sprintf("%s%s", "a", "b")     // → "ab"  意図が明確
+fmt.Sprintf("%s %d %s", "a", 1, "b") // → "a 1 b"
+
+// ★ 文字列連結だけなら + や strings.Builder が速い
+s := "a" + "b"                     // 最速
+var sb strings.Builder             // ループで連結するならこれ
+for _, x := range items { sb.WriteString(x) }
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch14 ===== -->
+    <section id="ch14" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">14</span> フォーマット指定子と <span class="k">%v</span>/<span class="k">%+v</span>/<span class="k">%#v</span></h2>
+      <p class="lede">結論。<b class="text-emerald-400">デバッグでは <span class="k">%+v</span> を使う</b>（フィールド名が付く）。<span class="k">%v</span> は値だけ、<span class="k">%#v</span> はGoの構文そのまま。この3つの違いを実際の出力で見る。</p>
+
+      <div class="cb" data-lang="go" data-cap="同じ値を6通りで出力してみる"><script type="text/plain">
+type Address struct {
+    City string
+    Zip  string
+}
+type User struct {
+    ID      int
+    Name    string
+    Tags    []string
+    Addr    *Address
+    Created time.Time
+}
+
+u := User{
+    ID: 1, Name: "Tanaka",
+    Tags: []string{"vip", "member"},
+    Addr: &Address{City: "Tokyo", Zip: "150-0001"},
+}
+
+fmt.Printf("%v\n",  u)  // 値だけ
+fmt.Printf("%+v\n", u)  // フィールド名付き ★ デバッグの標準
+fmt.Printf("%#v\n", u)  // Go構文
+fmt.Printf("%T\n",  u)  // 型名
+fmt.Printf("%s\n",  u)  // String()があれば呼ばれる / なければエラー表示
+fmt.Printf("%p\n",  &u) // アドレス
+</script></div>
+      <div class="cb" data-lang="text" data-cap="出力結果（★ ポインタフィールドの扱いに注目）" data-tone="warn"><script type="text/plain">
+%v  → {1 Tanaka [vip member] 0xc000010030 0001-01-01 00:00:00 +0000 UTC}
+                              ^^^^^^^^^^^^ ★ ポインタは「アドレス」が出る（中身が見えない）
+
+%+v → {ID:1 Name:Tanaka Tags:[vip member] Addr:0xc000010030 Created:0001-01-01 00:00:00 +0000 UTC}
+      ^^^^ フィールド名が付く（デバッグで最も有用）      ^^^^^^^^^^^^ ★ ここも同じ問題
+
+%#v → main.User{ID:1, Name:"Tanaka", Tags:[]string{"vip", "member"}, Addr:(*main.Address)(0xc000010030), Created:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+      ^^^^^^^^^ 型名込み・そのままコードに貼れる形（テストの期待値作成に便利）
+
+%T  → main.User
+
+%s  → {%!s(int=1) Tanaka [vip member] %!s(*main.Address=&{Tokyo 150-0001}) ...}
+      ^^^^^^^^^^^^ ★ 型が合わないと %!s(...) というエラー表示になる
+
+%p  → 0xc000012345
+</script></div>
+
+      <div class="step prob">
+        <p class="step-h">① 実務で必ず困ること — ポインタの中身が見えない</p>
+        <div class="cb" data-lang="go" data-cap="対策3つ" data-tone="good"><script type="text/plain">
+// ---- 対策1: そのフィールドだけ個別に出す ----
+fmt.Printf("%+v addr=%+v\n", u, u.Addr) // Addr の中身も出る
+// → {ID:1 ... Addr:0xc000010030} addr=&{City:Tokyo Zip:150-0001}
+
+// ---- 対策2: JSON にする（★ 実務で最も使う）----
+b, _ := json.MarshalIndent(u, "", "  ")
+fmt.Println(string(b))
+// → ネストしたポインタも中身が展開される
+// {
+//   "ID": 1,
+//   "Addr": { "City": "Tokyo", "Zip": "150-0001" }
+// }
+// ★ 注意: unexported フィールドは出ない / json タグに従う
+
+// ---- 対策3: String() メソッドを実装する（ch16）----
+func (u User) String() string {
+    return fmt.Sprintf("User(id=%d, name=%s, city=%s)", u.ID, u.Name, u.Addr.City)
+}
+// → %v / %s / Println の全てでこの形式が使われる
+
+// ★ デバッグ用の推奨:
+//   ・小さい構造体      → %+v
+//   ・ネストがある構造体 → json.MarshalIndent
+//   ・テストの期待値    → %#v（そのままコードに貼れる）
+//   ・本番のログ        → 構造化ログ（slog）。fmt は使わない（ch16）
+</script></div>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ 実務で使うフォーマット指定子（優先順）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>指定子</th><th>内容</th><th>使用例</th><th>頻度</th></tr></thead>
+            <tbody>
+              <tr><td><span class="k">%s</span></td><td>文字列 / <span class="k">String()</span> / <span class="k">error</span></td><td><span class="k">fmt.Sprintf("id=%s", id)</span></td><td class="good">★★★</td></tr>
+              <tr><td><span class="k">%d</span></td><td>整数（10進）</td><td><span class="k">"count=%d"</span></td><td class="good">★★★</td></tr>
+              <tr><td><span class="k">%w</span></td><td><b>エラーをラップする</b>（<span class="k">Errorf</span> 専用）</td><td><span class="k">fmt.Errorf("save: %w", err)</span></td><td class="good">★★★</td></tr>
+              <tr><td><span class="k">%+v</span></td><td>structのフィールド名付き</td><td>デバッグ出力</td><td class="good">★★★</td></tr>
+              <tr><td><span class="k">%v</span></td><td>任意の型のデフォルト形式</td><td>汎用</td><td class="good">★★</td></tr>
+              <tr><td><span class="k">%q</span></td><td><b>ダブルクォート付き文字列</b></td><td><span class="k">"unknown status %q"</span> → <span class="k">"abc"</span></td><td class="good">★★ <b class="text-emerald-400">空文字や空白を可視化できるのでエラーメッセージに最適</b></td></tr>
+              <tr><td><span class="k">%T</span></td><td>型名</td><td>型が分からないときの調査</td><td>★★</td></tr>
+              <tr><td><span class="k">%.2f</span></td><td>小数点以下2桁</td><td>金額・割合の表示</td><td>★★</td></tr>
+              <tr><td><span class="k">%#v</span></td><td>Go構文</td><td>テストの期待値作成</td><td>★</td></tr>
+              <tr><td><span class="k">%x</span> / <span class="k">%X</span></td><td>16進数</td><td>ハッシュ・署名の表示</td><td>★</td></tr>
+              <tr><td><span class="k">%p</span></td><td>ポインタアドレス</td><td>「同じ実体か」の確認</td><td>★</td></tr>
+              <tr><td><span class="k">%%</span></td><td>リテラルの <span class="k">%</span></td><td><span class="k">"進捗 %d%%"</span></td><td>★</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-teal-300"><span class="k">%q</span> を推す理由</b>: <span class="k">fmt.Errorf("unknown status %s", s)</span> だと <span class="k">s</span> が空文字のときに「unknown status 」となり、<b class="text-rose-400">値が空なのか、そもそも出力されていないのか分からない</b>。<span class="k">%q</span> なら <span class="k">unknown status ""</span> となり一目で分かる。<b class="text-emerald-400">外部入力を含むエラーメッセージは常に %q</b>。</p>
+      </div>
+
+      <div class="step naive">
+        <p class="step-h">② よくあるミス — 引数の数と型のズレ</p>
+        <div class="cb" data-lang="go" data-cap="コンパイルエラーにならない（実行時に変な出力になる）" data-tone="bad"><script type="text/plain">
+@@-fmt.Printf("id=%d name=%s\n", u.ID)          // 引数が足りない
+// → id=1 name=%!s(MISSING)
+
+@@-fmt.Printf("id=%d\n", u.ID, u.Name)          // 引数が多い
+// → id=1
+//    %!(EXTRA string=Tanaka)
+
+@@-fmt.Printf("id=%d\n", u.Name)                // 型が合わない
+// → id=%!d(string=Tanaka)
+
+@@-fmt.Printf("進捗 50%\n")                     // % のエスケープ忘れ
+// → 進捗 50%!(NOVERB)
+
+// ★ 対策: go vet が全部検出してくれる（printf チェック）
+//   go vet ./...
+//   → Printf format %d has arg u.Name of wrong type string
+//
+// ★ CIに go vet を入れれば、このカテゴリのバグはゼロになる。
+//   自作のログ関数でも検出させたいなら、シグネチャを
+//   func Logf(format string, args ...any) にして
+//   go vet の -printfuncs で指定する。
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch15 ===== -->
+    <section id="ch15" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">15</span> 組み込み <span class="k">print</span> / <span class="k">println</span> を使わない理由</h2>
+      <p class="lede">結論。<b class="text-rose-400">組み込みの <span class="k">print</span> / <span class="k">println</span> は使わない</b>。理由は「出力先がstderr」「フォーマットできない」「将来削除される可能性がある（仕様で明言されている）」の3つ。</p>
+
+      <div class="cb" data-lang="go" data-cap="組み込み関数の挙動" data-tone="warn"><script type="text/plain">
+// import なしで使える（組み込み = builtin）
+println("hello", 1, true)   // → hello 1 true （標準エラー出力へ）
+print("no newline")         // → no newline （改行なし・stderr）
+
+// ★ 特徴:
+//   ・出力先が os.Stderr（fmt.Println は os.Stdout）
+//   ・フォーマット指定できない
+//   ・struct を渡すと「アドレス」しか出ない場合がある
+//   ・Go言語仕様に「実装は将来これらを削除してよい」と書かれている
+//   ・バッファリングされないので、panic直前でも確実に出る（唯一の利点）
+
+// ★ 唯一使う場面: ランタイムやコンパイラのデバッグ、
+//   fmt がまだ初期化されていない極めて低レベルな場面。
+//   アプリケーション開発では出番がない。
+</script></div>
+
+      <div class="step principle">
+        <p class="step-h">④ 出力先の使い分け（stdout / stderr）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>出したいもの</th><th>出力先</th><th>関数</th><th>理由</th></tr></thead>
+            <tbody>
+              <tr><td>CLIツールの「結果」（パイプで繋ぐデータ）</td><td class="good">stdout</td><td><span class="k">fmt.Println</span> / <span class="k">fmt.Printf</span></td><td><span class="k">cmd | grep</span> で処理できる</td></tr>
+              <tr><td>CLIツールの「進捗・警告」</td><td class="good">stderr</td><td><span class="k">fmt.Fprintln(os.Stderr, ...)</span></td><td><b class="text-emerald-400">結果と混ざらない</b>（パイプに乗らない）</td></tr>
+              <tr><td>サーバのログ</td><td class="warn">stdout（コンテナ環境）</td><td><span class="k">slog</span></td><td>Docker/K8sはstdoutを収集する。<b>ファイルに書かない</b></td></tr>
+              <tr><td>致命的エラーで終了</td><td class="good">stderr</td><td><span class="k">log.Fatalf</span></td><td>終了コード1で終わる。<b class="text-amber-400">ただしdeferが実行されないので main 以外では使わない</b></td></tr>
+              <tr><td>一時的なデバッグ</td><td>どこでも</td><td><span class="k">fmt.Printf</span></td><td class="bad"><b>コミット前に必ず消す</b>（後述の検出方法）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cb" data-lang="bash" data-cap="デバッグ出力の残留を機械的に防ぐ" data-tone="good"><script type="text/plain">
+# 1) golangci-lint で禁止する（forbidigo）
+# .golangci.yml
+linters:
+  enable:
+    - forbidigo
+linters-settings:
+  forbidigo:
+    forbid:
+      - p: '^fmt\.Print.*$'
+        msg: "本番コードでは slog を使ってください（デバッグ出力はコミット前に削除）"
+      - p: '^println$'
+        msg: "組み込みprintlnは使用禁止"
+    exclude-godoc-examples: true
+    # テストコードとcmd/配下は除外する設定を別途行う
+
+# 2) pre-commit hook で grep する（簡易版）
+git diff --cached --name-only -- '*.go' | xargs grep -n 'fmt.Print' && \
+  echo "デバッグ出力が残っています" && exit 1
+
+# 3) TODOマーカーを付ける運用
+#    fmt.Printf("DEBUG: %+v\n", x) // DEBUG-REMOVE
+#    → grep 'DEBUG-REMOVE' をCIでチェック
+</script></div>
+      </div>
+    </section>
+
+    <!-- ===== ch16 ===== -->
+    <section id="ch16" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">16</span> 実務: Stringer / error / slog</h2>
+      <p class="lede">最後に<b class="text-emerald-400">「デバッグ出力（fmt）」と「本番のログ（slog）」の境界</b>を確定させる。この2つを混同すると、本番のログが検索できず、障害調査ができなくなる。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="420" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">fmt と slog は用途が違う（置き換え関係ではない）</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="340" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="265" y="74" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">fmt — 人間が今すぐ読むもの</text>
+            <text x="46" y="100" fill="#fcd34d">用途:</text>
+            <text x="46" y="120" fill="#e2e8f0">・開発中のデバッグ（一時的）</text>
+            <text x="46" y="138" fill="#e2e8f0">・CLIツールの出力（ユーザー向け）</text>
+            <text x="46" y="156" fill="#e2e8f0">・エラーメッセージの組み立て（Sprintf/Errorf）</text>
+            <text x="46" y="174" fill="#e2e8f0">・テストの失敗メッセージ（t.Errorf）</text>
+            <text x="46" y="202" fill="#fcd34d">出力の形:</text>
+            <text x="46" y="222" fill="#fde68a">user: id=1 name=Tanaka</text>
+            <text x="46" y="248" fill="#f87171">本番ログに使ってはいけない理由:</text>
+            <text x="46" y="268" fill="#fca5a5">・検索できない（値が文の中に埋まっている）</text>
+            <text x="46" y="286" fill="#fca5a5">・集計できない（"provider別の件数" が出せない）</text>
+            <text x="46" y="304" fill="#fca5a5">・レベル分けがない（ERROR/WARN/INFO）</text>
+            <text x="46" y="322" fill="#fca5a5">・trace_id が付かない（分散トレースと繋がらない）</text>
+            <text x="46" y="340" fill="#fca5a5">・機微情報のマスキングができない</text>
+            <text x="46" y="366" fill="#fbbf24">★ 「動くから」で本番に残ると、</text>
+            <text x="46" y="382" fill="#fbbf24">　 障害調査のときに何の役にも立たない</text>
+
+            <rect x="530" y="50" width="470" height="340" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="765" y="74" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">slog — 機械が集計するもの</text>
+            <text x="546" y="100" fill="#86efac">用途:</text>
+            <text x="546" y="120" fill="#e2e8f0">・本番のアプリケーションログ（すべて）</text>
+            <text x="546" y="138" fill="#e2e8f0">・障害調査・監視・アラートの元データ</text>
+            <text x="546" y="166" fill="#86efac">出力の形（JSON）:</text>
+            <text x="546" y="186" fill="#bbf7d0" font-size="9.5">{"time":"...","level":"ERROR",</text>
+            <text x="562" y="202" fill="#bbf7d0" font-size="9.5">"msg":"webhook failed",</text>
+            <text x="562" y="218" fill="#bbf7d0" font-size="9.5">"provider":"rakuten","ota_id":"R-1",</text>
+            <text x="562" y="234" fill="#bbf7d0" font-size="9.5">"trace_id":"abc","error":"..."}</text>
+            <text x="546" y="262" fill="#4ade80">これで可能になること:</text>
+            <text x="546" y="282" fill="#bbf7d0">・level:ERROR で絞る</text>
+            <text x="546" y="300" fill="#bbf7d0">・provider:rakuten の件数を集計する</text>
+            <text x="546" y="318" fill="#bbf7d0">・trace_id で1リクエストの全ログを追う</text>
+            <text x="546" y="336" fill="#bbf7d0">・エラー率をダッシュボード化する</text>
+            <text x="546" y="362" fill="#4ade80">★ Go 1.21 で標準ライブラリに入った</text>
+            <text x="546" y="380" fill="#86efac">　（それ以前は zap / zerolog / logrus）</text>
+          </g>
+        </svg>
+        <p class="figcap">図16-1 fmt と slog の役割分担。「fmtの出力は人が読む、slogの出力は機械が読む」。</p>
+      </div>
+
+      <div class="cb" data-lang="go" data-cap="Stringer — 自分の型の表示形式を決める" data-tone="good"><script type="text/plain">
+// fmt.Stringer を実装すると、%v / %s / Println で使われる
+type ReservationStatus string
+
+const (
+    StatusPending   ReservationStatus = "pending"
+    StatusConfirmed ReservationStatus = "confirmed"
+)
+
+// ★ String() を実装すると、日本語表示などを一元化できる
+func (s ReservationStatus) String() string {
+    switch s {
+    case StatusPending:
+        return "仮予約"
+    case StatusConfirmed:
+        return "確定"
+    default:
+        return "不明(" + string(s) + ")"
+    }
+}
+
+fmt.Printf("%v\n", StatusConfirmed) // → 確定
+
+// ★ 注意点1: String() の中で %v を使うと無限再帰する
+func (u User) String() string {
+@@-    return fmt.Sprintf("%v", u) // ★ 無限再帰 → stack overflow
+}
+// ✓ フィールドを個別に指定する
+func (u User) String() string {
+@@+    return fmt.Sprintf("User(id=%d, name=%s)", u.ID, u.Name)
+}
+
+// ★ 注意点2: 機微情報を String() に含めない
+//   ログに出る前提の関数なので、メールアドレスやトークンを入れると漏洩する
+func (u User) String() string {
+    return fmt.Sprintf("User(id=%d)", u.ID) // ★ 名前もメールも出さない設計もある
+}
+
+// ★ 注意点3: エラー型は Error() を実装する（Stringerではなく error インターフェース）
+//   両方実装した場合、fmt は Error() を優先する
+</script></div>
+
+      <div class="cb" data-lang="go" data-cap="slog の実務的な使い方（Go 1.21+）" data-tone="good"><script type="text/plain">
+// ---- 初期化（main.go で1回）----
+func main() {
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelInfo,
+        // 機微情報のマスキング
+        ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+            switch a.Key {
+            case "email", "password", "token", "authorization":
+                return slog.String(a.Key, "[REDACTED]")
+            }
+            return a
+        },
+    }))
+    slog.SetDefault(logger) // パッケージレベル関数（slog.Info 等）でも使えるようにする
+}
+
+// ---- 使い方: 値は「文の中」ではなく「フィールド」に置く ----
+
+// ✗ 悪い（fmtの癖が残っている）: 検索も集計もできない
+@@-slog.Info(fmt.Sprintf("webhook received from %s for %s", provider, otaID))
+
+// ✓ 良い: 構造化する
+@@+slog.InfoContext(ctx, "webhook received",
+@@+    "provider", provider,
+@@+    "ota_id", otaID,
+@@+    "revision", revision,
+@@+)
+// → {"level":"INFO","msg":"webhook received","provider":"rakuten","ota_id":"R-1","revision":11}
+
+// ---- 型安全な属性（推奨: タイポとキー忘れを防ぐ）----
+slog.InfoContext(ctx, "webhook received",
+    slog.String("provider", string(provider)),
+    slog.String("ota_id", otaID),
+    slog.Int64("revision", revision),
+    slog.Duration("elapsed", time.Since(start)),
+)
+
+// ---- 共通属性を持つロガーを作る（リクエスト単位）----
+reqLog := logger.With(
+    slog.String("trace_id", traceID),
+    slog.String("provider", string(provider)),
+)
+reqLog.Info("processing started")   // 以降のログに自動で付く
+reqLog.Error("failed", "error", err)
+
+// ---- レベルの使い分け（Part 8の8分類と対応）----
+slog.Debug(...) // 開発時のみ。本番では出力されない設定にする
+slog.Info(...)  // 正常系の記録（受信・完了・スキップ）
+slog.Warn(...)  // 「1件では問題ないが、増えたら問題」（業務ルール違反・リトライで回復）
+slog.Error(...) // 「人間が今すぐ対応する必要がある」（バグ・設定不備）
+// ★ 全部Errorにすると、アラートが機能しなくなる
+</script></div>
+
+      <div class="step goog">
+        <p class="step-h">Part 3 のまとめ</p>
+        <ol>
+          <li><b class="text-lime-300">fmt の関数名は3軸の掛け算</b>。覚えるのは <span class="k">Printf</span> / <span class="k">Sprintf</span> / <span class="k">Println</span> / <span class="k">Errorf</span> の4つ</li>
+          <li><b class="text-lime-300">デバッグは <span class="k">%+v</span>、ネストは <span class="k">json.MarshalIndent</span>、テストの期待値は <span class="k">%#v</span></b></li>
+          <li><b class="text-lime-300">外部入力を含むエラーメッセージは <span class="k">%q</span></b>（空文字が見える）</li>
+          <li><b class="text-lime-300">エラーのラップは <span class="k">%w</span></b>。<span class="k">%v</span> にすると型情報が失われる</li>
+          <li><b class="text-lime-300">組み込み <span class="k">println</span> は使わない</b>。<span class="k">go vet</span> と <span class="k">forbidigo</span> で機械的に防ぐ</li>
+          <li><b class="text-lime-300">本番のログは slog（構造化）</b>。値は文に埋めず、フィールドに置く</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ===== 付録 ===== -->
+    <section id="cheat" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">付</span> チートシート / 落とし穴12選</h2>
+
+      <div class="step note">
+        <p class="step-h">1画面チートシート</p>
+        <div class="cb" data-lang="go" data-cap="これだけ覚えれば実務は回る"><script type="text/plain">
+// ===== 値とポインタ =====
+u := User{ID: 1}          // 値（実体）
+p := &u                   // ポインタ（住所）
+v := *p                   // デリファレンス（実体を取り出す）
+p.ID                      // 自動で (*p).ID になる
+p := &User{ID: 1}         // 生成 + アドレス取得（実務で最頻出）
+
+// レシーバ: 状態を変える or 大きい or Mutexを含む → ポインタ。それ以外は値
+func (u *User) Rename(s string) { u.Name = s }  // 変更する → ポインタ
+func (u User) Label() string    { return u.Name } // 読むだけ → 値
+// ★ 1つの型ではレシーバを統一する
+
+// ===== ゼロ値・nil =====
+var u User                // ゼロ値（nilにならない・安全）
+var p *User               // nil（アクセスでpanic）
+var s []int               // nilスライス（len/range/appendは安全 / JSONはnull）
+s := []int{}              // 空スライス（JSONは[]）★ APIレスポンスはこちら
+var m map[string]int      // nil map（★ 読めるが書くとpanic）
+m = make(map[string]int)  // 初期化してから書く
+seen := map[string]struct{}{}  // set の定石
+done := make(chan struct{})    // シグナルの定石（close で全員に通知）
+
+// error は必ず error 型で返す（具体型で返すと nil interface の罠）
+func validate() error { return nil }  // ✓
+// func validate() *MyErr { return nil } // ✗ 罠
+
+// ===== 出力 =====
+fmt.Printf("id=%d name=%q\n", id, name)   // 画面へ（%q で空文字が見える）
+msg := fmt.Sprintf("...%d...", n)          // 文字列を作る
+return fmt.Errorf("save user: %w", err)    // エラーをラップ（%w 必須）
+fmt.Printf("%+v\n", obj)                   // デバッグ（フィールド名付き）
+b, _ := json.MarshalIndent(obj, "", "  ")  // ネストしたデバッグ
+slog.InfoContext(ctx, "msg", "key", value) // 本番ログ（構造化）
+</script></div>
+      </div>
+
+      <div class="step rev">
+        <p class="step-h">落とし穴12選（レビューで探すもの）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>#</th><th>落とし穴</th><th>症状</th><th>検出方法</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><b>値レシーバで状態を変更</b></td><td>変更が反映されない（エラーなし）</td><td class="warn">レビューのみ（機械検出は困難）</td></tr>
+              <tr><td>2</td><td><b>nil map への書き込み</b></td><td>panic: assignment to entry in nil map</td><td>テスト（ゼロ値での動作確認）</td></tr>
+              <tr><td>3</td><td><b>エラーを <span class="k">_</span> で捨てる</b></td><td>後続で nil panic</td><td class="good"><span class="k">errcheck</span></td></tr>
+              <tr><td>4</td><td><b>具体型のエラーを返す</b></td><td><span class="k">err != nil</span> が常にtrue</td><td class="good"><span class="k">nilerr</span> / <span class="k">nilnil</span></td></tr>
+              <tr><td>5</td><td><b>APIレスポンスの配列が null</b></td><td>フロントで TypeError</td><td class="good">0件のE2Eテスト</td></tr>
+              <tr><td>6</td><td><b>append の戻り値を捨てる</b></td><td>追加されない</td><td class="good"><span class="k">go vet</span>（一部）</td></tr>
+              <tr><td>7</td><td><b>slice/map を持つ structのコピー</b></td><td>コピー元も変わる</td><td class="warn">レビュー / <span class="k">copylocks</span>（Mutexのみ）</td></tr>
+              <tr><td>8</td><td><b>Mutex を値でコピー</b></td><td>排他が効かない（競合）</td><td class="good"><span class="k">go vet</span>（copylocks）</td></tr>
+              <tr><td>9</td><td><b>Printf の引数の数/型ミス</b></td><td><span class="k">%!d(string=...)</span> と出る</td><td class="good"><span class="k">go vet</span></td></tr>
+              <tr><td>10</td><td><b><span class="k">String()</span> 内で <span class="k">%v</span></b></td><td>stack overflow</td><td class="warn">テスト（Println したら落ちる）</td></tr>
+              <tr><td>11</td><td><b><span class="k">make([]T, n)</span> と <span class="k">make([]T, 0, n)</span> の混同</b></td><td>先頭にゼロ値が並ぶ</td><td class="warn">テスト（len の確認）</td></tr>
+              <tr><td>12</td><td><b>デバッグ用 <span class="k">fmt.Printf</span> の残留</b></td><td>本番ログが汚れる / 機微情報の漏洩</td><td class="good"><span class="k">forbidigo</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-fuchsia-300">結論</b>: <b class="text-emerald-400">12個のうち8個は <span class="k">go vet</span> + <span class="k">golangci-lint</span> で機械的に検出できる</b>。まずCIに入れる。残り4個（値レシーバ・structコピー・String再帰・make混同）は<b class="text-slate-100">レビューとテストで守る</b>。</p>
+      </div>
+
+      <div class="step zoom">
+        <p class="step-h">関連ノート</p>
+        <ul>
+          <li><b>software-design-micro.html</b> — この知識を「設計」のレベルで使う。特に Part 3（Value Object / Entity）・Part 8（error設計・ログ）・Part 9（テスト容易性）</li>
+          <li><b>ddd-practice.html</b> — ポインタレシーバとEntityの状態変更、ゼロ値とValue Objectの関係</li>
+          <li><b>Effective Go / Go Code Review Comments</b> — Goの慣習の一次情報。レシーバの選択・エラーの扱いは必ず原典を確認する</li>
+          <li><b>Go FAQ「Why is my nil error value not equal to nil?」</b> — ch11の罠の公式説明</li>
+          <li><b>The Go Memory Model</b> — 並行実行時の可視性。<span class="k">go test -race</span> で足りない場面の理解に</li>
+        </ul>
+      </div>
+    </section>
+    <footer class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono leading-relaxed">
+      図解Go言語の基礎 — 値・ポインタ・ゼロ値・nil・出力<br>
+      Part 1: 値とポインタ（メモリレイアウト / &amp; と * / 自動デリファレンス / レシーバの選択 / slice・map・chanの参照的性質）<br>
+      Part 2: ゼロ値・nil・空（型ごとのゼロ値 / nil panic / struct{} / nilスライスとJSON / nil interfaceの罠 / 判断フロー）<br>
+      Part 3: 出力とフォーマット（fmtの直交マトリクス / %v・%+v・%#v / 組み込みprintを使わない理由 / Stringer・slog）<br>
+      付録: チートシート / 落とし穴12選（8個はlinterで自動検出できる）<br>
+      <span class="text-slate-600">関連ノート: software-design-micro.html（設計レベルでの活用） / ddd-practice.html（Entityとポインタレシーバ） / react-frontend-design.html</span>
+    </footer>
+
+  </main>
+</div>
+<button id="topBtn" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-500 text-slate-950 w-12 h-12 shadow-lg font-bold text-lg z-40" aria-label="先頭へ戻る">↑</button>
+
+<script>
+/* =========================================================
+   1. コードブロックのシンタックスハイライト（自前・依存なし）
+   div.cb[data-lang][data-cap][data-tone] の中に置いた
+   script[type=text/plain] のテキストを読み、色付けした pre に差し替える。
+   行頭の @@- / @@+ / @@! / @@* で行単位の強調を付ける。
+   ========================================================= */
+(function () {
+  const LANGS = {
+    go: {
+      kw: ['func','if','else','for','range','return','var','const','type','struct','interface',
+           'map','chan','go','defer','select','switch','case','default','break','continue',
+           'fallthrough','package','import','goto'],
+      cn: ['nil','true','false','iota'],
+      ty: ['string','int','int8','int16','int32','int64','uint','uint8','uint16','uint32','uint64',
+           'float32','float64','bool','byte','rune','error','any','uintptr','complex64','complex128'],
+      lineComment: '//'
+    },
+    sql: {
+      kw: ['SELECT','FROM','WHERE','UPDATE','SET','INSERT','INTO','VALUES','DELETE','JOIN','LEFT',
+           'RIGHT','INNER','OUTER','ON','AND','OR','NOT','NULL','ORDER','BY','GROUP','HAVING','LIMIT',
+           'OFFSET','BEGIN','COMMIT','ROLLBACK','CREATE','TABLE','INDEX','UNIQUE','PRIMARY','KEY',
+           'FOR','SHARE','LOCK','IN','AS','WITH','RETURNING','CASE','WHEN','THEN','END','EXISTS','ASC','DESC'],
+      cn: ['TRUE','FALSE'],
+      ty: ['INT','BIGINT','VARCHAR','TEXT','DATE','DATETIME','TIMESTAMP','DECIMAL','BOOLEAN'],
+      lineComment: '--',
+      upper: true
+    },
+    ts: {
+      kw: ['const','let','var','function','return','if','else','for','while','do','switch','case',
+           'default','break','continue','new','class','extends','import','export','from','as','async',
+           'await','try','catch','finally','throw','typeof','instanceof','in','of','delete','void',
+           'yield','interface','type','enum','implements','public','private','protected','readonly',
+           'static','abstract','declare','namespace','satisfies','keyof','infer','is','asserts','get','set'],
+      cn: ['null','undefined','true','false','this','super','NaN','Infinity'],
+      ty: ['string','number','boolean','any','unknown','never','void','object','symbol','bigint',
+           'Array','Promise','Record','Partial','Pick','Omit','Readonly','Map','Set','Date','JSON','Math'],
+      lineComment: '//'
+    },
+    json: { kw: [], cn: ['true','false','null'], ty: [], lineComment: '//' },
+    bash: { kw: ['if','then','fi','for','do','done','export','echo','cd','function'], cn: [], ty: [], lineComment: '#' },
+    text: { kw: [], cn: [], ty: [], lineComment: '#' }
+  };
+  LANGS.tsx = LANGS.ts; LANGS.js = LANGS.ts; LANGS.jsx = LANGS.ts;
+  LANGS.yaml = LANGS.text; LANGS.yml = LANGS.text; LANGS.sh = LANGS.bash;
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function highlightLine(line, spec) {
+    // トークン: 行コメント / 文字列 / 数値 / 識別子 / 記号
+    const cm = spec.lineComment === '--' ? '--' : (spec.lineComment === '#' ? '#' : '\\/\\/');
+    const re = new RegExp(
+      '(' + cm + '.*$)' +                                      // 1 comment
+      '|("(?:\\\\.|[^"\\\\])*"|`[^`]*`|\'(?:\\\\.|[^\'\\\\])*\')' + // 2 string
+      '|(\\b0[xX][0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?\\b)' +   // 3 number
+      '|([A-Za-z_][A-Za-z0-9_]*)' +                            // 4 ident
+      '|([{}()\\[\\].,;:=+\\-*/%<>!&|^~?]+)',                   // 5 punct
+      'g'
+    );
+    let out = '', last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) out += esc(line.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) { out += '<span class="t-cm">' + esc(m[1]) + '</span>'; }
+      else if (m[2]) { out += '<span class="t-st">' + esc(m[2]) + '</span>'; }
+      else if (m[3]) { out += '<span class="t-nu">' + esc(m[3]) + '</span>'; }
+      else if (m[4]) {
+        const w = m[4];
+        const key = spec.upper ? w.toUpperCase() : w;
+        const next = line.slice(last).match(/^\s*\(/);
+        if (spec.kwSet.has(key)) out += '<span class="t-kw">' + esc(w) + '</span>';
+        else if (spec.cnSet.has(key)) out += '<span class="t-cn">' + esc(w) + '</span>';
+        else if (spec.tySet.has(key)) out += '<span class="t-ty">' + esc(w) + '</span>';
+        else if (next) out += '<span class="t-fn">' + esc(w) + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="t-id">' + esc(w) + '</span>';
+        else out += esc(w);
+      }
+      else { out += '<span class="t-pn">' + esc(m[5]) + '</span>'; }
+    }
+    if (last < line.length) out += esc(line.slice(last));
+    return out;
+  }
+
+  function render(block) {
+    const src = block.querySelector('script[type="text/plain"]');
+    if (!src) return;
+    const lang = (block.dataset.lang || 'go').toLowerCase();
+    const spec = Object.assign({}, LANGS[lang] || LANGS.text);
+    spec.kwSet = new Set(spec.kw); spec.cnSet = new Set(spec.cn); spec.tySet = new Set(spec.ty);
+
+    const raw = src.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    const html = raw.split('\n').map((line) => {
+      let cls = '';
+      const mk = line.slice(0, 3);
+      if (mk === '@@-') { cls = 'ln-bad'; line = line.slice(3); }
+      else if (mk === '@@+') { cls = 'ln-good'; line = line.slice(3); }
+      else if (mk === '@@!') { cls = 'ln-warn'; line = line.slice(3); }
+      else if (mk === '@@*') { cls = 'ln-focus'; line = line.slice(3); }
+      const body = lang === 'text' ? highlightLine(line, spec) : highlightLine(line, spec);
+      return '<span class="ln ' + cls + '">' + (body || '&nbsp;') + '</span>';
+    }).join('\n');
+
+    const bar = document.createElement('div');
+    bar.className = 'cb-bar';
+    const cap = block.dataset.cap ? '<span class="cb-cap">' + esc(block.dataset.cap) + '</span>' : '';
+    bar.innerHTML = '<span class="cb-lang">' + esc(lang) + '</span>' + cap;
+    const copy = document.createElement('button');
+    copy.textContent = 'copy';
+    copy.style.cssText = 'margin-left:auto;color:#64748b;border:1px solid #334155;border-radius:5px;padding:1px 7px;font-size:10px;cursor:pointer;background:transparent';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(raw.replace(/^@@[-+!*]/gm, '')).then(() => {
+        copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1200);
+      });
+    });
+    bar.appendChild(copy);
+
+    const pre = document.createElement('pre');
+    pre.innerHTML = html;
+    block.insertBefore(pre, src);
+    block.insertBefore(bar, pre);
+    src.remove();
+  }
+
+  document.querySelectorAll('.cb').forEach(render);
+})();
+
+/* =========================================================
+   2. 目次・スクロール連動・トップへ戻る
+   ========================================================= */
+(function () {
+  const toc = document.getElementById('toc');
+  const btn = document.getElementById('tocBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('hidden');
+      toc.classList.toggle('block');
+    });
+  }
+  const links = [...document.querySelectorAll('#tocNav a')];
+  links.forEach((a) => {
+    a.addEventListener('click', () => {
+      if (window.innerWidth < 1024) { toc.classList.add('hidden'); toc.classList.remove('block'); }
+    });
+  });
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => l.classList.remove('active'));
+        const active = links.find((l) => l.getAttribute('href') === '#' + e.target.id);
+        if (active) {
+          active.classList.add('active');
+          const r = active.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            active.scrollIntoView({ block: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach((s) => observer.observe(s));
+
+  const topBtn = document.getElementById('topBtn');
+  window.addEventListener('scroll', () => {
+    topBtn.classList.toggle('hidden', window.scrollY < 600);
+  });
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>

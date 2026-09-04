@@ -1,0 +1,1558 @@
+<!doctype html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>図解データモデル選定 — リレーショナル / ドキュメント / グラフ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] } } }
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .chapter { @apply scroll-mt-20 mb-20 pb-8 border-b border-slate-800; }
+    .ch-h { @apply text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3 mb-4 leading-tight; }
+    .ch-n { @apply shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-slate-800 text-sky-400 font-mono text-lg; }
+    .part-h { @apply mt-24 mb-10 rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-950 px-6 py-7 scroll-mt-20; }
+    .part-h p.eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.25em] text-sky-400 mb-2; }
+    .part-h h2 { @apply text-2xl sm:text-4xl font-bold text-slate-50 leading-tight mb-3; }
+    .part-h p.sub { @apply text-slate-400 leading-relaxed max-w-3xl; }
+    .lede { @apply text-slate-400 mb-6 leading-relaxed; }
+    .metaphor { @apply rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 text-amber-100 leading-relaxed; }
+    .metaphor b { @apply text-amber-300; }
+    .step { @apply rounded-xl border px-5 py-4 mb-4; }
+    .step-h { @apply font-mono text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2; }
+    /* 10ステップの色分け */
+    .prob { @apply border-rose-500/40 bg-rose-500/5; }
+    .prob .step-h { @apply text-rose-400; }
+    .naive { @apply border-orange-500/40 bg-orange-500/5; }
+    .naive .step-h { @apply text-orange-400; }
+    .why { @apply border-amber-500/40 bg-amber-500/5; }
+    .why .step-h { @apply text-amber-400; }
+    .principle { @apply border-teal-500/40 bg-teal-500/5; }
+    .principle .step-h { @apply text-teal-400; }
+    .sol { @apply border-emerald-500/40 bg-emerald-500/5; }
+    .sol .step-h { @apply text-emerald-400; }
+    .ba { @apply border-sky-500/40 bg-sky-500/5; }
+    .ba .step-h { @apply text-sky-400; }
+    .impact { @apply border-indigo-500/40 bg-indigo-500/5; }
+    .impact .step-h { @apply text-indigo-400; }
+    .trade { @apply border-violet-500/40 bg-violet-500/5; }
+    .trade .step-h { @apply text-violet-400; }
+    .over { @apply border-dashed border-slate-500 bg-slate-800/40; }
+    .over .step-h { @apply text-slate-300; }
+    .rev { @apply border-fuchsia-500/40 bg-fuchsia-500/5; }
+    .rev .step-h { @apply text-fuchsia-400; }
+    /* 補助ブロック */
+    .zoom { @apply border-cyan-500/40 bg-cyan-500/5; }
+    .zoom .step-h { @apply text-cyan-400; }
+    .goog { @apply border-lime-500/40 bg-lime-500/5; }
+    .goog .step-h { @apply text-lime-400; }
+    .note { @apply border-slate-600 bg-slate-900; }
+    .note .step-h { @apply text-slate-400; }
+    .step p { @apply text-slate-300 leading-relaxed; }
+    .step ul { @apply list-disc pl-5 space-y-1.5 text-slate-300; }
+    .step ol { @apply list-decimal pl-5 space-y-1.5 text-slate-300; }
+    .step ul ul, .step ol ul { @apply mt-1.5; }
+    .fig { @apply my-4 rounded-xl border border-slate-700 bg-slate-900 p-3 overflow-x-auto; }
+    .fig svg { @apply w-full h-auto min-w-[700px]; }
+    .figcap { @apply mt-2 text-xs text-slate-400 font-mono px-1; }
+    .tbl { @apply my-3 overflow-x-auto rounded-xl border border-slate-700; }
+    .tbl table { @apply w-full text-sm border-collapse min-w-[640px]; }
+    .tbl th { @apply bg-slate-800 text-left px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400; }
+    .tbl td { @apply border-t border-slate-800 px-3 py-2 align-top text-slate-300; }
+    .tbl tr:hover td { @apply bg-slate-800/40; }
+    .k { @apply font-mono text-[13px] px-1.5 py-0.5 rounded bg-slate-800 text-sky-300; }
+    .good { @apply text-emerald-400 font-semibold; }
+    .bad { @apply text-rose-400 font-semibold; }
+    .warn { @apply text-amber-400 font-semibold; }
+    .toc-a { @apply block px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition; }
+    .toc-a.active { @apply bg-sky-500/15 text-sky-300 font-semibold; }
+    .toc-grp { @apply px-3 pt-4 pb-1 font-mono text-[10px] uppercase tracking-widest text-slate-500; }
+    .qa { @apply rounded-xl border border-slate-700 bg-slate-900 mb-3 overflow-hidden; }
+    .qa summary { @apply cursor-pointer px-5 py-4 font-semibold text-slate-100 hover:bg-slate-800/60 flex gap-3 items-start; }
+    .qa .ans { @apply px-5 pb-5 pt-1 text-slate-300 leading-relaxed border-t border-slate-800; }
+    .kv { @apply grid sm:grid-cols-2 gap-3 my-3; }
+    .kvi { @apply rounded-xl border border-slate-700 bg-slate-900 p-4; }
+    .kvi > p:first-child { @apply font-mono text-[11px] text-sky-400 mb-1; }
+    .kvi > p:last-child { @apply text-sm text-slate-300 leading-relaxed; }
+    .flow { @apply my-4 rounded-xl border border-slate-700 bg-[#0b1220] p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-slate-300 whitespace-pre; }
+  }
+</style>
+<style>
+  /* ===== コードブロック（自前ハイライタ） ===== */
+  .cb { margin: 0.9rem 0; border-radius: 0.75rem; border: 1px solid #334155; background: #0b1220; overflow: hidden; }
+  .cb-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.8rem; background: #111c31; border-bottom: 1px solid #1f2c45;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.04em; }
+  .cb-lang { color: #7dd3fc; text-transform: uppercase; font-weight: 700; }
+  .cb-cap { color: #94a3b8; }
+  .cb[data-tone="bad"] { border-color: rgba(244,63,94,.45); }
+  .cb[data-tone="bad"] .cb-bar { background: rgba(244,63,94,.10); border-bottom-color: rgba(244,63,94,.3); }
+  .cb[data-tone="bad"] .cb-cap { color: #fda4af; }
+  .cb[data-tone="good"] { border-color: rgba(16,185,129,.45); }
+  .cb[data-tone="good"] .cb-bar { background: rgba(16,185,129,.10); border-bottom-color: rgba(16,185,129,.3); }
+  .cb[data-tone="good"] .cb-cap { color: #6ee7b7; }
+  .cb[data-tone="warn"] { border-color: rgba(245,158,11,.45); }
+  .cb[data-tone="warn"] .cb-bar { background: rgba(245,158,11,.10); border-bottom-color: rgba(245,158,11,.3); }
+  .cb[data-tone="warn"] .cb-cap { color: #fcd34d; }
+  .cb pre { margin: 0; padding: 0.85rem 0.9rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.65; color: #cbd5e1; white-space: pre; }
+  .cb .ln { display: block; padding: 0 0.9rem; margin: 0 -0.9rem; }
+  .cb .ln-bad { background: rgba(244,63,94,.13); box-shadow: inset 3px 0 0 #f43f5e; }
+  .cb .ln-good { background: rgba(16,185,129,.13); box-shadow: inset 3px 0 0 #10b981; }
+  .cb .ln-warn { background: rgba(245,158,11,.13); box-shadow: inset 3px 0 0 #f59e0b; }
+  .cb .ln-focus { background: rgba(56,189,248,.13); box-shadow: inset 3px 0 0 #38bdf8; }
+  .t-cm { color: #64748b; }
+  .t-st { color: #86efac; }
+  .t-kw { color: #f472b6; }
+  .t-cn { color: #e879f9; }
+  .t-ty { color: #38bdf8; }
+  .t-id { color: #7dd3fc; }
+  .t-fn { color: #fde047; }
+  .t-nu { color: #fb923c; }
+  .t-pn { color: #94a3b8; }
+  .t-tag { color: #f9a8d4; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased">
+
+<div class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+  <button id="tocBtn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-mono text-slate-300">☰ 目次</button>
+  <span class="text-sm font-bold text-slate-100 truncate">図解データモデル選定</span>
+</div>
+
+<div class="lg:grid lg:grid-cols-[300px_minmax(0,1fr)]">
+
+  <aside id="toc" class="hidden lg:block lg:sticky lg:top-0 lg:h-screen overflow-y-auto border-r border-slate-800 bg-slate-900/60 px-3 py-6">
+    <div class="px-3 mb-4">
+      <p class="font-mono text-[10px] uppercase tracking-widest text-sky-400">Data Models · DDIA Ch2 · 図解</p>
+      <p class="text-lg font-bold text-slate-100 leading-tight mt-1">図解データモデル選定</p>
+      <p class="text-xs text-slate-500 mt-1">リレーショナル / ドキュメント / グラフ</p>
+    </div>
+    <nav id="tocNav">
+      <a class="toc-a" href="#intro">00 はじめに — 「なぜそのDBか」</a>
+      <a class="toc-a" href="#map">00.5 全体地図</a>
+
+      <div class="toc-grp">Part 1 リレーショナル</div>
+      <a class="toc-a" href="#ch1">01 得意なこと・苦手なこと</a>
+      <a class="toc-a" href="#ch2">02 苦手が顕在化する3つの形</a>
+
+      <div class="toc-grp">Part 2 ドキュメントモデル</div>
+      <a class="toc-a" href="#ch3">03 本質 — 一緒に読み書きするものを1塊に</a>
+      <a class="toc-a" href="#ch4">04 EC注文で比較する</a>
+      <a class="toc-a" href="#ch5">05 実際に使われる場面</a>
+      <a class="toc-a" href="#ch6">06 トレードオフ（正直な評価）</a>
+
+      <div class="toc-grp">Part 3 グラフモデル</div>
+      <a class="toc-a" href="#ch7">07 本質 — 繋がり自体がデータ</a>
+      <a class="toc-a" href="#ch8">08 再帰JOINの爆発 vs Cypher</a>
+      <a class="toc-a" href="#ch9">09 実際に使われる場面 / トレードオフ</a>
+
+      <div class="toc-grp">Part 4 その他のモデル</div>
+      <a class="toc-a" href="#ch10">10 KVS / 列指向 / 時系列 / 全文検索</a>
+
+      <div class="toc-grp">Part 5 選定と実務</div>
+      <a class="toc-a" href="#ch11">11 選定基準と見分け方の問い</a>
+      <a class="toc-a" href="#ch12">12 ポリグロット・パーシステンス</a>
+      <a class="toc-a" href="#ch13">13 read/write の誤解</a>
+      <a class="toc-a" href="#ch14">14 面接での答え方 / 予約システムへの当てはめ</a>
+
+      <div class="toc-grp">付録</div>
+      <a class="toc-a" href="#cheat">チートシート</a>
+    </nav>
+  </aside>
+
+  <main class="min-w-0 px-4 sm:px-8 lg:px-12 py-10 max-w-[1180px]">
+
+    <header class="mb-14">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-sky-400 mb-3">Data Models · DDIA Ch2 · 図解版</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-50 leading-tight mb-5">図解データモデル選定<br><span class="text-slate-400 text-2xl sm:text-3xl">リレーショナル / ドキュメント / グラフ</span></h1>
+      <p class="text-slate-400 max-w-3xl leading-relaxed">この教材のゴールは1つ。<b class="text-emerald-400">「なぜそのストレージを選んだか」を説明できるようになること</b>。<br>
+      システムデザイン面接で「Twitterを設計してください」と言われたとき、<span class="bad">「全部PostgreSQLでいいです」</span>は説明になっていない回答。<span class="good">「ツイートはアクセスパターンがこうなのでドキュメントDB、タイムラインはこうなのでRedisでキャッシュ…」</span>が説明できている回答。<b class="text-slate-200">DDIA Ch2 は、この差を埋めるための語彙を作る章</b>である。</p>
+      <div class="mt-6 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張1</p><p class="text-sm text-slate-300"><b class="text-slate-100">リレーショナルは万能ではない</b>。ただし<b class="text-emerald-400">「万能に近い」ので、まず疑うべきは自分の設計</b>。9割のケースでRDBが正解である。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張2</p><p class="text-sm text-slate-300">選択の基準は「データの形」ではなく<b class="text-slate-100">「アクセスパターン」</b>。同じデータでも、どう読み書きするかでモデルが変わる。</p></div>
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-4"><p class="font-mono text-[11px] text-sky-400 mb-1">主張3</p><p class="text-sm text-slate-300"><b class="text-rose-400">「ドキュメントDBはread専用」は誤解</b>。read/write両対応。read用途が多く見えるのは、キャッシュ的に使うアーキテクチャが多いから。</p></div>
+      </div>
+    </header>
+
+    <section id="intro" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00</span> はじめに — なぜこれを知る必要があるか</h2>
+      <p class="lede">実務でDBを選び直す機会は稀だ。<b class="text-emerald-400">それでもこの知識が必要な理由は3つ</b>ある。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">この知識が実務で効く3つの場面</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="320" height="325" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="190" y="80" fill="#bae6fd" font-size="12.5" font-weight="bold" text-anchor="middle">場面1: 設計レビュー</text>
+            <text x="46" y="108" fill="#7dd3fc">「なぜPostgreSQLですか？」</text>
+            <text x="46" y="132" fill="#e2e8f0">×「みんな使っているから」</text>
+            <text x="46" y="152" fill="#e2e8f0">×「一番慣れているから」</text>
+            <text x="46" y="176" fill="#4ade80">○「データが正規化でき、複数テーブルの</text>
+            <text x="62" y="192" fill="#bbf7d0">　JOINと集計が必要で、予約と在庫の</text>
+            <text x="62" y="208" fill="#bbf7d0">　トランザクション整合性が要件だからです。</text>
+            <text x="62" y="224" fill="#bbf7d0">　ドキュメントDBだと在庫の整合性を</text>
+            <text x="62" y="240" fill="#bbf7d0">　自前で担保する必要が出ます」</text>
+            <text x="46" y="270" fill="#38bdf8">得られるもの:</text>
+            <text x="46" y="290" fill="#e0f2fe">・選択の根拠が記録される（ADR）</text>
+            <text x="46" y="310" fill="#e0f2fe">・「他のモデルでは解決できない理由」が</text>
+            <text x="62" y="326" fill="#e0f2fe">　言えると、設計の深さが伝わる</text>
+            <text x="46" y="352" fill="#fbbf24">★ 「知っていて選ばなかった」と</text>
+            <text x="46" y="368" fill="#fde68a">　 「知らなかった」は全く違う</text>
+
+            <rect x="360" y="55" width="320" height="325" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="520" y="80" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">場面2: 「RDBが辛い」の診断</text>
+            <text x="376" y="108" fill="#86efac">症状:</text>
+            <text x="376" y="128" fill="#e2e8f0">・1画面のために5テーブルJOIN</text>
+            <text x="376" y="148" fill="#e2e8f0">・カラムが増え続ける（30列超）</text>
+            <text x="376" y="168" fill="#e2e8f0">・nullableカラムばかり</text>
+            <text x="376" y="188" fill="#e2e8f0">・「〇〇の〇〇の〇〇」を辿るSQL</text>
+            <text x="376" y="208" fill="#e2e8f0">・JSON型カラムが増えてきた</text>
+            <text x="376" y="236" fill="#4ade80">診断:</text>
+            <text x="376" y="256" fill="#bbf7d0">・多くは「設計が悪い」（正規化 or</text>
+            <text x="392" y="272" fill="#bbf7d0">　index or CQRSの不足）</text>
+            <text x="376" y="292" fill="#bbf7d0">・一部は「モデルが合っていない」</text>
+            <text x="376" y="318" fill="#fbbf24">★ この2つを区別できることが重要。</text>
+            <text x="376" y="336" fill="#fde68a">　 「RDBが辛いからMongoDBに移行」は</text>
+            <text x="376" y="352" fill="#fde68a">　 大抵、設計の問題を移動させるだけ</text>
+            <text x="376" y="372" fill="#f87171">　（そして新しい問題が増える）</text>
+
+            <rect x="690" y="55" width="320" height="325" rx="10" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="850" y="80" fill="#ede9fe" font-size="12.5" font-weight="bold" text-anchor="middle">場面3: システムデザイン面接</text>
+            <text x="706" y="108" fill="#c4b5fd">問われること:</text>
+            <text x="706" y="128" fill="#e2e8f0">「Twitterを設計してください」</text>
+            <text x="706" y="148" fill="#e2e8f0">「Instagramのフィードを設計して」</text>
+            <text x="706" y="168" fill="#e2e8f0">「Uberのマッチングを設計して」</text>
+            <text x="706" y="196" fill="#a78bfa">評価されるポイント:</text>
+            <text x="706" y="216" fill="#ddd6fe">・アクセスパターンを先に整理したか</text>
+            <text x="706" y="236" fill="#ddd6fe">・「なぜそのストレージか」を言えたか</text>
+            <text x="706" y="256" fill="#ddd6fe">・トレードオフを認識しているか</text>
+            <text x="706" y="276" fill="#ddd6fe">・1つのDBに全部載せていないか</text>
+            <text x="706" y="304" fill="#f87171">×「全部PostgreSQLで」</text>
+            <text x="722" y="320" fill="#fca5a5">→ 説明になっていない回答</text>
+            <text x="706" y="342" fill="#4ade80">○「書き込みはこう、読み取りはこう、</text>
+            <text x="722" y="358" fill="#bbf7d0">　だからここはKVS、ここは検索エンジン」</text>
+            <text x="722" y="374" fill="#bbf7d0">　→ 説明できている回答</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-1 3つの場面。特に場面2（診断）が実務で最も頻繁に必要になる。</p>
+      </div>
+    </section>
+
+    <section id="map" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">00.5</span> 全体地図 — 3つのモデルと、その本質</h2>
+      <p class="lede">まず1枚で全体を掴む。<b class="text-emerald-400">各モデルは「何を1塊として扱うか」が違う</b>だけである。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1060 560" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1060" height="560" fill="#0f172a" rx="10"/>
+          <text x="530" y="30" fill="#e2e8f0" font-size="16" font-weight="bold" text-anchor="middle">3モデル — 「何を1塊として扱うか」の違い</text>
+          <defs><marker id="dm0" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L8,2.5 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10">
+            <!-- リレーショナル -->
+            <rect x="20" y="50" width="330" height="230" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="185" y="74" fill="#bae6fd" font-size="12.5" font-weight="bold" text-anchor="middle">リレーショナル</text>
+            <text x="185" y="92" fill="#7dd3fc" font-size="9.5" text-anchor="middle">1塊 = 「行」／関係はJOINで作る</text>
+            <rect x="40" y="104" width="130" height="34" rx="4" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="52" y="118" fill="#e0f2fe" font-size="9">orders</text>
+            <text x="52" y="132" fill="#94a3b8" font-size="8.5">id, user_id, created_at</text>
+            <rect x="190" y="104" width="140" height="34" rx="4" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="202" y="118" fill="#e0f2fe" font-size="9">order_items</text>
+            <text x="202" y="132" fill="#94a3b8" font-size="8.5">id, order_id, name, qty</text>
+            <rect x="40" y="146" width="130" height="34" rx="4" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="52" y="160" fill="#e0f2fe" font-size="9">shipping_addr</text>
+            <text x="52" y="174" fill="#94a3b8" font-size="8.5">order_id, pref, city</text>
+            <rect x="190" y="146" width="140" height="34" rx="4" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="202" y="160" fill="#e0f2fe" font-size="9">coupons_used</text>
+            <text x="202" y="174" fill="#94a3b8" font-size="8.5">order_id, code, discount</text>
+            <line x1="105" y1="140" x2="105" y2="144" stroke="#94a3b8"/>
+            <line x1="170" y1="121" x2="188" y2="121" stroke="#94a3b8" stroke-width="1" marker-end="url(#dm0)"/>
+            <text x="36" y="204" fill="#4ade80" font-size="9.5">得意: 正規化・JOIN・集計・トランザクション</text>
+            <text x="36" y="222" fill="#f87171" font-size="9.5">苦手: 可変構造・入れ子・多段の関係辿り</text>
+            <text x="36" y="244" fill="#fbbf24" font-size="9.5">★ 1注文を表示するのに4テーブルJOIN</text>
+            <text x="36" y="264" fill="#fde68a" font-size="9.5">　（それが問題になるかは規模とパターン次第）</text>
+
+            <!-- ドキュメント -->
+            <rect x="365" y="50" width="330" height="230" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="530" y="74" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">ドキュメント</text>
+            <text x="530" y="92" fill="#86efac" font-size="9.5" text-anchor="middle">1塊 = 「入れ子の文書」／JOINしない</text>
+            <rect x="385" y="104" width="290" height="106" rx="4" fill="#0b1220" stroke="#4ade80"/>
+            <text x="397" y="120" fill="#bbf7d0" font-size="9">{</text>
+            <text x="405" y="134" fill="#e2e8f0" font-size="9">"order_id": "abc123",</text>
+            <text x="405" y="148" fill="#e2e8f0" font-size="9">"items": [{ "name": "Tシャツ", "qty": 2 }],</text>
+            <text x="405" y="162" fill="#e2e8f0" font-size="9">"shipping": { "pref": "東京都" },</text>
+            <text x="405" y="176" fill="#e2e8f0" font-size="9">"coupon": { "code": "SALE10" }</text>
+            <text x="397" y="192" fill="#bbf7d0" font-size="9">}</text>
+            <text x="405" y="206" fill="#4ade80" font-size="8.5">★ 1回の読み取りで全部揃う</text>
+            <text x="381" y="230" fill="#4ade80" font-size="9.5">得意: 一緒に読むデータ・可変スキーマ</text>
+            <text x="381" y="248" fill="#f87171" font-size="9.5">苦手: 横断集計・多対多・部分更新の競合</text>
+            <text x="381" y="268" fill="#fbbf24" font-size="9.5">★ 「Aggregate単位で読む」= DDDと同型</text>
+
+            <!-- グラフ -->
+            <rect x="710" y="50" width="330" height="230" rx="10" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="875" y="74" fill="#ede9fe" font-size="12.5" font-weight="bold" text-anchor="middle">グラフ</text>
+            <text x="875" y="92" fill="#c4b5fd" font-size="9.5" text-anchor="middle">1塊 = 「ノードとエッジ」／関係が主役</text>
+            <circle cx="770" cy="130" r="16" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="770" y="134" fill="#f5d0fe" font-size="8.5" text-anchor="middle">A</text>
+            <circle cx="860" cy="120" r="16" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="860" y="124" fill="#f5d0fe" font-size="8.5" text-anchor="middle">B</text>
+            <circle cx="950" cy="145" r="16" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="950" y="149" fill="#f5d0fe" font-size="8.5" text-anchor="middle">C</text>
+            <circle cx="855" cy="185" r="16" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="855" y="189" fill="#f5d0fe" font-size="8.5" text-anchor="middle">D</text>
+            <line x1="786" y1="127" x2="844" y2="121" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#dm0)"/>
+            <line x1="876" y1="124" x2="934" y2="140" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#dm0)"/>
+            <line x1="857" y1="136" x2="856" y2="169" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#dm0)"/>
+            <line x1="781" y1="143" x2="841" y2="180" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#dm0)"/>
+            <text x="800" y="115" fill="#c4b5fd" font-size="8">FRIEND</text>
+            <text x="726" y="216" fill="#4ade80" font-size="9.5">得意: 多段の関係辿り・経路探索・推薦</text>
+            <text x="726" y="234" fill="#f87171" font-size="9.5">苦手: 大量の集計・単純なCRUD・運用の知見</text>
+            <text x="726" y="254" fill="#fbbf24" font-size="9.5">★ エッジにも属性を持てる（距離・重み・日時）</text>
+            <text x="726" y="272" fill="#fde68a" font-size="9.5">　 = 「関係そのものにデータがある」</text>
+
+            <!-- 選定 -->
+            <rect x="20" y="300" width="1020" height="105" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="36" y="326" fill="#dcfce7" font-size="12.5" font-weight="bold">選定基準（3行）</text>
+            <text x="36" y="352" fill="#bbf7d0">・構造が決まっていて整合性が重要　　　　　　　　　　　　→ <tspan font-weight="bold">リレーショナル</tspan>（PostgreSQL / MySQL）</text>
+            <text x="36" y="374" fill="#bbf7d0">・形が行ごとに違う、または入れ子で一緒に読み書きしたい　→ <tspan font-weight="bold">ドキュメント</tspan>（MongoDB / Firestore / DynamoDB）</text>
+            <text x="36" y="396" fill="#bbf7d0">・「AとBの繋がり」自体が重要で、何段階も辿る　　　　　→ <tspan font-weight="bold">グラフ</tspan>（Neo4j / Amazon Neptune）</text>
+
+            <rect x="20" y="425" width="1020" height="120" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="36" y="451" fill="#fef3c7" font-size="12.5" font-weight="bold">★ 最重要の前提: まずリレーショナルを疑わない</text>
+            <text x="36" y="477" fill="#fde68a">・PostgreSQLは JSONB（ドキュメント的）・配列・全文検索・再帰CTE（グラフ的）を全部持っている</text>
+            <text x="36" y="499" fill="#fde68a">・「ドキュメントDBが欲しい」と思ったら、まず <tspan font-weight="bold">JSONB カラム</tspan> で足りないかを検討する</text>
+            <text x="36" y="521" fill="#fde68a">・「グラフDBが欲しい」と思ったら、まず <tspan font-weight="bold">再帰CTE（WITH RECURSIVE）</tspan> で足りないかを検討する</text>
+            <text x="36" y="539" fill="#4ade80">★ DBを増やすと、運用・監視・バックアップ・整合性の担保が全部増える。増やす判断は重い。</text>
+          </g>
+        </svg>
+        <p class="figcap">図0-2 3モデルの本質と選定基準。ただし実務では「まずRDBで足りないか」を必ず先に検討する。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part1">
+      <p class="eyebrow">Part 1</p>
+      <h2>リレーショナルの得意・苦手</h2>
+      <p class="sub">他のモデルを理解するには、まず<b class="text-emerald-400">リレーショナルが何を得意とし、どこで苦しくなるか</b>を正確に知る必要がある。<b class="text-slate-200">「苦しくなる」の中身が、他のモデルが存在する理由そのもの</b>だから。</p>
+    </div>
+
+    <section id="ch1" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">01</span> 得意なこと・苦手なこと</h2>
+
+      <div class="step principle">
+        <p class="step-h">④ 得意 / 苦手の整理</p>
+        <div class="kv">
+          <div class="kvi"><p class="text-emerald-400">得意1: 構造が決まっていて正規化できるデータ</p><p>スキーマで型・NOT NULL・一意制約・外部キーを強制できる。<b class="text-slate-100">「不正なデータが入らない」ことをDBが保証する</b>。アプリのバグに対する最後の防衛線になる。</p></div>
+          <div class="kvi"><p class="text-emerald-400">得意2: 複雑なJOINや集計</p><p>「今月の施設別・プラン別の売上を、キャンセル分を除いて集計」がSQL 1本で書ける。<b class="text-slate-100">これを他のモデルでやると、アプリ側で全件走査するかETLが必要になる</b>。</p></div>
+          <div class="kvi"><p class="text-emerald-400">得意3: トランザクション・整合性</p><p>「予約を作り、在庫を減らす」を全部か無かで実行できる。<b class="text-emerald-400">これがある/ないで、アプリの複雑性が桁違いに変わる</b>（補償トランザクションが不要になる）。</p></div>
+          <div class="kvi"><p class="text-rose-400">苦手1: 行ごとに構造が異なるデータ</p><p>カラムが可変。「商品タイプごとに属性が全然違う」場合、①全属性を nullable カラムで持つ ②EAV（属性テーブル）③JSON型 のいずれかになり、どれも綺麗ではない。</p></div>
+          <div class="kvi"><p class="text-rose-400">苦手2: 入れ子構造・ツリー構造の読み書き</p><p>「1注文 = 明細 + 配送先 + クーポン + 決済」を1画面に出すのに4〜6テーブルJOIN。<b class="text-slate-300">読めるが、モデルとコードの距離が遠い</b>。</p></div>
+          <div class="kvi"><p class="text-rose-400">苦手3: 「繋がり」自体が重要なデータ</p><p>「友達の友達の友達」を辿るのに再帰JOIN。<b class="text-rose-400">3段階で SQL が爆発的に複雑になり、性能も予測不能になる</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">補足 — 現代のPostgreSQLは「苦手」の多くを埋めている</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>苦手</th><th>PostgreSQLの機能</th><th>どこまで代替できるか</th></tr></thead>
+            <tbody>
+              <tr><td>可変構造</td><td><span class="k">JSONB</span> カラム + GINインデックス</td><td class="good">かなり代替できる。<b>スキーマがある部分は列、可変部分はJSONBに置くハイブリッドが実用的</b></td></tr>
+              <tr><td>入れ子構造</td><td><span class="k">JSONB</span> / 配列型 / <span class="k">json_agg</span></td><td class="good">読み取りは <span class="k">json_agg</span> で1クエリにまとめられる。<b>「4テーブルJOINして1つのJSONを返す」が可能</b></td></tr>
+              <tr><td>ツリー・グラフ</td><td><span class="k">WITH RECURSIVE</span>（再帰CTE）/ <span class="k">ltree</span></td><td class="warn">数段の階層なら実用的。<b class="text-amber-400">ただし「6ホップ先を最短経路で」のような探索は厳しい</b></td></tr>
+              <tr><td>全文検索</td><td><span class="k">tsvector</span> / <span class="k">pg_trgm</span></td><td class="warn">日本語は形態素解析が必要（<span class="k">pgroonga</span> など）。<b>大規模ならElasticsearchに分離</b></td></tr>
+              <tr><td>時系列</td><td>パーティショニング / TimescaleDB拡張</td><td class="good">パーティショニングで十分な場合が多い</td></tr>
+              <tr><td>KVS的な高速read</td><td><span class="k">UNLOGGED TABLE</span> / index-only scan</td><td class="bad">Redisには及ばない（メモリ vs ディスク）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-teal-300">実務的な結論</b>: <b class="text-emerald-400">「PostgreSQL + 必要になったらRedis/Elasticsearch」でほとんどのサービスが成立する</b>。MongoDBやNeo4jを最初から選ぶのは、明確な理由があるときだけ。<b class="text-slate-300">ただし「知らないから選ばない」と「知っていて選ばない」は違う</b> — 以降の章はその区別のためにある。</p>
+      </div>
+    </section>
+
+    <section id="ch2" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">02</span> 苦手が顕在化する3つの形</h2>
+      <p class="lede">「RDBが辛い」と感じたとき、それが<b class="text-emerald-400">設計の問題なのか、モデルの問題なのか</b>を判別する。<b class="text-rose-400">9割は設計の問題</b>である。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">「RDBが辛い」の3つの原因を切り分ける</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="320" height="410" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="190" y="76" fill="#fef3c7" font-size="12.5" font-weight="bold" text-anchor="middle">原因A: 設計の問題（9割）</text>
+            <text x="46" y="104" fill="#fcd34d">症状:</text>
+            <text x="46" y="124" fill="#e2e8f0">・1画面で5テーブルJOIN</text>
+            <text x="46" y="144" fill="#e2e8f0">・一覧APIが遅い（N+1）</text>
+            <text x="46" y="164" fill="#e2e8f0">・カラムが30列を超えた</text>
+            <text x="46" y="184" fill="#e2e8f0">・nullableカラムばかり</text>
+            <text x="46" y="212" fill="#4ade80">実際の原因:</text>
+            <text x="46" y="232" fill="#bbf7d0">・indexがない / 効いていない</text>
+            <text x="46" y="252" fill="#bbf7d0">・Aggregate経由で一覧を作っている</text>
+            <text x="62" y="268" fill="#86efac" font-size="9.5">→ CQRSでQuery側を分ける</text>
+            <text x="46" y="288" fill="#bbf7d0">・正規化しすぎ / 足りない</text>
+            <text x="46" y="308" fill="#bbf7d0">・1テーブルに複数の概念が同居</text>
+            <text x="62" y="324" fill="#86efac" font-size="9.5">→ 「商品」と「オプション」を分ける</text>
+            <text x="46" y="344" fill="#bbf7d0">・非正規化（集計列）を使っていない</text>
+            <text x="46" y="372" fill="#f87171">対処:</text>
+            <text x="46" y="392" fill="#fca5a5">EXPLAIN を見る → index → クエリの見直し</text>
+            <text x="46" y="412" fill="#fca5a5">→ 読み取り専用のView/集計テーブル</text>
+            <text x="46" y="436" fill="#fbbf24">★ ここでDBを変えると、</text>
+            <text x="46" y="452" fill="#fde68a">　 同じ問題が新しいDBで再発する</text>
+
+            <rect x="360" y="50" width="320" height="410" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="520" y="76" fill="#bae6fd" font-size="12.5" font-weight="bold" text-anchor="middle">原因B: 規模の問題</text>
+            <text x="376" y="104" fill="#7dd3fc">症状:</text>
+            <text x="376" y="124" fill="#e2e8f0">・書き込みが秒間数千を超えた</text>
+            <text x="376" y="144" fill="#e2e8f0">・単一テーブルが数億行</text>
+            <text x="376" y="164" fill="#e2e8f0">・特定の行に更新が集中（ホットスポット）</text>
+            <text x="376" y="184" fill="#e2e8f0">・レプリカ遅延が問題になる</text>
+            <text x="376" y="212" fill="#4ade80">対処の順序:</text>
+            <text x="376" y="232" fill="#bbf7d0">1. index / クエリの最適化</text>
+            <text x="376" y="252" fill="#bbf7d0">2. 読み取りをリードレプリカへ</text>
+            <text x="376" y="272" fill="#bbf7d0">3. キャッシュ層（Redis）を追加</text>
+            <text x="376" y="292" fill="#bbf7d0">4. パーティショニング（日付・施設ID）</text>
+            <text x="376" y="312" fill="#bbf7d0">5. シャーディング（水平分割）</text>
+            <text x="376" y="332" fill="#bbf7d0">6. 用途別にストレージを分離</text>
+            <text x="376" y="360" fill="#fbbf24">★ この順序を飛ばさない。</text>
+            <text x="376" y="378" fill="#fde68a">　 1〜3で解決するケースが大半</text>
+            <text x="376" y="404" fill="#38bdf8">関連ノート:</text>
+            <text x="376" y="424" fill="#e0f2fe" font-size="9.5">partitioning-system-design.html</text>
+            <text x="376" y="440" fill="#e0f2fe" font-size="9.5">replication-system-design.html</text>
+            <text x="376" y="456" fill="#e0f2fe" font-size="9.5">cache-system-design.html</text>
+
+            <rect x="690" y="50" width="320" height="410" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="850" y="76" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">原因C: モデルの不一致（1割）</text>
+            <text x="706" y="104" fill="#86efac">症状（これらが揃ったとき）:</text>
+            <text x="706" y="124" fill="#e2e8f0">・行ごとに必要なカラムが本質的に違う</text>
+            <text x="722" y="140" fill="#94a3b8" font-size="9.5">（商品タイプが100種類あり、属性が全部違う）</text>
+            <text x="706" y="160" fill="#e2e8f0">・常に「1つの塊」として読み書きする</text>
+            <text x="722" y="176" fill="#94a3b8" font-size="9.5">（部分更新も横断集計もしない）</text>
+            <text x="706" y="196" fill="#e2e8f0">・関係を3段以上辿る探索が主要な機能</text>
+            <text x="722" y="212" fill="#94a3b8" font-size="9.5">（推薦・経路探索・不正検知）</text>
+            <text x="706" y="232" fill="#e2e8f0">・スキーマ変更が週に何度も発生する</text>
+            <text x="706" y="260" fill="#4ade80">対処:</text>
+            <text x="706" y="280" fill="#bbf7d0">・まず PostgreSQL の JSONB / 再帰CTE で</text>
+            <text x="722" y="296" fill="#bbf7d0">　足りないかを検証する</text>
+            <text x="706" y="316" fill="#bbf7d0">・足りないなら、その用途だけを</text>
+            <text x="722" y="332" fill="#bbf7d0">　別ストレージに分離する</text>
+            <text x="706" y="352" fill="#f87171">・★ 全面移行はしない（ポリグロット）</text>
+            <text x="706" y="380" fill="#fbbf24">判定の質問:</text>
+            <text x="706" y="400" fill="#fde68a">「このデータを、RDBで無理なく</text>
+            <text x="722" y="416" fill="#fde68a">　表現できないのはなぜか」を</text>
+            <text x="722" y="432" fill="#fde68a">　1文で説明できるか？</text>
+            <text x="706" y="454" fill="#4ade80">→ できなければ、原因はAかB</text>
+          </g>
+        </svg>
+        <p class="figcap">図2-1 切り分け。原因Cだと確信できるまで、DBを変える判断はしない。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part2">
+      <p class="eyebrow">Part 2</p>
+      <h2>ドキュメントモデル</h2>
+      <p class="sub">本質は1つ。<b class="text-emerald-400">「一緒に読み書きされるデータを1塊にする」モデル</b>。JOINをしない代わりに、関連データをネストして持つ。<b class="text-slate-200">これはDDDの Aggregate と同じ発想</b>であり、だからこそドキュメントDBは「Aggregateをそのまま保存できる」という利点を持つ。</p>
+    </div>
+
+    <section id="ch3" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">03</span> 本質 — 一緒に読み書きするものを1塊に</h2>
+      <p class="lede">結論。<b class="text-emerald-400">ドキュメントモデルの判断基準は「データの形」ではなく「アクセスの単位」</b>。常に一緒に読み、常に一緒に書くなら、1塊にする価値がある。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 400" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="400" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">「1塊にする」の判断基準</text>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="330" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="265" y="76" fill="#dcfce7" font-size="12.5" font-weight="bold" text-anchor="middle">1塊にすべきもの（埋め込む）</text>
+            <text x="46" y="104" fill="#86efac">条件（全部満たすとき）:</text>
+            <text x="46" y="124" fill="#bbf7d0">1. 常に親と一緒に読む</text>
+            <text x="62" y="140" fill="#e2e8f0" font-size="9.5">注文を見るとき、明細も必ず見る</text>
+            <text x="46" y="160" fill="#bbf7d0">2. 親から独立して参照されない</text>
+            <text x="62" y="176" fill="#e2e8f0" font-size="9.5">「明細だけを一覧する」機能がない</text>
+            <text x="46" y="196" fill="#bbf7d0">3. 数が有界（数十〜数百まで）</text>
+            <text x="62" y="212" fill="#e2e8f0" font-size="9.5">★ 無制限に増えるものは埋め込まない</text>
+            <text x="46" y="232" fill="#bbf7d0">4. 親と一緒に更新される</text>
+            <text x="62" y="248" fill="#e2e8f0" font-size="9.5">部分更新の競合が起きない</text>
+            <text x="46" y="276" fill="#4ade80">例:</text>
+            <text x="46" y="296" fill="#bbf7d0">・注文 + 明細 + 配送先 + クーポン</text>
+            <text x="46" y="314" fill="#bbf7d0">・記事 + タグ + カスタムフィールド</text>
+            <text x="46" y="332" fill="#bbf7d0">・ユーザー + 設定 + 通知設定</text>
+            <text x="46" y="350" fill="#bbf7d0">・予約 + ゲスト情報 + オプション</text>
+            <text x="46" y="372" fill="#86efac">★ DDDの Aggregate の境界と一致する</text>
+
+            <rect x="530" y="50" width="480" height="330" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="770" y="76" fill="#fecaca" font-size="12.5" font-weight="bold" text-anchor="middle">1塊にすべきでないもの（参照する）</text>
+            <text x="546" y="104" fill="#fca5a5">条件（1つでも当てはまるとき）:</text>
+            <text x="546" y="124" fill="#fecaca">1. 無制限に増える</text>
+            <text x="562" y="140" fill="#e2e8f0" font-size="9.5">投稿へのコメント（数万件になりうる）</text>
+            <text x="562" y="154" fill="#f87171" font-size="9.5">★ ドキュメントサイズ上限（MongoDBは16MB）に当たる</text>
+            <text x="546" y="174" fill="#fecaca">2. 独立して参照される</text>
+            <text x="562" y="190" fill="#e2e8f0" font-size="9.5">「ユーザー一覧」があるなら、ユーザーは独立</text>
+            <text x="546" y="210" fill="#fecaca">3. 多対多の関係</text>
+            <text x="562" y="226" fill="#e2e8f0" font-size="9.5">記事とタグ（タグから記事を引きたい）</text>
+            <text x="546" y="246" fill="#fecaca">4. 更新頻度が親と大きく違う</text>
+            <text x="562" y="262" fill="#e2e8f0" font-size="9.5">商品名（稀に変わる）と在庫数（秒単位）</text>
+            <text x="562" y="276" fill="#f87171" font-size="9.5">★ 埋め込むと、在庫更新のたびに商品全体を書く</text>
+            <text x="546" y="300" fill="#fbbf24">対処: IDで参照し、必要なら2回読む</text>
+            <text x="546" y="320" fill="#fde68a">（アプリ側でJOIN相当を行う = N+1のリスク）</text>
+            <text x="546" y="344" fill="#f87171">★ ここが「ドキュメントDBの限界」。</text>
+            <text x="546" y="362" fill="#fca5a5">　 参照が増えるほど、RDBの方が楽になる</text>
+          </g>
+        </svg>
+        <p class="figcap">図3-1 埋め込む/参照するの判断。ドキュメントDBの設計の8割はこの判断である。</p>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">DDDの Aggregate との対応（重要な洞察）</p>
+        <div class="kv">
+          <div class="kvi"><p>同じ発想</p><p><b class="text-emerald-400">Aggregate =「1トランザクションで整合させる範囲」／ドキュメント =「1回の読み書きの単位」</b>。どちらも「一緒に扱うものを1塊にする」という同じ問いに答えている。</p></div>
+          <div class="kvi"><p>だから相性が良い</p><p><b class="text-slate-100">Aggregateをそのままドキュメントとして保存できる</b>。RDBだと Aggregate → 複数テーブル への分解（mapper）が必要だが、ドキュメントDBならそれが不要になる。<b class="text-slate-300">これがドキュメントDBの最大の設計上の魅力</b>。</p></div>
+          <div class="kvi"><p>Aggregateの原則がそのまま使える</p><p>「Aggregateは小さく保つ」「他Aggregateは<b>IDで参照する</b>」— この原則はドキュメント設計にそのまま適用できる。<b class="text-sky-400">ddd-practice.html / software-design-micro.html ch20 を参照</b>。</p></div>
+          <div class="kvi"><p>ただし失われるもの</p><p><b class="text-rose-400">複数Aggregateにまたがるトランザクション</b>。「予約を作り、在庫を減らす」を原子的にできない（MongoDBは4.0+でマルチドキュメントTxを持つが、性能とスケールの制約がある）。<b class="text-slate-100">→ Saga・補償トランザクションが必要になる</b>。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch4" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">04</span> EC注文で比較する</h2>
+      <p class="lede">具体例で比較する。<b class="text-slate-200">EC サイトの注文履歴</b>は、ドキュメントモデルが最も分かりやすく効く例。</p>
+
+      <div class="cb" data-lang="sql" data-cap="リレーショナル: 4テーブルをJOINして1注文を取得する" data-tone="warn"><script type="text/plain">
+-- テーブル構成
+orders        (order_id, user_id, created_at, status, total)
+order_items   (item_id, order_id, product_name, price, quantity)
+shipping_addr (order_id, prefecture, city, street, postal_code)
+coupons_used  (order_id, coupon_code, discount_amount)
+
+-- 1注文を表示するためのクエリ
+SELECT o.order_id, o.created_at, o.total,
+       i.product_name, i.price, i.quantity,
+       s.prefecture, s.city, s.street,
+       c.coupon_code, c.discount_amount
+  FROM orders o
+  LEFT JOIN order_items   i ON i.order_id = o.order_id
+  LEFT JOIN shipping_addr s ON s.order_id = o.order_id
+  LEFT JOIN coupons_used  c ON c.order_id = o.order_id
+ WHERE o.order_id = ?;
+
+-- ★ 問題点:
+--   1. 明細が3件あると、配送先とクーポンも3回重複して返る（デカルト積）
+--      → アプリ側で重複排除する処理が必要
+--   2. 明細を別クエリにすると N+1 になる
+--   3. 注文を1件作るのに 4回の INSERT（トランザクションで囲む）
+--   4. 「注文の履歴を10年保存」する場合、当時の商品名・価格を残す必要がある
+--      → 正規化して product_id 参照にすると、商品名変更で履歴が変わってしまう
+--      → 結果的に order_items に商品名をコピーする（=非正規化する）ことになる
+
+-- ★ 現代的な解決策（PostgreSQL）: json_agg で1クエリにまとめる
+SELECT o.order_id, o.created_at, o.total,
+       (SELECT json_agg(i) FROM order_items i WHERE i.order_id = o.order_id) AS items,
+       (SELECT row_to_json(s) FROM shipping_addr s WHERE s.order_id = o.order_id) AS shipping
+  FROM orders o
+ WHERE o.order_id = ?;
+-- → 1クエリでネストしたJSONが返る。デカルト積も起きない
+-- ★ つまり「読み取りの形」の問題は、RDBでもかなり解決できる
+</script></div>
+
+      <div class="cb" data-lang="json" data-cap="ドキュメント: 1注文を丸ごと1ドキュメントで持つ" data-tone="good"><script type="text/plain">
+{
+  "_id": "abc123",
+  "user_id": "u001",
+  "created_at": "2026-08-23T10:00:00Z",
+  "status": "shipped",
+  "items": [
+    { "name": "Tシャツ", "price": 3000, "qty": 2, "sku": "TS-001" },
+    { "name": "帽子",   "price": 2000, "qty": 1, "sku": "CP-010" }
+  ],
+  "shipping": {
+    "prefecture": "東京都",
+    "city": "渋谷区",
+    "street": "1-2-3",
+    "postal_code": "150-0001"
+  },
+  "coupon": { "code": "SALE10", "discount": 300 },
+  "total": 7700
+}
+</script></div>
+
+      <div class="step ba">
+        <p class="step-h">⑥ Before / After — 操作別の比較</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>操作</th><th>リレーショナル</th><th>ドキュメント</th></tr></thead>
+            <tbody>
+              <tr><td>1注文を表示する</td><td class="warn">4テーブルJOIN（または json_agg）</td><td class="good">1回の読み取り（<span class="k">findOne</span>）</td></tr>
+              <tr><td>注文を作成する</td><td class="warn">4回のINSERT（Txで囲む）</td><td class="good">1回の <span class="k">insertOne</span>（原子的）</td></tr>
+              <tr><td>「明細に商品Xを含む注文」を検索</td><td class="good"><span class="k">JOIN order_items WHERE product_name = ?</span></td><td class="good">配列内検索（インデックスを張れる）</td></tr>
+              <tr><td>「今月の商品別売上」を集計</td><td class="good"><span class="k">GROUP BY</span> で1クエリ</td><td class="warn">Aggregation Pipeline（<span class="k">$unwind</span> + <span class="k">$group</span>）。書けるが重い</td></tr>
+              <tr><td>配送先だけを更新</td><td class="good">1テーブルのUPDATE</td><td class="warn">ドキュメント全体を読んで書く（または <span class="k">$set</span> で部分更新）</td></tr>
+              <tr><td>「同じ住所の注文」を検索</td><td class="good">index付きで高速</td><td class="warn">ネストしたフィールドのindexが必要</td></tr>
+              <tr><td>商品名が変わったとき</td><td class="warn">履歴を残すなら非正規化が必要（結局コピー）</td><td class="good"><b>コピーが自然</b>（注文時点の情報として残る）</td></tr>
+              <tr><td>スキーマ変更（項目追加）</td><td class="warn">ALTER TABLE（大テーブルではロック・時間がかかる）</td><td class="good">不要（新しい項目を持つ文書を書くだけ）</td></tr>
+              <tr><td>注文と在庫を原子的に更新</td><td class="good">トランザクション</td><td class="bad">別コレクションなので困難（Saga・補償が必要）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-sky-300">読み取り時のポイント</b>: <b class="text-slate-100">「注文時点の商品名・価格を残す」という業務要件がある場合、RDBでも結果的に非正規化（コピー）することになる</b>。この場合、ドキュメントモデルの方が「意図が素直にコードに現れる」。</p>
+      </div>
+    </section>
+
+    <section id="ch5" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">05</span> 実際に使われる場面</h2>
+
+      <div class="step note">
+        <p class="step-h">ドキュメントDBが選ばれる典型例</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>サービス例</th><th>なぜドキュメントか</th><th>キーとなる性質</th></tr></thead>
+            <tbody>
+              <tr><td><b>ECサイトの注文履歴</b></td><td>注文ごとに商品数・配送先・クーポンがバラバラ。注文時点の情報を凍結したい</td><td class="good">可変構造 + 一括読み書き + 履歴の凍結</td></tr>
+              <tr><td><b>ブログ・CMS</b></td><td>記事ごとにタグ数・カスタムフィールドが異なる</td><td class="good">可変構造 + 記事単位のアクセス</td></tr>
+              <tr><td><b>チャットのメッセージ</b></td><td>1メッセージに添付・リアクション・スレッドがネスト</td><td class="good">入れ子 + 追記中心</td></tr>
+              <tr><td><b>ゲームのユーザーデータ</b></td><td>キャラクター・アイテム・ステータスが柔軟に変わる。スキーマ変更が頻繁</td><td class="good">可変構造 + スキーマ変更の速度</td></tr>
+              <tr><td><b>IoTのセンサーログ</b></td><td>デバイスごとにカラム構造が違う。追記のみ</td><td class="warn">可変構造 + 追記（<b>ただし時系列DBの方が適する場合が多い</b>）</td></tr>
+              <tr><td><b>商品カタログ（多カテゴリ）</b></td><td>本・服・家電で属性が全く違う（ISBN / サイズ / 消費電力）</td><td class="good">本質的に可変な構造</td></tr>
+              <tr><td><b>監査ログ・イベントストア</b></td><td>イベント種別ごとにペイロードが違う。追記のみ・更新なし</td><td class="good">可変構造 + イミュータブル</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-slate-200">予約システムへの当てはめ</b>: <b class="text-emerald-400">「1予約に紐づく全情報（ゲスト・部屋・オプション・鍵情報）をまとめて取得する」場面にフィットする</b>。ただし<b class="text-rose-400">在庫の整合性（トランザクション）が必要なので、予約本体はRDBに置くのが妥当</b>。<b class="text-slate-100">OTAから受信した生ペイロード（社ごとに形が違う・追記のみ・監査用）はドキュメント的な保存が向く</b> — 実際にはPostgreSQLのJSONBカラムで足りることが多い。</p>
+      </div>
+    </section>
+
+    <section id="ch6" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">06</span> トレードオフ（正直な評価）</h2>
+      <p class="lede"><b class="text-rose-400">ドキュメントDBの「スキーマレス」は、スキーマがなくなるのではなく、スキーマの管理責任がアプリに移るだけ</b>である。これを理解せずに採用すると、数年後に苦しむ。</p>
+
+      <div class="step trade">
+        <p class="step-h">⑧ 失うもの（採用前に必ず認識する）</p>
+        <div class="kv">
+          <div class="kvi"><p>1. 横断集計が重い</p><p>「全注文の商品別売上」は <span class="k">$unwind</span> + <span class="k">$group</span> のAggregation Pipelineになり、<b class="text-amber-400">RDBのGROUP BYより遅く、書きにくい</b>。<b class="text-slate-100">分析要件があるなら、別途データウェアハウス（BigQuery等）へのETLが必要になる</b>。</p></div>
+          <div class="kvi"><p>2. 多対多が扱いにくい</p><p>「記事↔タグ」の双方向参照。ドキュメントでは「両方に持たせる（重複）」か「中間コレクション（=RDBと同じ）」になる。<b class="text-rose-400">JOINがないので、アプリ側で2回読む = N+1のリスク</b>。</p></div>
+          <div class="kvi"><p>3. スキーマの責任がアプリに移る</p><p><b class="text-rose-400">「古い形式の文書」と「新しい形式の文書」が混在する</b>。読み取り時に両方を扱うコードが必要（<span class="k">doc.newField ?? doc.oldField</span>）。<b class="text-slate-100">マイグレーションを「やらなくてよい」のではなく「やらないと技術的負債が溜まる」</b>。</p></div>
+          <div class="kvi"><p>4. トランザクションの制約</p><p>複数ドキュメント間の整合性。MongoDB 4.0+ はマルチドキュメントTxを持つが、<b class="text-amber-400">性能ペナルティがあり、シャード横断では制約が大きい</b>。<b class="text-slate-100">設計として「1ドキュメント = 1トランザクション」に収める必要がある</b>。</p></div>
+          <div class="kvi"><p>5. ドキュメントサイズの上限</p><p>MongoDBは16MB。<b class="text-slate-100">「無制限に増える配列を埋め込む」設計は必ず破綻する</b>（コメント・ログ・履歴）。設計時に「この配列は最大何件か」を見積もる必要がある。</p></div>
+          <div class="kvi"><p>6. 運用の知見</p><p>RDBは20年分のノウハウ・ツール・人材がある。<b class="text-amber-400">障害時の調査・チューニング・バックアップ戦略で、経験者の有無が大きく効く</b>。<b class="text-slate-300">これは技術的な優劣ではなく、組織のリスク</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="cb" data-lang="text" data-cap="スキーマ混在の現実（採用3年後に起きること）" data-tone="bad"><script type="text/plain">
+// 同じコレクションに、3世代のスキーマが混在する
+// 2023年に作られた文書
+{ "_id": "1", "name": "田中", "tel": "090-1111-2222" }
+
+// 2024年に「電話番号を複数持てるように」変更
+{ "_id": "2", "name": "佐藤", "phones": [{ "type": "mobile", "number": "090-..." }] }
+
+// 2025年に「氏名を姓名に分割」
+{ "_id": "3", "lastName": "鈴木", "firstName": "一郎",
+  "phones": [{ "type": "mobile", "number": "090-..." }] }
+
+// ★ 読み取り側のコード（負債が可視化される）
+function getName(doc) {
+  if (doc.lastName) return `${doc.lastName} ${doc.firstName}`;  // 2025形式
+  return doc.name;                                              // 2023/2024形式
+}
+function getPhones(doc) {
+  if (doc.phones) return doc.phones;                            // 2024+形式
+  return doc.tel ? [{ type: 'unknown', number: doc.tel }] : []; // 2023形式
+}
+
+// ★ これが3世代 × 10フィールドになると、読み取りコードが破綻する
+//
+// ★ 対策（RDBの ALTER TABLE に相当する作業を、自分で計画する）:
+//   1. スキーマバージョンを文書に持たせる（"_schemaVersion": 3）
+//   2. 読み取り時に正規化する層を1箇所に作る（migrate-on-read）
+//   3. バッチで全文書を新形式に書き換える（migrate-on-write）
+//   4. 移行完了後、古い形式の読み取りコードを削除する
+//
+// ★ 結論: 「スキーマレスだからマイグレーション不要」は誤り。
+//   マイグレーションの責任が DB から アプリ に移っただけ。
+//   ★ RDBの ALTER TABLE は「面倒だが、やれば完了する」。
+//     ドキュメントDBは「やらなくても動く」ので、負債が静かに溜まる。
+</script></div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 「ドキュメントDBを選ばない方がよい」ケース</p>
+        <ul>
+          <li><b>トランザクション整合性が業務要件</b> — 予約と在庫、注文と決済、送金。<b class="text-rose-400">RDBを選ぶ</b></li>
+          <li><b>分析・レポートが主要な機能</b> — 横断集計が重い。RDB + DWH の方が素直</li>
+          <li><b>スキーマが実は安定している</b> — 「将来変わるかも」は理由にならない（YAGNI）。<b class="text-slate-100">実際に変わっている実績があるかで判断する</b></li>
+          <li><b>チームにRDBの経験しかない</b> — 学習コスト + 運用リスクを、得られる利点が上回るか</li>
+          <li><b class="text-emerald-400">PostgreSQLのJSONBで足りる</b> — <b class="text-slate-100">最も多いケース。「一部のカラムだけ可変」ならJSONBが最適解</b>（トランザクションもJOINも維持できる）</li>
+        </ul>
+        <div class="cb" data-lang="sql" data-cap="PostgreSQL JSONB — 「ハイブリッド」という最も実用的な選択" data-tone="good"><script type="text/plain">
+CREATE TABLE products (
+    -- ★ 構造が決まっている部分は「列」にする（型・制約・indexが効く）
+    id          UUID PRIMARY KEY,
+    sku         VARCHAR(64) NOT NULL UNIQUE,
+    name        VARCHAR(255) NOT NULL,
+    price_yen   BIGINT NOT NULL CHECK (price_yen >= 0),
+    category    VARCHAR(32) NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- ★ カテゴリごとに違う属性は JSONB にする
+    attributes  JSONB NOT NULL DEFAULT '{}'
+);
+
+-- 本:   { "isbn": "978-...", "pages": 320, "author": "..." }
+-- 服:   { "size": "M", "color": "navy", "material": "cotton" }
+-- 家電: { "voltage": 100, "watt": 500, "warranty_months": 12 }
+
+-- ★ JSONB にも index を張れる（GIN）
+CREATE INDEX idx_products_attributes ON products USING GIN (attributes);
+
+-- 特定の属性で検索できる
+SELECT * FROM products WHERE attributes @> '{"size": "M"}';
+SELECT * FROM products WHERE attributes->>'author' = '村上春樹';
+
+-- ★ 特定のキーだけに index を張る方が効率的な場合もある
+CREATE INDEX idx_products_isbn ON products ((attributes->>'isbn'));
+
+-- ★ 集計も普通にできる（RDBの強みを維持したまま）
+SELECT category, COUNT(*), SUM(price_yen)
+  FROM products
+ WHERE created_at >= date_trunc('month', now())
+ GROUP BY category;
+
+-- ★ この構成で得られるもの:
+--   ・トランザクション（在庫との整合性を保てる）
+--   ・JOIN（注文明細との結合）
+--   ・集計（GROUP BY）
+--   ・型と制約（price_yen >= 0）
+--   ・そして可変構造（attributes）
+-- ★ 「ドキュメントDBが欲しい」の8割はこれで解決する
+--   ★ 注意: JSONB内の値には型制約がかからない。
+--     アプリ側（またはCHECK制約 + jsonb_typeof）で守る必要がある
+</script></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part3">
+      <p class="eyebrow">Part 3</p>
+      <h2>グラフモデル</h2>
+      <p class="sub">本質は1つ。<b class="text-emerald-400">「繋がり自体がデータ」になる場合に使うモデル</b>。ノード（実体）とエッジ（関係）で構成し、<b class="text-slate-200">エッジにも属性を持てる</b>のが決定的な違い。「AとBが友達」だけでなく「いつから友達か」「どれくらい親密か」を関係そのものに持たせられる。</p>
+    </div>
+
+    <section id="ch7" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">07</span> 本質 — 繋がり自体がデータ</h2>
+      <p class="lede">結論。<b class="text-emerald-400">「関係を何段階も辿るか」がグラフDBの唯一の判断基準</b>。1〜2段ならRDBで十分（それはただのJOIN）。<b class="text-rose-400">3段以上、かつ段数が動的に変わるなら、グラフDBを検討する</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 440" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="440" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">RDBの「行と外部キー」 vs グラフの「ノードとエッジ」</text>
+          <defs><marker id="dm7" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#a78bfa"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="50" width="470" height="180" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="265" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">RDB: 関係は「中間テーブルの行」</text>
+            <rect x="50" y="90" width="180" height="52" rx="5" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="62" y="108" fill="#e0f2fe" font-size="9.5">users</text>
+            <text x="62" y="124" fill="#94a3b8" font-size="9">id, name</text>
+            <text x="62" y="138" fill="#94a3b8" font-size="9">1:田中 2:佐藤 3:鈴木</text>
+            <rect x="270" y="90" width="210" height="52" rx="5" fill="#0b1220" stroke="#38bdf8"/>
+            <text x="282" y="108" fill="#e0f2fe" font-size="9.5">friendships</text>
+            <text x="282" y="124" fill="#94a3b8" font-size="9">user_a_id, user_b_id, since</text>
+            <text x="282" y="138" fill="#94a3b8" font-size="9">1-2, 2-3, 3-4, ...</text>
+            <text x="46" y="166" fill="#7dd3fc">・関係を辿る = JOIN する</text>
+            <text x="46" y="184" fill="#7dd3fc">・1段辿るごとに1回のJOINが増える</text>
+            <text x="46" y="202" fill="#f87171">・3段辿ると3回JOIN → 中間結果が爆発</text>
+            <text x="46" y="220" fill="#fbbf24">・「何段辿るか」が動的だとSQLを書けない</text>
+
+            <rect x="530" y="50" width="480" height="180" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="770" y="74" fill="#ede9fe" font-size="12" font-weight="bold" text-anchor="middle">グラフ: 関係は「エッジ（実体）」</text>
+            <circle cx="600" cy="120" r="18" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="600" y="124" fill="#f5d0fe" font-size="9" text-anchor="middle">田中</text>
+            <circle cx="710" cy="110" r="18" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="710" y="114" fill="#f5d0fe" font-size="9" text-anchor="middle">佐藤</text>
+            <circle cx="820" cy="130" r="18" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="820" y="134" fill="#f5d0fe" font-size="9" text-anchor="middle">鈴木</text>
+            <circle cx="930" cy="105" r="18" fill="#3b0764" stroke="#e879f9" stroke-width="1.5"/>
+            <text x="930" y="109" fill="#f5d0fe" font-size="9" text-anchor="middle">高橋</text>
+            <line x1="618" y1="116" x2="690" y2="112" stroke="#a78bfa" stroke-width="2" marker-end="url(#dm7)"/>
+            <line x1="728" y1="115" x2="800" y2="126" stroke="#a78bfa" stroke-width="2" marker-end="url(#dm7)"/>
+            <line x1="838" y1="125" x2="910" y2="110" stroke="#a78bfa" stroke-width="2" marker-end="url(#dm7)"/>
+            <text x="640" y="102" fill="#c4b5fd" font-size="8">FRIEND</text>
+            <text x="750" y="108" fill="#c4b5fd" font-size="8">since:2020</text>
+            <text x="546" y="166" fill="#ddd6fe">・エッジは「1級市民」（自分の属性を持てる）</text>
+            <text x="546" y="184" fill="#ddd6fe">・隣接ノードへのポインタを直接持つ</text>
+            <text x="546" y="202" fill="#4ade80">・N段辿るコストが「N × 隣接数」で線形</text>
+            <text x="546" y="220" fill="#4ade80">・「1〜5段辿る」を1クエリで書ける</text>
+
+            <rect x="30" y="250" width="980" height="180" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="276" fill="#dcfce7" font-size="12" font-weight="bold">グラフDBの技術的な本質: index-free adjacency（インデックスなしの隣接性）</text>
+            <text x="46" y="302" fill="#bbf7d0">RDBで関係を辿る: 「friendships テーブルの index を検索して、該当する行を見つける」（O(log n)）</text>
+            <text x="46" y="324" fill="#bbf7d0">グラフDBで辿る: 「ノードが隣接ノードへのポインタを直接持っている」（O(1)）</text>
+            <text x="46" y="352" fill="#4ade80">→ だから「段数が増えても、1段あたりのコストが一定」</text>
+            <text x="46" y="374" fill="#86efac">→ RDBは「データ量が増えるとindex検索が遅くなる」が、グラフは「辿る範囲だけがコスト」</text>
+            <text x="46" y="402" fill="#fbbf24">★ ただしこの利点は「深い探索」でのみ効く。1〜2段のJOINならRDBの方が速いことも多い</text>
+            <text x="46" y="422" fill="#fde68a">　（RDBのindexは非常に高度に最適化されており、キャッシュ効率も良い）</text>
+          </g>
+        </svg>
+        <p class="figcap">図7-1 index-free adjacency がグラフDBの技術的な本質。「深く辿る」ときだけ効く。</p>
+      </div>
+    </section>
+
+    <section id="ch8" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">08</span> 再帰JOINの爆発 vs Cypher</h2>
+      <p class="lede">具体例で見る。<b class="text-slate-200">SNSの「友達の友達の友達」を辿る</b>。</p>
+
+      <div class="cb" data-lang="sql" data-cap="リレーショナル: 3段階辿るだけでSQLが複雑になる" data-tone="bad"><script type="text/plain">
+-- 3ホップ先の友達を取得する（固定段数）
+SELECT DISTINCT u3.*
+  FROM users u3
+  JOIN friendships f3 ON u3.id = f3.user_b_id
+  JOIN friendships f2 ON f3.user_a_id = f2.user_b_id
+  JOIN friendships f1 ON f2.user_a_id = f1.user_b_id
+ WHERE f1.user_a_id = :my_id
+   AND u3.id != :my_id;
+
+-- ★ 問題点:
+--   1. 段数が固定される（「1〜5ホップ」を1クエリで書けない）
+--   2. 中間結果が爆発する
+--      平均友達数100人なら: 100 → 10,000 → 1,000,000 行の中間結果
+--   3. 重複排除（DISTINCT）が重い
+--   4. 「最短経路」「経路上の重み」を求めるのが極めて困難
+--   5. 双方向の関係（AがBの友達 = BがAの友達）を扱うと、さらに複雑化
+
+-- ★ PostgreSQLの再帰CTEで段数を可変にできる
+WITH RECURSIVE reachable AS (
+    -- 起点
+    SELECT user_b_id AS id, 1 AS depth
+      FROM friendships
+     WHERE user_a_id = :my_id
+    UNION
+    -- 再帰
+    SELECT f.user_b_id, r.depth + 1
+      FROM reachable r
+      JOIN friendships f ON f.user_a_id = r.id
+     WHERE r.depth < 3          -- ★ 深さ制限は必須（無限ループ防止）
+)
+SELECT DISTINCT id, MIN(depth) AS distance
+  FROM reachable
+ GROUP BY id;
+
+-- ★ 再帰CTEで書けるようになった。しかし:
+--   ・訪問済みノードの管理を自分で書く必要がある（循環があると無限ループ）
+--   ・「最短経路の経路そのもの」を返すのは配列操作が必要で複雑
+--   ・数万ノードを超えると性能が予測しづらい
+--   ★ それでも「3〜4段・数千ノード」までなら十分実用的
+</script></div>
+
+      <div class="cb" data-lang="text" data-cap="グラフ（Cypher）: 「3ホップ先を辿る」をそのまま書ける" data-tone="good"><script type="text/plain">
+// Neo4j の Cypher
+MATCH (me:User {id: 'u001'})-[:FRIEND*3]->(stranger:User)
+WHERE stranger <> me
+RETURN DISTINCT stranger
+
+// ★ 可変長も自然に書ける
+MATCH (me:User {id: 'u001'})-[:FRIEND*1..3]->(stranger:User)
+RETURN stranger, length(path) AS distance
+
+// ★ 最短経路
+MATCH path = shortestPath(
+  (a:User {id: 'u001'})-[:FRIEND*..6]-(b:User {id: 'u999'})
+)
+RETURN path, length(path)
+
+// ★ 経路上の属性を使った探索（RDBでは非常に困難）
+MATCH path = (a:Station {name: '渋谷'})-[r:LINE*..5]->(b:Station {name: '大宮'})
+RETURN path, reduce(total = 0, x IN r | total + x.minutes) AS totalMinutes
+ORDER BY totalMinutes ASC
+LIMIT 1
+// → 「乗車時間の合計が最小の経路」を1クエリで求められる
+
+// ★ Cypherの読み方:
+//   (a)-[r:TYPE]->(b)   a から b への TYPE 関係
+//   *3                  ちょうど3ホップ
+//   *1..3               1〜3ホップ
+//   *..6                6ホップ以内
+//   -[r]-               方向を問わない
+//
+// ★ 「関係」が構文の第一級要素になっているのが、SQLとの決定的な違い
+</script></div>
+
+      <div class="step ba">
+        <p class="step-h">⑥ 比較まとめ</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>やりたいこと</th><th>RDB</th><th>グラフDB</th></tr></thead>
+            <tbody>
+              <tr><td>1ホップ（友達一覧）</td><td class="good">JOIN 1回。速い</td><td class="good">同等</td></tr>
+              <tr><td>2ホップ（共通の友達）</td><td class="good">JOIN 2回。実用的</td><td class="good">同等</td></tr>
+              <tr><td>3〜5ホップ</td><td class="warn">再帰CTE。書けるが遅い / 中間結果が爆発</td><td class="good">自然に書ける・速い</td></tr>
+              <tr><td>可変長（1〜Nホップ）</td><td class="bad">再帰CTE + 深さ制限を自作</td><td class="good"><span class="k">*1..N</span> で1行</td></tr>
+              <tr><td>最短経路</td><td class="bad">非常に困難（ダイクストラを自作）</td><td class="good"><span class="k">shortestPath()</span> 組み込み</td></tr>
+              <tr><td>経路の重み合計で最適化</td><td class="bad">実質不可能</td><td class="good"><span class="k">reduce()</span> で書ける</td></tr>
+              <tr><td>大量の集計（月間売上）</td><td class="good">GROUP BY で高速</td><td class="bad">苦手（そもそも用途外）</td></tr>
+              <tr><td>単純なCRUD</td><td class="good">最適</td><td class="warn">できるが、わざわざ使う理由がない</td></tr>
+              <tr><td>トランザクション</td><td class="good">成熟</td><td class="warn">Neo4jはACID対応だが、分散時の制約あり</td></tr>
+              <tr><td>運用・人材・ツール</td><td class="good">豊富</td><td class="bad">限定的</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch9" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">09</span> 実際に使われる場面 / トレードオフ</h2>
+
+      <div class="step note">
+        <p class="step-h">グラフDBが選ばれる典型例</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>サービス例</th><th>なぜグラフか</th><th>辿る対象</th></tr></thead>
+            <tbody>
+              <tr><td><b>SNS（フォロー・推薦）</b></td><td>「友達の友達」を辿って「知り合いかも」を出す</td><td>User → FRIEND → User → FRIEND → User</td></tr>
+              <tr><td><b>地図の経路探索</b></td><td>交差点=ノード、道路=エッジ、距離/所要時間=エッジ属性</td><td>最短経路 + 重み最小化</td></tr>
+              <tr><td><b>レコメンド（Netflix / Amazon）</b></td><td>「この作品を見た人が見た別の作品」</td><td>User → 視聴 → 作品 → ジャンル → 別作品</td></tr>
+              <tr><td><b>不正検知</b></td><td>「同じ端末・同じ住所で繋がる複数アカウント」を発見</td><td>送金・デバイス・住所の異常な繋がり</td></tr>
+              <tr><td><b>組織図・権限管理</b></td><td>部署 → チーム → ユーザーの階層と権限の継承</td><td>階層の上下 + 継承ルール</td></tr>
+              <tr><td><b>知識グラフ / マスタデータ管理</b></td><td>概念間の関係（同義語・上位下位・関連）</td><td>意味的な繋がり</td></tr>
+              <tr><td><b>依存関係の解析</b></td><td>パッケージの依存ツリー・マイクロサービスの呼び出し関係</td><td>循環検出・影響範囲の特定</td></tr>
+              <tr><td><b>競合施設分析</b></td><td>「A施設はB・Cと競合、B施設はC・Dと競合」という複雑な関係網</td><td>類似度・同エリア・同カテゴリの関係</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ グラフDBを採用するコスト</p>
+        <div class="kv">
+          <div class="kvi"><p>コスト1: 学習コスト</p><p>Cypher / Gremlin という新しいクエリ言語。<b class="text-slate-100">チーム全員が書けるようになる必要がある</b>（あるいは書ける人がボトルネックになる）。</p></div>
+          <div class="kvi"><p>コスト2: 運用の知見が薄い</p><p>バックアップ・監視・チューニング・障害対応。<b class="text-amber-400">RDBの20年分のノウハウが使えない</b>。マネージドサービス（Neptune / AuraDB）を使っても、内部の理解は必要。</p></div>
+          <div class="kvi"><p>コスト3: 集計・レポートが苦手</p><p>「月間の売上集計」のような処理は苦手。<b class="text-slate-100">結果的にRDBやDWHとの併用になり、データの二重管理が発生する</b>。</p></div>
+          <div class="kvi"><p>コスト4: 「本当に3段以上辿るのか」</p><p><b class="text-rose-400">実際の要件は1〜2段のことが多い</b>。「友達の友達」（2段）はRDBのJOIN 2回で十分。<b class="text-emerald-400">3段以上を、実際のユースケースとして持っているかを確認する</b>。</p></div>
+        </div>
+      </div>
+
+      <div class="step over">
+        <p class="step-h">⑨ 「グラフDBを選ばない」判断のための3つの質問</p>
+        <ol>
+          <li><b class="text-teal-300">実際に3段以上辿るユースケースがあるか？</b> — 「将来推薦機能を作るかも」は理由にならない。<b class="text-slate-100">今ある要件で判断する</b></li>
+          <li><b class="text-teal-300">PostgreSQLの再帰CTEで足りないか？</b> — 数千ノード・4段程度なら実用的。<b class="text-emerald-400">まずこれを試して、性能を測る</b></li>
+          <li><b class="text-teal-300">その用途だけを分離できるか？</b> — 「全部Neo4jに移行」ではなく「推薦機能だけグラフDB、本体はRDB」にできるか。<b class="text-slate-100">できるなら、リスクが局所化される</b></li>
+        </ol>
+        <p class="mt-3"><b class="text-slate-300">実務的な現実</b>: <b class="text-amber-400">グラフDBを本番で採用する判断は、多くのチームにとって重い</b>。「関係の探索」が主要な機能でない限り、RDB + 再帰CTE、あるいは<b class="text-emerald-400">「関係をアプリのメモリに載せて計算する」（数千ノードなら十分可能）</b>という選択の方が現実的なことが多い。</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part4">
+      <p class="eyebrow">Part 4</p>
+      <h2>その他のモデル</h2>
+      <p class="sub">実務では、リレーショナル / ドキュメント / グラフの3分類だけでは足りない。<b class="text-emerald-400">用途特化のストレージ4種</b>を押さえると、システムデザインの語彙が一気に増える。</p>
+    </div>
+
+    <section id="ch10" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">10</span> KVS / 列指向 / 時系列 / 全文検索</h2>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 480" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="480" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">用途特化ストレージ4種 — 「1つのことに全力」</text>
+          <g font-family="monospace" font-size="10">
+            <rect x="20" y="50" width="245" height="410" rx="10" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="142" y="74" fill="#fecaca" font-size="12" font-weight="bold" text-anchor="middle">KVS（Redis / Memcached）</text>
+            <text x="34" y="98" fill="#fca5a5">モデル: key → value</text>
+            <text x="34" y="118" fill="#e2e8f0" font-size="9.5">最も単純。keyで引くだけ</text>
+            <text x="34" y="142" fill="#f87171">強み:</text>
+            <text x="34" y="160" fill="#fecaca" font-size="9.5">・メモリ上なので極めて速い（μs）</text>
+            <text x="34" y="176" fill="#fecaca" font-size="9.5">・TTLで自動失効</text>
+            <text x="34" y="192" fill="#fecaca" font-size="9.5">・原子的な操作（INCR / SETNX）</text>
+            <text x="34" y="208" fill="#fecaca" font-size="9.5">・List/Set/SortedSet/Hash も持つ</text>
+            <text x="34" y="232" fill="#fbbf24">弱み:</text>
+            <text x="34" y="250" fill="#fde68a" font-size="9.5">・keyで引く以外の検索ができない</text>
+            <text x="34" y="266" fill="#fde68a" font-size="9.5">・メモリ量が上限（コストが高い）</text>
+            <text x="34" y="282" fill="#fde68a" font-size="9.5">・永続性は保証されない設定が多い</text>
+            <text x="34" y="306" fill="#f87171">用途:</text>
+            <text x="34" y="324" fill="#fecaca" font-size="9.5">・キャッシュ（最頻出）</text>
+            <text x="34" y="340" fill="#fecaca" font-size="9.5">・セッション</text>
+            <text x="34" y="356" fill="#fecaca" font-size="9.5">・レート制限のカウンタ</text>
+            <text x="34" y="372" fill="#fecaca" font-size="9.5">・ランキング（SortedSet）</text>
+            <text x="34" y="388" fill="#fecaca" font-size="9.5">・タイムラインの事前計算</text>
+            <text x="34" y="404" fill="#fecaca" font-size="9.5">・簡易的な分散ロック（★注意 ch13）</text>
+            <text x="34" y="430" fill="#4ade80" font-size="9.5">★ 「正本」にはしない。</text>
+            <text x="34" y="446" fill="#86efac" font-size="9.5">　 失っても再構築できる形で使う</text>
+
+            <rect x="277" y="50" width="245" height="410" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="399" y="74" fill="#bae6fd" font-size="12" font-weight="bold" text-anchor="middle">列指向（BigQuery / Redshift）</text>
+            <text x="291" y="98" fill="#7dd3fc">モデル: 列ごとに保存</text>
+            <text x="291" y="118" fill="#e2e8f0" font-size="9.5">行ではなく列単位でディスクに置く</text>
+            <text x="291" y="142" fill="#38bdf8">強み:</text>
+            <text x="291" y="160" fill="#e0f2fe" font-size="9.5">・「1列だけ集計」が超高速</text>
+            <text x="307" y="174" fill="#94a3b8" font-size="9">1億行のSUMが数秒</text>
+            <text x="291" y="192" fill="#e0f2fe" font-size="9.5">・圧縮率が高い（同じ型が並ぶ）</text>
+            <text x="291" y="208" fill="#e0f2fe" font-size="9.5">・列を増やしてもコストが増えない</text>
+            <text x="291" y="232" fill="#fbbf24">弱み:</text>
+            <text x="291" y="250" fill="#fde68a" font-size="9.5">・1行の更新が苦手（追記が前提）</text>
+            <text x="291" y="266" fill="#fde68a" font-size="9.5">・1行だけ取得も遅い</text>
+            <text x="291" y="282" fill="#fde68a" font-size="9.5">・トランザクションがない/弱い</text>
+            <text x="291" y="306" fill="#38bdf8">用途:</text>
+            <text x="291" y="324" fill="#e0f2fe" font-size="9.5">・分析・BI・ダッシュボード</text>
+            <text x="291" y="340" fill="#e0f2fe" font-size="9.5">・ログの集計</text>
+            <text x="291" y="356" fill="#e0f2fe" font-size="9.5">・機械学習の学習データ</text>
+            <text x="291" y="380" fill="#4ade80" font-size="9.5">★ OLTP（本番のDB）と</text>
+            <text x="291" y="396" fill="#86efac" font-size="9.5">　 OLAP（分析）を分ける</text>
+            <text x="291" y="412" fill="#86efac" font-size="9.5">　のが定石。ETL/CDCで同期する</text>
+            <text x="291" y="436" fill="#fbbf24" font-size="9.5">★ 「本番DBで重い集計を回して</text>
+            <text x="291" y="452" fill="#fde68a" font-size="9.5">　 サービスが止まる」を防ぐ</text>
+
+            <rect x="534" y="50" width="245" height="410" rx="10" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="656" y="74" fill="#fef3c7" font-size="12" font-weight="bold" text-anchor="middle">時系列（TimescaleDB / InfluxDB）</text>
+            <text x="548" y="98" fill="#fcd34d">モデル: 時刻 + タグ + 値</text>
+            <text x="548" y="118" fill="#e2e8f0" font-size="9.5">時刻をキーに最適化されたDB</text>
+            <text x="548" y="142" fill="#fbbf24">強み:</text>
+            <text x="548" y="160" fill="#fde68a" font-size="9.5">・時刻順の追記が極めて速い</text>
+            <text x="548" y="176" fill="#fde68a" font-size="9.5">・時間窓の集計が組み込み</text>
+            <text x="564" y="190" fill="#94a3b8" font-size="9">「5分ごとの平均」が1行で書ける</text>
+            <text x="548" y="208" fill="#fde68a" font-size="9.5">・自動でダウンサンプリング/削除</text>
+            <text x="548" y="232" fill="#f87171">弱み:</text>
+            <text x="548" y="250" fill="#fca5a5" font-size="9.5">・更新・削除が苦手（追記前提）</text>
+            <text x="548" y="266" fill="#fca5a5" font-size="9.5">・JOINが弱い</text>
+            <text x="548" y="290" fill="#fbbf24">用途:</text>
+            <text x="548" y="308" fill="#fde68a" font-size="9.5">・メトリクス（CPU・メモリ）</text>
+            <text x="548" y="324" fill="#fde68a" font-size="9.5">・IoTのセンサーデータ</text>
+            <text x="548" y="340" fill="#fde68a" font-size="9.5">・株価・為替</text>
+            <text x="548" y="356" fill="#fde68a" font-size="9.5">・アクセスログの集計</text>
+            <text x="548" y="380" fill="#4ade80" font-size="9.5">★ 予約システムでの用途:</text>
+            <text x="548" y="396" fill="#86efac" font-size="9.5">　 「日次の稼働率の推移」</text>
+            <text x="548" y="412" fill="#86efac" font-size="9.5">　 「OTAごとの受信件数の時系列」</text>
+            <text x="548" y="436" fill="#fbbf24" font-size="9.5">★ ただし PostgreSQL の</text>
+            <text x="548" y="452" fill="#fde68a" font-size="9.5">　 パーティショニングで足りることが多い</text>
+
+            <rect x="791" y="50" width="229" height="410" rx="10" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="905" y="74" fill="#dcfce7" font-size="12" font-weight="bold" text-anchor="middle">全文検索（Elasticsearch）</text>
+            <text x="805" y="98" fill="#86efac">モデル: 転置インデックス</text>
+            <text x="805" y="118" fill="#e2e8f0" font-size="9.5">単語 → 出現ドキュメントの一覧</text>
+            <text x="805" y="142" fill="#4ade80">強み:</text>
+            <text x="805" y="160" fill="#bbf7d0" font-size="9.5">・部分一致・あいまい検索が高速</text>
+            <text x="805" y="176" fill="#bbf7d0" font-size="9.5">・関連度スコアで並べられる</text>
+            <text x="805" y="192" fill="#bbf7d0" font-size="9.5">・形態素解析（日本語対応）</text>
+            <text x="805" y="208" fill="#bbf7d0" font-size="9.5">・ファセット検索（絞り込み集計）</text>
+            <text x="805" y="232" fill="#f87171">弱み:</text>
+            <text x="805" y="250" fill="#fca5a5" font-size="9.5">・トランザクションがない</text>
+            <text x="805" y="266" fill="#fca5a5" font-size="9.5">・「正本」にできない（同期が必要）</text>
+            <text x="805" y="282" fill="#fca5a5" font-size="9.5">・運用が重い（クラスタ・メモリ）</text>
+            <text x="805" y="306" fill="#4ade80">用途:</text>
+            <text x="805" y="324" fill="#bbf7d0" font-size="9.5">・サイト内検索</text>
+            <text x="805" y="340" fill="#bbf7d0" font-size="9.5">・ログ検索（Kibana）</text>
+            <text x="805" y="356" fill="#bbf7d0" font-size="9.5">・商品検索（ファセット付き）</text>
+            <text x="805" y="380" fill="#fbbf24" font-size="9.5">★ RDBの LIKE '%x%' は</text>
+            <text x="805" y="396" fill="#fde68a" font-size="9.5">　 indexが効かず全件走査になる</text>
+            <text x="805" y="412" fill="#fde68a" font-size="9.5">　 → 数十万行で限界が来る</text>
+            <text x="805" y="436" fill="#4ade80" font-size="9.5">★ まず pg_trgm / pgroonga を試す。</text>
+            <text x="805" y="452" fill="#86efac" font-size="9.5">　 足りなければ ES に分離</text>
+          </g>
+        </svg>
+        <p class="figcap">図10-1 用途特化ストレージ4種。どれも「1つのことに全力」で、RDBの代替ではなく補完である。</p>
+      </div>
+
+      <div class="step principle">
+        <p class="step-h">④ アクセスパターンから選ぶ（判断表）</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>アクセスパターン</th><th>選ぶもの</th><th>まず試すこと（RDBで）</th></tr></thead>
+            <tbody>
+              <tr><td>主キーで1件引く・書く</td><td class="good">RDB</td><td>—</td></tr>
+              <tr><td>複数条件で絞って一覧・集計</td><td class="good">RDB</td><td>index / 集計テーブル</td></tr>
+              <tr><td>「1つの塊」を丸ごと読み書き</td><td>ドキュメント</td><td class="good">JSONB カラム</td></tr>
+              <tr><td>3段以上の関係を辿る</td><td>グラフ</td><td class="good">再帰CTE</td></tr>
+              <tr><td>μs単位のread・TTL付き</td><td class="good">KVS（Redis）</td><td>（RDBでは無理）</td></tr>
+              <tr><td>億行の集計・BI</td><td class="good">列指向（BigQuery）</td><td>リードレプリカ + 集計テーブル</td></tr>
+              <tr><td>時刻順の大量追記 + 時間窓集計</td><td>時系列</td><td class="good">パーティショニング</td></tr>
+              <tr><td>あいまい検索・関連度順</td><td>全文検索（ES）</td><td class="good">pg_trgm / pgroonga</td></tr>
+              <tr><td>大きなファイル（画像・PDF）</td><td class="good">オブジェクトストレージ（S3）</td><td class="bad">RDBのBLOBに入れない</td></tr>
+              <tr><td>順序保証された追記ログ</td><td>ログ指向（Kafka）</td><td>Outboxテーブル</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <div class="part-h" id="part5">
+      <p class="eyebrow">Part 5</p>
+      <h2>選定と実務</h2>
+      <p class="sub">最後に<b class="text-emerald-400">選定基準・ポリグロット・面接での答え方</b>を確定させる。</p>
+    </div>
+
+    <section id="ch11" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">11</span> 選定基準と見分け方の問い</h2>
+
+      <div class="fig">
+        <svg viewBox="0 0 1040 460" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1040" height="460" fill="#0f172a" rx="10"/>
+          <text x="520" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">選定フローチャート</text>
+          <defs><marker id="dm11" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="390" y="48" width="260" height="34" rx="7" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+            <text x="520" y="71" fill="#e2e8f0" text-anchor="middle" font-weight="bold">新しいデータをどこに置くか</text>
+            <line x1="520" y1="84" x2="520" y2="98" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#dm11)"/>
+
+            <rect x="360" y="100" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="120" fill="#bae6fd" text-anchor="middle">Q1. トランザクション整合性が必要か？</text>
+            <text x="520" y="136" fill="#7dd3fc" font-size="9" text-anchor="middle">お金・在庫・一意性・「全部か無か」</text>
+            <line x1="360" y1="121" x2="280" y2="121" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <text x="318" y="114" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="50" y="102" width="225" height="40" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="162" y="120" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ リレーショナル</text>
+            <text x="162" y="136" fill="#86efac" font-size="9" text-anchor="middle">★ ここで9割が決まる</text>
+
+            <line x1="520" y1="144" x2="520" y2="158" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <rect x="360" y="160" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="180" fill="#bae6fd" text-anchor="middle">Q2. 横断的な集計・JOINが必要か？</text>
+            <text x="520" y="196" fill="#7dd3fc" font-size="9" text-anchor="middle">レポート・ダッシュボード・複数条件検索</text>
+            <line x1="680" y1="181" x2="760" y2="181" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <text x="720" y="174" fill="#4ade80" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="765" y="162" width="235" height="40" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2"/>
+            <text x="882" y="180" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ リレーショナル</text>
+            <text x="882" y="196" fill="#86efac" font-size="9" text-anchor="middle">（億行超なら + 列指向）</text>
+
+            <line x1="520" y1="204" x2="520" y2="218" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <rect x="360" y="220" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="240" fill="#bae6fd" text-anchor="middle">Q3. 3段以上の関係を辿るのが主要機能か？</text>
+            <text x="520" y="256" fill="#7dd3fc" font-size="9" text-anchor="middle">推薦・経路探索・不正検知</text>
+            <line x1="360" y1="241" x2="280" y2="241" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <text x="318" y="234" fill="#fbbf24" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="50" y="222" width="225" height="40" rx="7" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="162" y="240" fill="#ede9fe" text-anchor="middle" font-weight="bold">→ グラフ</text>
+            <text x="162" y="256" fill="#c4b5fd" font-size="9" text-anchor="middle">（まず再帰CTEを試す）</text>
+
+            <line x1="520" y1="264" x2="520" y2="278" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <rect x="360" y="280" width="320" height="42" rx="7" fill="#0c4a6e" stroke="#38bdf8"/>
+            <text x="520" y="300" fill="#bae6fd" text-anchor="middle">Q4. 行ごとに構造が本質的に違うか？</text>
+            <text x="520" y="316" fill="#7dd3fc" font-size="9" text-anchor="middle">かつ「1塊で読み書き」が主要パターン</text>
+            <line x1="680" y1="301" x2="760" y2="301" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <text x="720" y="294" fill="#fbbf24" font-size="9" text-anchor="middle">Yes</text>
+            <rect x="765" y="282" width="235" height="40" rx="7" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="882" y="300" fill="#dcfce7" text-anchor="middle" font-weight="bold">→ ドキュメント</text>
+            <text x="882" y="316" fill="#86efac" font-size="9" text-anchor="middle">（まずJSONBを試す）</text>
+
+            <line x1="520" y1="324" x2="520" y2="338" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#dm11)"/>
+            <rect x="340" y="340" width="360" height="46" rx="7" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="520" y="362" fill="#dcfce7" text-anchor="middle" font-size="12" font-weight="bold">→ リレーショナル（デフォルト）</text>
+            <text x="520" y="379" fill="#86efac" text-anchor="middle" font-size="9">迷ったらこれ。後から専用ストレージを追加できる</text>
+
+            <rect x="40" y="400" width="960" height="50" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="56" y="422" fill="#fef3c7" font-size="11">★ 見分け方の4つの問い（ch1のDDIA的な言い方）:</text>
+            <text x="56" y="440" fill="#fde68a" font-size="10.5">①テーブルの構造が行ごとにバラバラになりそうか → ドキュメント　②複数テーブルを常にまとめて読み書きしているか → ドキュメント　③「〇〇の〇〇の〇〇」と関係を何段階も辿るか → グラフ　④上記に当てはまらない → リレーショナルで十分</text>
+          </g>
+        </svg>
+        <p class="figcap">図11-1 選定フロー。Q1（トランザクション）で9割がリレーショナルに決まる。</p>
+      </div>
+    </section>
+
+    <section id="ch12" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">12</span> ポリグロット・パーシステンス</h2>
+      <p class="lede">1つのサービスの中で<b class="text-emerald-400">複数のDBを目的別に使い分ける</b>設計。<b class="text-slate-200">「全部PostgreSQLでいい」は小規模なら正しいが、スケールすると限界が来る</b>。</p>
+
+      <div class="fig">
+        <svg viewBox="0 0 1060 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1060" height="500" fill="#0f172a" rx="10"/>
+          <text x="530" y="30" fill="#e2e8f0" font-size="15" font-weight="bold" text-anchor="middle">Twitterを例にした構成（面接での定番）</text>
+          <defs><marker id="dm12" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4ade80"/></marker></defs>
+          <g font-family="monospace" font-size="10.5">
+            <rect x="30" y="55" width="480" height="70" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+            <text x="46" y="79" fill="#dcfce7" font-weight="bold">ツイート本文・メディア → ドキュメントDB</text>
+            <text x="46" y="99" fill="#bbf7d0" font-size="9.5">理由: 1ツイートに画像・動画・引用・リプライがネストされる構造</text>
+            <text x="46" y="117" fill="#86efac" font-size="9.5">アクセス: ID指定の読み取りが圧倒的多数。横断集計は分析系に任せる</text>
+
+            <rect x="530" y="55" width="500" height="70" rx="8" fill="#4c1d95" stroke="#a78bfa" stroke-width="2"/>
+            <text x="546" y="79" fill="#ede9fe" font-weight="bold">フォロー・フォロワー関係 → グラフDB または リレーショナル</text>
+            <text x="546" y="99" fill="#ddd6fe" font-size="9.5">理由: 「おすすめユーザー」は友達の友達を何段階も辿る</text>
+            <text x="546" y="117" fill="#c4b5fd" font-size="9.5">★ 実際のTwitterは巨大な専用システム（FlockDB等）を作った</text>
+
+            <rect x="30" y="135" width="480" height="70" rx="8" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+            <text x="46" y="159" fill="#bae6fd" font-weight="bold">ユーザーアカウント・課金情報 → リレーショナル</text>
+            <text x="46" y="179" fill="#e0f2fe" font-size="9.5">理由: 整合性・トランザクションが必要（課金は失敗できない）</text>
+            <text x="46" y="197" fill="#7dd3fc" font-size="9.5">アクセス: 一意性制約（メールアドレス）・監査・法的要件</text>
+
+            <rect x="530" y="135" width="500" height="70" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="2"/>
+            <text x="546" y="159" fill="#fecaca" font-weight="bold">タイムラインのキャッシュ → Redis（KVS）</text>
+            <text x="546" y="179" fill="#fca5a5" font-size="9.5">理由: フォロワー数億人分のタイムラインを毎回JOINで組み立てると死ぬ</text>
+            <text x="546" y="197" fill="#f87171" font-size="9.5">★ 「書き込み時に事前計算しておく」（ファンアウト）</text>
+
+            <rect x="30" y="215" width="480" height="70" rx="8" fill="#3f2d0a" stroke="#fbbf24" stroke-width="2"/>
+            <text x="46" y="239" fill="#fef3c7" font-weight="bold">全文検索（ツイート検索）→ Elasticsearch</text>
+            <text x="46" y="259" fill="#fde68a" font-size="9.5">理由: リレーショナルの LIKE '%keyword%' はindexが効かず全件走査</text>
+            <text x="46" y="277" fill="#fcd34d" font-size="9.5">★ 関連度スコア・ハッシュタグの集計・トレンド抽出も担う</text>
+
+            <rect x="530" y="215" width="500" height="70" rx="8" fill="#164e63" stroke="#22d3ee" stroke-width="2"/>
+            <text x="546" y="239" fill="#cffafe" font-weight="bold">分析・広告ターゲティング → 列指向（BigQuery / Hadoop）</text>
+            <text x="546" y="259" fill="#a5f3fc" font-size="9.5">理由: 億行の集計。本番DBで回すとサービスが止まる</text>
+            <text x="546" y="277" fill="#67e8f9" font-size="9.5">★ CDC / ETL で本番DBから非同期に同期する</text>
+
+            <rect x="30" y="300" width="1000" height="190" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="2.5"/>
+            <text x="46" y="326" fill="#dcfce7" font-size="12.5" font-weight="bold">ファンアウトの流れ（read/write の誤解を解く鍵）</text>
+            <text x="46" y="352" fill="#bbf7d0">【ツイート投稿（write）】</text>
+            <text x="62" y="372" fill="#e2e8f0">1. ドキュメントDBにツイートを保存（これが正本）</text>
+            <text x="62" y="390" fill="#e2e8f0">2. 同時に、フォロワー全員のタイムラインキャッシュ（Redis）に push ← ★ ファンアウト</text>
+            <text x="62" y="406" fill="#94a3b8" font-size="9.5">（フォロワー100万人なら100万回のRedis書き込み → 非同期ジョブで処理する）</text>
+            <text x="46" y="430" fill="#bbf7d0">【タイムライン表示（read）】</text>
+            <text x="62" y="450" fill="#e2e8f0">3. Redis から そのまま返す（DBを叩かない）→ 数msで応答</text>
+            <text x="46" y="474" fill="#4ade80">★ Redisへの書き込みは「readを速くするために事前にwriteしておく」設計（Read-Ahead / Precomputation）</text>
+          </g>
+        </svg>
+        <p class="figcap">図12-1 ポリグロットの実例。「用途ごとに最適なストレージ」+「事前計算でreadを速くする」の2つが要点。</p>
+      </div>
+
+      <div class="step trade">
+        <p class="step-h">⑧ ポリグロットのコスト（採用前に認識する）</p>
+        <div class="kv">
+          <div class="kvi"><p>コスト1: 整合性の担保が自前になる</p><p><b class="text-rose-400">「RDBに書いたが、Elasticsearchへの同期が失敗した」</b>が必ず起きる。<b class="text-slate-100">Outbox パターン / CDC（Debezium）/ 定期的な突合バッチ</b>が必要になる。</p></div>
+          <div class="kvi"><p>コスト2: 運用対象が増える</p><p>監視・バックアップ・アップグレード・障害対応が N倍。<b class="text-amber-400">DBを1つ増やすたびに、オンコールの負荷が増える</b>。</p></div>
+          <div class="kvi"><p>コスト3: 開発者の認知負荷</p><p>「このデータはどこにあるか」を全員が把握する必要がある。<b class="text-slate-100">データの所在を示すドキュメントが必須</b>。</p></div>
+          <div class="kvi"><p>だから順序が重要</p><p><b class="text-emerald-400">①1つのRDBで始める ②計測する ③ボトルネックを特定する ④その用途だけを分離する</b>。この順序を飛ばして最初からポリグロットにするのは、ほぼ常に過剰設計。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ch13" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">13</span> read/write の誤解</h2>
+      <p class="lede"><b class="text-rose-400">「ドキュメントDBはread専用」は誤解</b>。read/write 両対応である。<b class="text-slate-200">read用途が多く見えるのは、ドキュメントDBをキャッシュ的な役割で使うアーキテクチャが多いから</b>で、それはDBの特性ではなく設計の選択。</p>
+
+      <div class="step principle">
+        <p class="step-h">④ 正しい理解</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>ストレージ</th><th>read/write</th><th>選ぶ理由</th><th>正本になれるか</th></tr></thead>
+            <tbody>
+              <tr><td><b>リレーショナル</b></td><td class="good">両対応</td><td><b>整合性の都合</b>で選ぶ</td><td class="good">なれる（最も一般的な正本）</td></tr>
+              <tr><td><b>ドキュメント</b></td><td class="good">両対応</td><td><b>データ構造の都合</b>で選ぶ</td><td class="good">なれる</td></tr>
+              <tr><td><b>グラフ</b></td><td class="good">両対応</td><td><b>関係の探索</b>のため</td><td class="good">なれる（ただし正本にする例は少ない）</td></tr>
+              <tr><td><b>KVS（Redis）</b></td><td class="warn">主にread高速化</td><td><b>速度</b>のため</td><td class="bad">基本的にならない（失っても再構築できる形で使う）</td></tr>
+              <tr><td><b>列指向（BigQuery）</b></td><td class="warn">read中心（追記）</td><td><b>集計性能</b>のため</td><td class="bad">ならない（本番DBのコピー）</td></tr>
+              <tr><td><b>全文検索（ES）</b></td><td class="warn">read中心（追記）</td><td><b>検索機能</b>のため</td><td class="bad">ならない（同期が必要）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-teal-300">整理</b>: <b class="text-slate-100">「read/writeの向き」と「正本になれるか」は別の軸</b>。ドキュメントDBは正本になれる（read/write両対応）。RedisやESは正本になれない（正本の派生）。<b class="text-emerald-400">「正本はどこか」を1つに決めるのが、ポリグロット設計の最初の一歩</b>。</p>
+      </div>
+
+      <div class="cb" data-lang="text" data-cap="正本と派生を明示する（設計ドキュメントに書くべき表）" data-tone="good"><script type="text/plain">
+データの所在マップ（例: 予約システム）
+
+┌─────────────────┬──────────────┬──────────────────────┬─────────────────┐
+│ データ          │ 正本         │ 派生（同期先）        │ 同期方法        │
+├─────────────────┼──────────────┼──────────────────────┼─────────────────┤
+│ 予約            │ MySQL        │ Elasticsearch（検索） │ Outbox → Worker │
+│                 │              │ BigQuery（分析）      │ CDC（日次）     │
+├─────────────────┼──────────────┼──────────────────────┼─────────────────┤
+│ 在庫            │ MySQL        │ Redis（照会用キャッシュ）│ 更新時に無効化 │
+├─────────────────┼──────────────┼──────────────────────┼─────────────────┤
+│ OTA生ペイロード │ S3           │ MySQL（メタのみ）     │ 同一Tx          │
+├─────────────────┼──────────────┼──────────────────────┼─────────────────┤
+│ セッション      │ Redis        │ なし                  │ —               │
+│                 │ ★正本だが     │                      │                 │
+│                 │ 失っても      │                      │                 │
+│                 │ 再ログインで  │                      │                 │
+│                 │ 復旧できる    │                      │                 │
+└─────────────────┴──────────────┴──────────────────────┴─────────────────┘
+
+★ この表があると答えられること:
+  ・「検索結果が古い」→ Outbox Worker の遅延を見る
+  ・「分析の数字が合わない」→ CDCの同期タイミングを確認
+  ・「Redisが落ちた」→ 在庫はMySQLから読み直せる / セッションは再ログイン
+  ・「MySQLが壊れた」→ ★ これが唯一の致命的なケース（だからバックアップが最重要）
+
+★ この表がないと:
+  ・障害時に「どこを見るべきか」が分からない
+  ・「どのデータを失ってはいけないか」の優先順位が付かない
+  ・新メンバーが「このデータはどこから来たのか」を追えない
+</script></div>
+    </section>
+
+    <section id="ch14" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">14</span> 面接での答え方 / 予約システムへの当てはめ</h2>
+
+      <div class="step goog">
+        <p class="step-h">システムデザイン面接での答え方（3ステップ）</p>
+        <div class="kv">
+          <div class="kvi"><p>Step 1: アクセスパターンを先に整理する</p><p><b class="text-lime-400">「まず読み書きのパターンを整理させてください」</b>と言ってから始める。<b class="text-slate-100">「書き込み: 秒間N件、1件あたりのサイズ」「読み取り: 主キー引きか検索か、read:write比」</b>を明示する。<b class="text-emerald-400">これを飛ばしてDBを選ぶと、根拠のない選定になる</b>。</p></div>
+          <div class="kvi"><p>Step 2: 用途ごとに分ける</p><p><b class="text-lime-400">「1つのDBに全部載せるか、用途で分けるかを検討します」</b>。そして<b class="text-slate-100">「まず全部RDBに置き、ここがボトルネックになったらここを分離します」</b>という段階的な計画を示す。</p></div>
+          <div class="kvi"><p>Step 3: トレードオフを言う</p><p><b class="text-lime-400">「この構成で失うものは〜です」</b>を必ず自分から言う。<b class="text-emerald-400">「Elasticsearchに分離すると、検索結果に数秒の遅延が出ます。それが許容できるかを確認したいです」</b> — これが評価される。</p></div>
+          <div class="kvi"><p>避けるべき答え方</p><p>×「全部PostgreSQLでいいです」（検討していない）<br>×「MongoDBを使います」（理由がない）<br>×「Cassandraを使います」（知識の披露で、要件と繋がっていない）<br><b class="text-rose-400">△「スケールするのでNoSQLを」（NoSQLは分類ではない）</b></p></div>
+        </div>
+      </div>
+
+      <div class="step note">
+        <p class="step-h">予約システム（StayFlow）への当てはめ</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>データ</th><th>選択</th><th>理由</th></tr></thead>
+            <tbody>
+              <tr><td><b>予約・在庫</b></td><td class="good">MySQL（リレーショナル）</td><td><b class="text-emerald-400">トランザクション整合性が業務要件</b>（「予約は取れたが在庫が減っていない」を許容できない）。一意制約（同じOTA予約番号は1件）も必要</td></tr>
+              <tr><td><b>OTAから受信した生ペイロード</b></td><td class="warn">MySQL の JSON カラム / S3</td><td>社ごとに形が違う・追記のみ・監査と再処理のため保持。<b class="text-slate-100">「1予約に紐づく全情報をまとめて取得」する用途にはドキュメント的な保存がフィット</b>。ただし別DBを立てるほどではない</td></tr>
+              <tr><td><b>予約の検索（施設名・ゲスト名の部分一致）</b></td><td class="warn">まず MySQL の index / 全文検索インデックス</td><td>数十万件までなら十分。それを超えたら Elasticsearch を検討</td></tr>
+              <tr><td><b>在庫の照会（読み取り）</b></td><td class="warn">Redis キャッシュ（必要になったら）</td><td>「空室検索」は read が圧倒的に多い。<b class="text-slate-100">ただし「確保」は必ずMySQLで（整合性）</b></td></tr>
+              <tr><td><b>稼働率・売上の分析</b></td><td class="good">リードレプリカ → 必要ならBigQuery</td><td>本番DBで重い集計を回すとサービスに影響する</td></tr>
+              <tr><td><b>競合施設の関係網（Lighthouse）</b></td><td class="warn">まず MySQL + 再帰CTE</td><td>「A施設はB・Cと競合、B施設はC・Dと競合」という関係網。<b class="text-slate-100">2〜3段なら再帰CTEで十分</b>。多段の類似度探索が主要機能になったらグラフDBを検討</td></tr>
+              <tr><td><b>セッション</b></td><td class="good">Redis または cookie（JWT）</td><td>揮発してよい / 失っても再ログインで復旧できる</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3"><b class="text-slate-200">結論</b>: <b class="text-emerald-400">StayFlow の規模では「MySQL 1つ + 必要になったらRedis」で十分</b>。<b class="text-slate-100">重要なのは「他のモデルを知っていて、選ばなかった」という状態を作ること</b> — そしてその判断をADRに残すこと。</p>
+      </div>
+
+      <div class="step goog">
+        <p class="step-h">DDIA Ch2 との接続（この教材のまとめ）</p>
+        <p class="text-lg text-slate-200 leading-relaxed">
+        DDIA Ch2 が言いたいことは3つ:<br>
+        ① <b class="text-lime-300">リレーショナルは万能ではない</b><br>
+        ② <b class="text-lime-300">データの「形」と「アクセスパターン」によって最適なモデルが変わる</b><br>
+        ③ <b class="text-lime-300">どのモデルを選ぶかは設計判断であり、トレードオフがある</b><br><br>
+        設計面接で「なぜPostgresを選んだか」と聞かれたとき、<b class="text-emerald-400">「他のモデルでは解決できない理由」あるいは「他のモデルを選ばなかった理由」を言える</b>と深さが出る。<br><br>
+        <b class="text-slate-100">そして実務では、①〜③を知った上で「それでもRDBで十分」と判断できることが、最も価値のある結論であることが多い</b>。
+        </p>
+      </div>
+    </section>
+
+    <section id="cheat" class="chapter">
+      <h2 class="ch-h"><span class="ch-n">付</span> チートシート</h2>
+
+      <div class="step note">
+        <p class="step-h">1画面まとめ</p>
+        <div class="cb" data-lang="text" data-cap="迷ったらここを見る"><script type="text/plain">
+===== 選定（上から順に問う） =====
+1. トランザクション整合性が必要？      → リレーショナル（★ここで9割決まる）
+2. 横断集計・JOINが必要？             → リレーショナル
+3. 3段以上の関係を辿るのが主要機能？   → グラフ（まず再帰CTEを試す）
+4. 行ごとに構造が本質的に違う？        → ドキュメント（まずJSONBを試す）
+5. 上記全部No                        → リレーショナル（デフォルト）
+
+===== 各モデルの本質（1行） =====
+リレーショナル: 1塊 = 行。関係はJOINで作る。整合性が武器
+ドキュメント  : 1塊 = 入れ子の文書。「一緒に読み書きするものを1つに」
+グラフ        : 1塊 = ノードとエッジ。「関係そのものがデータ」
+KVS           : key → value。μsのread。TTL。正本にしない
+列指向        : 列ごとに保存。億行の集計が高速。追記前提
+時系列        : 時刻キー。追記と時間窓集計に最適化
+全文検索      : 転置インデックス。あいまい検索と関連度スコア
+
+===== まずRDBで試すこと =====
+可変構造が欲しい  → JSONB カラム + GIN index
+入れ子で読みたい  → json_agg で1クエリにまとめる
+関係を辿りたい    → WITH RECURSIVE（深さ制限を必ず付ける）
+あいまい検索      → pg_trgm / pgroonga
+時系列           → パーティショニング（月別・施設別）
+高速read         → リードレプリカ → 集計テーブル → Redis
+
+===== ポリグロットの順序 =====
+① 1つのRDBで始める → ② 計測する → ③ ボトルネックを特定 → ④ その用途だけ分離
+★ 分離したら「正本はどこか」の表を書く（データの所在マップ）
+
+===== 面接での答え方 =====
+1. アクセスパターンを先に整理する（read/write比・件数・サイズ）
+2. 用途ごとに分ける（+ 段階的な移行計画を示す）
+3. トレードオフを自分から言う（「この構成で失うものは〜」）
+</script></div>
+      </div>
+
+      <div class="step zoom">
+        <p class="step-h">関連ノート</p>
+        <ul>
+          <li><b>database-system-design-ddia.html</b> — ストレージエンジンとindex（B-Tree / LSM-Tree）。<b>「なぜこのモデルが速いか」の内部</b></li>
+          <li><b>transaction-system-design.html</b> — トランザクションと分離レベル。<b>「整合性が必要」の中身</b></li>
+          <li><b>partitioning-system-design.html</b> — シャーディング。規模の問題への対処</li>
+          <li><b>replication-system-design.html</b> — リードレプリカと遅延</li>
+          <li><b>cache-system-design.html</b> — Redisの使い方とキャッシュの整合性</li>
+          <li><b>messaging-event-driven-design.html</b> — Outbox / CDC。ポリグロット間の同期</li>
+          <li><b>ddd-practice.html</b> — Aggregate の境界とドキュメントモデルの対応</li>
+          <li><b>DDIA（Designing Data-Intensive Applications）Ch2</b> — この教材の原典</li>
+        </ul>
+      </div>
+    </section>
+    <footer class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono leading-relaxed">
+      図解データモデル選定 — リレーショナル / ドキュメント / グラフ<br>
+      Part 1: リレーショナルの得意・苦手（3つの苦手 / 「RDBが辛い」の切り分け / PostgreSQLがどこまで埋めるか）<br>
+      Part 2: ドキュメントモデル（埋め込むか参照するか / EC注文の比較 / Aggregateとの同型性 / スキーマ混在の現実 / JSONBハイブリッド）<br>
+      Part 3: グラフモデル（index-free adjacency / 再帰CTE vs Cypher / 採用コストと3つの質問）<br>
+      Part 4: その他のモデル（KVS / 列指向 / 時系列 / 全文検索 / アクセスパターンからの選定）<br>
+      Part 5: 選定と実務（選定フロー / ポリグロット / read-writeの誤解 / データの所在マップ / 面接での答え方）<br>
+      <span class="text-slate-600">関連ノート: database-system-design-ddia.html / transaction-system-design.html / partitioning-system-design.html / cache-system-design.html / messaging-event-driven-design.html / ddd-practice.html</span>
+    </footer>
+
+  </main>
+</div>
+<button id="topBtn" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-500 text-slate-950 w-12 h-12 shadow-lg font-bold text-lg z-40" aria-label="先頭へ戻る">↑</button>
+
+<script>
+/* =========================================================
+   1. コードブロックのシンタックスハイライト（自前・依存なし）
+   div.cb[data-lang][data-cap][data-tone] の中に置いた
+   script[type=text/plain] のテキストを読み、色付けした pre に差し替える。
+   行頭の @@- / @@+ / @@! / @@* で行単位の強調を付ける。
+   ========================================================= */
+(function () {
+  const LANGS = {
+    go: {
+      kw: ['func','if','else','for','range','return','var','const','type','struct','interface',
+           'map','chan','go','defer','select','switch','case','default','break','continue',
+           'fallthrough','package','import','goto'],
+      cn: ['nil','true','false','iota'],
+      ty: ['string','int','int8','int16','int32','int64','uint','uint8','uint16','uint32','uint64',
+           'float32','float64','bool','byte','rune','error','any','uintptr','complex64','complex128'],
+      lineComment: '//'
+    },
+    sql: {
+      kw: ['SELECT','FROM','WHERE','UPDATE','SET','INSERT','INTO','VALUES','DELETE','JOIN','LEFT',
+           'RIGHT','INNER','OUTER','ON','AND','OR','NOT','NULL','ORDER','BY','GROUP','HAVING','LIMIT',
+           'OFFSET','BEGIN','COMMIT','ROLLBACK','CREATE','TABLE','INDEX','UNIQUE','PRIMARY','KEY',
+           'FOR','SHARE','LOCK','IN','AS','WITH','RETURNING','CASE','WHEN','THEN','END','EXISTS','ASC','DESC'],
+      cn: ['TRUE','FALSE'],
+      ty: ['INT','BIGINT','VARCHAR','TEXT','DATE','DATETIME','TIMESTAMP','DECIMAL','BOOLEAN'],
+      lineComment: '--',
+      upper: true
+    },
+    ts: {
+      kw: ['const','let','var','function','return','if','else','for','while','do','switch','case',
+           'default','break','continue','new','class','extends','import','export','from','as','async',
+           'await','try','catch','finally','throw','typeof','instanceof','in','of','delete','void',
+           'yield','interface','type','enum','implements','public','private','protected','readonly',
+           'static','abstract','declare','namespace','satisfies','keyof','infer','is','asserts','get','set'],
+      cn: ['null','undefined','true','false','this','super','NaN','Infinity'],
+      ty: ['string','number','boolean','any','unknown','never','void','object','symbol','bigint',
+           'Array','Promise','Record','Partial','Pick','Omit','Readonly','Map','Set','Date','JSON','Math'],
+      lineComment: '//'
+    },
+    json: { kw: [], cn: ['true','false','null'], ty: [], lineComment: '//' },
+    bash: { kw: ['if','then','fi','for','do','done','export','echo','cd','function'], cn: [], ty: [], lineComment: '#' },
+    text: { kw: [], cn: [], ty: [], lineComment: '#' }
+  };
+  LANGS.tsx = LANGS.ts; LANGS.js = LANGS.ts; LANGS.jsx = LANGS.ts;
+  LANGS.yaml = LANGS.text; LANGS.yml = LANGS.text; LANGS.sh = LANGS.bash;
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function highlightLine(line, spec) {
+    // トークン: 行コメント / 文字列 / 数値 / 識別子 / 記号
+    const cm = spec.lineComment === '--' ? '--' : (spec.lineComment === '#' ? '#' : '\\/\\/');
+    const re = new RegExp(
+      '(' + cm + '.*$)' +                                      // 1 comment
+      '|("(?:\\\\.|[^"\\\\])*"|`[^`]*`|\'(?:\\\\.|[^\'\\\\])*\')' + // 2 string
+      '|(\\b0[xX][0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?\\b)' +   // 3 number
+      '|([A-Za-z_][A-Za-z0-9_]*)' +                            // 4 ident
+      '|([{}()\\[\\].,;:=+\\-*/%<>!&|^~?]+)',                   // 5 punct
+      'g'
+    );
+    let out = '', last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) out += esc(line.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) { out += '<span class="t-cm">' + esc(m[1]) + '</span>'; }
+      else if (m[2]) { out += '<span class="t-st">' + esc(m[2]) + '</span>'; }
+      else if (m[3]) { out += '<span class="t-nu">' + esc(m[3]) + '</span>'; }
+      else if (m[4]) {
+        const w = m[4];
+        const key = spec.upper ? w.toUpperCase() : w;
+        const next = line.slice(last).match(/^\s*\(/);
+        if (spec.kwSet.has(key)) out += '<span class="t-kw">' + esc(w) + '</span>';
+        else if (spec.cnSet.has(key)) out += '<span class="t-cn">' + esc(w) + '</span>';
+        else if (spec.tySet.has(key)) out += '<span class="t-ty">' + esc(w) + '</span>';
+        else if (next) out += '<span class="t-fn">' + esc(w) + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="t-id">' + esc(w) + '</span>';
+        else out += esc(w);
+      }
+      else { out += '<span class="t-pn">' + esc(m[5]) + '</span>'; }
+    }
+    if (last < line.length) out += esc(line.slice(last));
+    return out;
+  }
+
+  function render(block) {
+    const src = block.querySelector('script[type="text/plain"]');
+    if (!src) return;
+    const lang = (block.dataset.lang || 'go').toLowerCase();
+    const spec = Object.assign({}, LANGS[lang] || LANGS.text);
+    spec.kwSet = new Set(spec.kw); spec.cnSet = new Set(spec.cn); spec.tySet = new Set(spec.ty);
+
+    const raw = src.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    const html = raw.split('\n').map((line) => {
+      let cls = '';
+      const mk = line.slice(0, 3);
+      if (mk === '@@-') { cls = 'ln-bad'; line = line.slice(3); }
+      else if (mk === '@@+') { cls = 'ln-good'; line = line.slice(3); }
+      else if (mk === '@@!') { cls = 'ln-warn'; line = line.slice(3); }
+      else if (mk === '@@*') { cls = 'ln-focus'; line = line.slice(3); }
+      const body = lang === 'text' ? highlightLine(line, spec) : highlightLine(line, spec);
+      return '<span class="ln ' + cls + '">' + (body || '&nbsp;') + '</span>';
+    }).join('\n');
+
+    const bar = document.createElement('div');
+    bar.className = 'cb-bar';
+    const cap = block.dataset.cap ? '<span class="cb-cap">' + esc(block.dataset.cap) + '</span>' : '';
+    bar.innerHTML = '<span class="cb-lang">' + esc(lang) + '</span>' + cap;
+    const copy = document.createElement('button');
+    copy.textContent = 'copy';
+    copy.style.cssText = 'margin-left:auto;color:#64748b;border:1px solid #334155;border-radius:5px;padding:1px 7px;font-size:10px;cursor:pointer;background:transparent';
+    copy.addEventListener('click', () => {
+      navigator.clipboard.writeText(raw.replace(/^@@[-+!*]/gm, '')).then(() => {
+        copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1200);
+      });
+    });
+    bar.appendChild(copy);
+
+    const pre = document.createElement('pre');
+    pre.innerHTML = html;
+    block.insertBefore(pre, src);
+    block.insertBefore(bar, pre);
+    src.remove();
+  }
+
+  document.querySelectorAll('.cb').forEach(render);
+})();
+
+/* =========================================================
+   2. 目次・スクロール連動・トップへ戻る
+   ========================================================= */
+(function () {
+  const toc = document.getElementById('toc');
+  const btn = document.getElementById('tocBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('hidden');
+      toc.classList.toggle('block');
+    });
+  }
+  const links = [...document.querySelectorAll('#tocNav a')];
+  links.forEach((a) => {
+    a.addEventListener('click', () => {
+      if (window.innerWidth < 1024) { toc.classList.add('hidden'); toc.classList.remove('block'); }
+    });
+  });
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => l.classList.remove('active'));
+        const active = links.find((l) => l.getAttribute('href') === '#' + e.target.id);
+        if (active) {
+          active.classList.add('active');
+          const r = active.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            active.scrollIntoView({ block: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach((s) => observer.observe(s));
+
+  const topBtn = document.getElementById('topBtn');
+  window.addEventListener('scroll', () => {
+    topBtn.classList.toggle('hidden', window.scrollY < 600);
+  });
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>
