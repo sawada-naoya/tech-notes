@@ -594,6 +594,19 @@
     <div class="card b6"><h3><span class="dot"></span>派生状態 <span class="n">#6</span></h3><p class="lib">useMemo（storeしない）</p><p class="d">合計・フィルタ後配列・isValid。計算で導ける＝<b>持つな</b>。</p><p class="own">所有者: なし（毎回計算）</p></div>
     <div class="card b7"><h3><span class="dot"></span>参照 / インスタンス <span class="n">#7</span></h3><p class="lib">useRef</p><p class="d">DOM ref・タイマー・前回値・scroll位置。<b>再描画しない</b>可変値。</p><p class="own">所有者: 描画に無関係</p></div>
   </div>
+  <div class="notes" style="padding:14px 0 0">
+    <div class="nt trap"><b class="h">番外 — 7バケツの外にあるサーバー由来の値</b>Next.js（App Router）では、<b>Server Component がサーバーで描いて props で渡した値</b>（<span class="tag b5">N3</span> の Pattern 1）も「サーバー由来の値の置き場所」になる。これは <span class="tag b1">#1</span> の React Query cache とは<b>別の場所</b>で、新しくする方法も別。片方だけ新しくすると「アイコンは新しいのにツールチップは古い」が起きる。
+      <div class="tbl-wrap scroll" style="margin-top:10px">
+        <table class="ref">
+          <thead><tr><th>置き場所</th><th>新しくする方法</th><th>他方には効かない</th></tr></thead>
+          <tbody>
+            <tr><td>Server Component の props（N3 Pattern 1）</td><td><code>router.refresh()</code>（サーバーで描き直す。ブラウザ側の state は残る）</td><td>React Query の cache には触らない</td></tr>
+            <tr><td><span class="tag b1">#1</span> React Query の cache</td><td><code>invalidateQueries</code></td><td>Server Component は再実行されない</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <h2 id="r2"><span class="num">R2</span> 裏側 — データは「どこから来て」「どこに棲む」か</h2>
   <p class="sub">一番イメージしづらい配管。コツは<b>2つの時間軸を分ける</b>こと。<span class="tag b6">ビルド時（コードを生成する）</span>と<span class="tag b1">実行時（データが流れる）</span>は別世界。</p>
@@ -808,7 +821,7 @@ const { data, isPending, isError } = useGetReservations();</div>
       </tbody>
     </table>
   </div>
-  <p class="sub" style="margin-top:14px"><b>結論:</b> <code>await</code>・<code>Promise</code>は「待つ」JSの仕組み、<code>fetch</code>/<code>axios</code>は「HTTPを叩く」道具（axiosは高機能な包み紙）。orvalは内部でaxios（か指定fetch）を使ってフックを生成するので、<b>あなたが <code>await axios</code> を直接書く場面は減る</b>。でも中で何が起きているかは知っておく。</p>
+  <p class="sub" style="margin-top:14px"><b>結論:</b> <code>await</code>・<code>Promise</code>は「待つ」JSの仕組み、<code>fetch</code>/<code>axios</code>は「HTTPを叩く」道具（axiosは高機能な包み紙）。orvalは既定ではaxios、設定次第で<b>自前の fetch ラッパー（mutator）</b>を使ってフックを生成する。mutator が fetch なら「4xx/5xx で throw する」のは axios ではなく<b>そのラッパーの実装</b>なので、自分のプロジェクトがどちらかを確かめる。いずれにせよ<b>あなたが <code>await axios</code> を直接書く場面は減る</b>。でも中で何が起きているかは知っておく。</p>
 
   <h2 id="r7"><span class="num">R7</span> 判断ガイド — 2軸で即決</h2>
   <div class="axes">
@@ -846,7 +859,7 @@ const { data, isPending, isError } = useGetReservations();</div>
   <h2 id="r9"><span class="num">R9</span> さらに知っておくと一段上（React / RQ）</h2>
   <p class="sub">状態分類を掴んだ次に効く「実務で刺さる」知識。</p>
   <div class="legend">
-    <div class="card tip"><h3>staleTime と gcTime <span class="n">RQ</span></h3><p class="d"><b>staleTime</b>=「新鮮」とみなす時間。この間は再fetchしない（デフォ0＝即stale）。<b>gcTime</b>=誰も見なくなったcacheを捨てるまでの時間。この2つで「いつ取り直すか」が決まる。</p></div>
+    <div class="card tip"><h3>staleTime と gcTime <span class="n">RQ</span></h3><p class="d"><b>staleTime</b>=「新鮮」とみなす時間。この間は再fetchしない（ライブラリ既定は0＝即stale。<b>ただしプロジェクトの <code>QueryClient</code> の <code>defaultOptions</code> で上書きされていることが多い。まず自分の設定値を確かめる</b>）。<b>gcTime</b>=誰も見なくなったcacheを捨てるまでの時間。この2つで「いつ取り直すか」が決まる。</p></div>
     <div class="card tip"><h3>isPending / isError は必須 <span class="n">RQ</span></h3><p class="d">データだけ使って loading/error を書かないのは初心者の典型。<code>if(isPending)</code> スケルトン、<code>if(isError)</code> リトライUI。<b>3状態を毎回ハンドリング。</b></p></div>
     <div class="card tip"><h3>race condition は解決済み <span class="n">RQ</span></h3><p class="d">「古いリクエストが後から返って新しい結果を上書き」問題。自前<code>useEffect+fetch</code>だと自分で防ぐ羽目。React QueryはqueryKey単位で管理し自動で無効化する。</p></div>
     <div class="card tip"><h3>queryKeyに依存を全部入れる <span class="n">RQ</span></h3><p class="d"><code>['reservations', status, page]</code>。絞り込みに使う値をkeyに入れ忘れると、条件を変えても古いcacheを表示してバグる。<b>keyが変われば別データ扱い＆自動再取得。</b></p></div>
@@ -867,7 +880,7 @@ const { data, isPending, isError } = useGetReservations();</div>
         <div class="seg gc">gc対象<br>cache破棄</div>
       </div>
       <div class="ticks"><span>0（fetch直後）</span><span>staleTime</span><span>gcTime</span></div>
-      <p class="fcap">fresh の間は何度読んでもネットに行かない。staleを過ぎると「次に使う時」再取得。誰も使わなくなり gcTime を過ぎるとcacheごと捨てる。<b>デフォ staleTime=0＝即stale。</b></p>
+      <p class="fcap">fresh の間は何度読んでもネットに行かない。staleを過ぎると「次に使う時」再取得。誰も使わなくなり gcTime を過ぎるとcacheごと捨てる。<b>ライブラリ既定は staleTime=0＝即stale</b>。ただし実際の値は自分の <code>QueryClient</code> の設定で決まる（例: 全体で60秒なら、invalidate が当たらなかった箱は60秒間取り直されない）。</p>
     </div>
 
     <div class="fig">
@@ -950,7 +963,7 @@ const { data, isPending, isError } = useGetReservations();</div>
     <div class="step"><div class="mark"><span class="idx">3</span><span class="line"></span></div><div class="body"><b>中身が書かれる（成功）</b><div class="d"><code>data = レスポンス</code> / <code>dataUpdatedAt = now</code> / <code>status:'success'</code>。<b>ここが「中身が変わる」瞬間。</b></div></div></div>
     <div class="step"><div class="mark"><span class="idx">4</span><span class="line"></span></div><div class="body"><b>中身が使われる（fresh の間）</b><div class="d"><code>now - dataUpdatedAt &lt; staleTime</code> なら fresh。別コンポーネントが同keyを呼んでも<b>箱の中身をそのまま返す＝通信0</b>。</div></div></div>
     <div class="step"><div class="mark"><span class="idx">5</span><span class="line"></span></div><div class="body"><b>stale になる（staleTime経過）</b><div class="d"><b>中身は消えない</b>。「古いかも」の判定だけ変わる。次のトリガ（mount / タブ再フォーカス / 再接続）で<b>裏でrefetch</b> → 古い中身を出しつつ差し替え（画面は白くならない）。</div></div></div>
-    <div class="step"><div class="mark"><span class="idx">6</span><span class="line"></span></div><div class="body"><b>invalidate される（mutation後）</b><div class="d"><code>isInvalidated = true</code> ＋強制stale。<b>中身はそのまま。</b> 購読中なら即refetch / 未購読なら次にmountした時に取り直す。</div></div></div>
+    <div class="step"><div class="mark"><span class="idx">6</span><span class="line"></span></div><div class="body"><b>invalidate される（mutation後）</b><div class="d"><code>isInvalidated = true</code> ＋強制stale。<b>中身はそのまま。</b> 購読中なら即refetch / 未購読なら次にmountした時に取り直す。<b>ただし <code>enabled: false</code> の query は購読中でも取り直さない</b>（印が付くだけ）。<code>enabled</code> が true になった時に取り直す。</div></div></div>
     <div class="step"><div class="mark"><span class="idx">7</span><span class="line"></span></div><div class="body"><b>誰も見なくなる（unmount）</b><div class="d"><code>observers = 0</code> → <b>gcTimer スタート（既定5分）</b>。中身はまだ残っている。</div></div></div>
     <div class="step"><div class="mark"><span class="idx">8</span></div><div class="body"><b>箱が消える（gcTime経過）</b><div class="d">Map からエントリごと削除。次に同keyを呼ぶと <b>①からやり直し</b>（スケルトンが再び出る）。</div></div></div>
   </div>
@@ -1619,7 +1632,7 @@ const { data, isPending, isError } = useGetReservations();</div>
     </div>
     <div class="notes">
       <div class="nt why"><b class="h">なぜこうなるか</b><code>invalidateQueries</code> は「<b>該当する全部の箱にstaleの印を付ける</b>」だけ。実際に取り直すのは<b>購読中の箱に限られる</b>（未購読は次のmountまで遅延＝無駄な通信をしない設計）。<br>中身を消さないので画面が空にならず、<b>古い値を出したまま裏で新しい値に差し替わる</b>。手で <code>setState</code> しないのがReact Queryの肝で、これのおかげでシナリオ2の「2箇所同時に正しくなる」が自動で成立する。</div>
-      <div class="nt trap"><b class="h">ハマりどころ</b>① ここで <code>removeQueries</code> を使うと<b>画面が一瞬空になる</b>（誤用）。<br>② invalidateのkey粒度。<code>['reservations']</code> は<b>前方一致で全ページ・全タブの箱</b>にヒットする（これが普通は正しい）。逆に <code>['reservations',status,page]</code> と完全一致で書くと<b>他のタブが古いまま</b>残る。<br>③ <code>onSuccess</code> で <code>await invalidateQueries()</code> しないままモーダルを閉じると、<b>閉じた直後に古い値が一瞬見える</b>ことがある。<br>④ ここは<b>成功ルートだけ</b>を追った図。<b>失敗した場合（422のフィールドエラー / 409の衝突 / 401）は R12 で扱う</b>——mutation自体の箱ができ、そこにerrorが入る。</div>
+      <div class="nt trap"><b class="h">ハマりどころ</b>① ここで <code>removeQueries</code> を使うと<b>画面が一瞬空になる</b>（誤用）。<br>② invalidateのkey粒度。<code>['reservations']</code> は<b>前方一致で全ページ・全タブの箱</b>にヒットする（これが普通は正しい）。逆に <code>['reservations',status,page]</code> と完全一致で書くと<b>他のタブが古いまま</b>残る。<br><b>前方一致は「配列の要素ごと」</b>であって文字列の前方一致ではない。orval の生成キーは <code>['/reservations/detail', params]</code> のように<b>先頭要素がURL文字列まるごと</b>なので、<code>['/reservations']</code> で invalidate しても <code>/reservations/detail</code> には当たらない。生成された <code>get…QueryKey()</code> を<b>params なしで</b>呼んで先頭要素だけのキーを作れば、params 違いの箱に全部当たる。<br>③ <code>onSuccess</code> で <code>await invalidateQueries()</code> しないままモーダルを閉じると、<b>閉じた直後に古い値が一瞬見える</b>ことがある。<br>④ ここは<b>成功ルートだけ</b>を追った図。<b>失敗した場合（422のフィールドエラー / 409の衝突 / 401）は R12 で扱う</b>——mutation自体の箱ができ、そこにerrorが入る。</div>
     </div>
   </div>
 
@@ -2068,7 +2081,7 @@ const { data, isPending, isError } = useGetReservations();</div>
       <b>③</b> 箱は<b>keyで引く</b>・<b>observersで生き死にが決まる</b>・<b>gcTimeで消える</b>。3・4・10・13はこの3点の言い換え。
     </div>
     <div class="nt trap" style="--ntc:var(--b5)"><b class="h">デバッグの順路</b>
-      <b>画面が古い</b> → 右列が動いていない。keyの入れ忘れ（3）/ invalidate漏れ・key粒度（8）/ 他ユーザー起因（12）を順に疑う。<br>
+      <b>画面が古い</b> → 右列が動いていない。keyの入れ忘れ（3）/ invalidate漏れ・key粒度（8）/ 他ユーザー起因（12）を順に疑う。<b>置き場所が2つ（SCのprops と RQ cache）あり、片方しか新しくしていない</b>（R1 番外）も疑う。staleTime は既定値ではなく<b>自分の QueryClient の設定値</b>で考える。<br>
       <b>再描画が多い / 重い</b> → 中列の置き場所。stateが上にある（6）/ タイマーをuseStateにした（5）/ 大きなContext（R9）。<br>
       <b>入力が突然消える</b> → refetch着弾で reset が走った（7・11）。<br>
       <b>リロードで壊れる</b> → URLに置くべき状態をローカルに置いた（13）。
@@ -2415,7 +2428,7 @@ const { data, isPending, isError } = useGetReservations();</div>
   </div>
 
   <h2 id="n1"><span class="num">N1</span> サーバーで動くか、ブラウザで動くか（これが全て）</h2>
-  <p class="sub">Next.jsが掴めない原因はほぼ一点: <b>同じReactコードでも「サーバーで1回実行」か「ブラウザで動き続ける」かで別物</b>。この境界が見えれば9割わかる。</p>
+  <p class="sub">Next.jsが掴めない原因はほぼ一点: <b>同じReactコードでも「リクエストごとにサーバーで実行して終わる」か「ブラウザで動き続ける」かで別物</b>。この境界が見えれば9割わかる。</p>
 
   <div class="lane" style="border-left:3px solid var(--b5)">
     <div class="lane-h"><span class="ph" style="background:var(--b5-bg);color:var(--b5)">誤解の修正</span> content.tsxでfetchして配る ≠ BFF</div>
@@ -2446,7 +2459,7 @@ const { data, isPending, isError } = useGetReservations();</div>
   <div class="zones" style="margin-top:20px">
     <div class="zone srv">
       <h4>🟩 Server Component（既定）</h4>
-      <p><b>サーバーで1回だけ</b>実行→HTMLになる。<code>await fetch</code>を直接書ける・DB直叩き・秘密鍵/トークン使用OK・JSバンドルに乗らない。<b>useState/onClick/useEffectは不可。</b></p>
+      <p><b>リクエストのたびにサーバーで</b>実行→HTML / RSC payload になる（<code>router.refresh()</code> や searchParams が変わる遷移でも再実行）。ブラウザ上に居続けはしない。<code>await fetch</code>を直接書ける・DB直叩き・秘密鍵/トークン使用OK・JSバンドルに乗らない。<b>useState/onClick/useEffectは不可。</b></p>
     </div>
     <div class="zone cli">
       <h4>🟫 Client Component（'use client'）</h4>
@@ -2458,7 +2471,7 @@ const { data, isPending, isError } = useGetReservations();</div>
     <table class="ref">
       <thead><tr><th>観点</th><th>Server Component</th><th>Client Component</th></tr></thead>
       <tbody>
-        <tr><td>動く場所</td><td>サーバー（1回）</td><td>ブラウザ（動き続ける）</td></tr>
+        <tr><td>動く場所</td><td>サーバー（リクエストごと）</td><td>ブラウザ（動き続ける）</td></tr>
         <tr><td>データ取得</td><td><code>await fetch</code> 直接</td><td><code>useQuery</code> 経由</td></tr>
         <tr><td>useState / onClick</td><td><span class="bad">❌ 不可</span></td><td>✅ 可</td></tr>
         <tr><td>秘密鍵・トークン</td><td>✅ 使える</td><td><span class="bad">❌ 漏れる</span></td></tr>
@@ -2580,7 +2593,7 @@ const { data, isPending, isError } = useGetReservations();</div>
     <div class="codeblock" style="margin-top:12px"><span class="cmt">// Server Component</span>
 const data = await fetch('/api/reservations').then(r =&gt; r.json());
 return &lt;List data={data} /&gt;;   <span class="cmt">// ただのprops。cacheには入らない</span></div>
-    <p class="cap" style="margin-top:10px"><b>特徴:</b> RQ cacheに入らない → <b>refetch / invalidate はできない</b>。でもシンプル。<b>向く:</b> 読み取り専用・クライアントで取り直さない表示。</p>
+    <p class="cap" style="margin-top:10px"><b>特徴:</b> RQ cacheに入らない → <b><code>invalidateQueries</code> は効かない</b>。新しくするには <b><code>router.refresh()</code></b> でサーバーに描き直させる（Server Component が再実行され、新しい props が届く。Client Component の state は残る）。逆に <code>router.refresh()</code> は RQ cache には触らない。<b>向く:</b> 読み取り中心・更新後は refresh で足りる表示。</p>
   </div>
 
   <div class="lane">
@@ -2611,10 +2624,10 @@ const { data } = useQuery({ queryKey: ['reservations'], queryFn });
 
   <p class="sub" style="margin:20px 0 10px"><b>どちらを選ぶか</b></p>
   <div class="fanout">
-    <div class="fan-row"><b>読み取り専用・再取得しない</b><span class="arrow">→</span><span class="tag b4">Pattern 1（props）</span> シンプルが正義。cacheは不要</div>
+    <div class="fan-row"><b>読み取り中心・更新後は refresh で足りる</b><span class="arrow">→</span><span class="tag b4">Pattern 1（props）</span> シンプルが正義。新しくするのは <code>router.refresh()</code></div>
     <div class="fan-row"><b>SSRで速く出しつつ、後で refetch / invalidate / mutation したい</b><span class="arrow">→</span><span class="tag b1">Pattern 2（hydration）</span></div>
   </div>
-  <p class="cap" style="margin-top:12px"><b>あなたの問いの答え:</b> 「サーバーでGETしてpropsで渡してもcacheできない」=<b>その通り（Pattern 1）</b>。でもそれは失敗ではなく、cache機能が要らないなら十分で推奨。<b>cacheに積みたい時だけ</b> prefetchQuery + HydrationBoundary（Pattern 2）を使う。<b>SCでuseQueryは実行しない</b>——サーバーはprefetch、クライアントがuseQueryで読む、が役割分担。</p>
+  <p class="cap" style="margin-top:12px"><b>あなたの問いの答え:</b> 「サーバーでGETしてpropsで渡してもcacheできない」=<b>その通り（Pattern 1）</b>。ただし「新しくできない」わけではない（<code>router.refresh()</code>）。1つの画面で両方を使うなら、<b>更新後に両方を新しくする</b>必要がある。でもそれは失敗ではなく、cache機能が要らないなら十分で推奨。<b>cacheに積みたい時だけ</b> prefetchQuery + HydrationBoundary（Pattern 2）を使う。<b>SCでuseQueryは実行しない</b>——サーバーはprefetch、クライアントがuseQueryで読む、が役割分担。</p>
 
   <h2 id="n4"><span class="num">N4</span> 複数ユーザー — cache と DOM はブラウザごと、真実はDBだけ</h2>
   <p class="sub"><b>誤解しやすい:</b> React Query の cache は「グローバル」だが、それは<b>1アプリ内で共有</b>の意味で、<b>全ユーザー共有ではない</b>。cache も DOM も<b>各ブラウザのメモリ</b>にある。全員で共有される唯一の真実は<b>DBだけ</b>。</p>
@@ -2713,7 +2726,7 @@ const { data } = useQuery({ queryKey: ['reservations'], queryFn });
       <p>Node/Lambdaが<b>リクエストごとに動く</b>。Amplify(SSR) / Vercel / ECS。<br>HTMLを都度生成できる代わりに<b>コスト・レイテンシ・スケーリング</b>を考える。<br>向く方式: <span class="tag b1">SSR</span> <span class="tag b3">ISR</span></p>
     </div>
   </div>
-  <p class="cap" style="margin-top:8px"><b>要点:</b> 「どの方式か」を決めると「どのホスティングか」も決まる。CSR/SSGなら静的配信で安上がり、SSRなら稼働サーバーが要る＝コスト。<b>だから全部SSRは高くつく。</b>管理画面(CSR)は静的配信、公開ページ(SSR)は稼働サーバー、と分けるのが定石。</p>
+  <p class="cap" style="margin-top:8px"><b>要点:</b> 「どの方式か」を決めると「どのホスティングか」も決まる。CSR/SSGなら静的配信で安上がり、SSRなら稼働サーバーが要る＝コスト。<b>だから全部SSRは高くつく。</b>管理画面(CSR)は静的配信、公開ページ(SSR)は稼働サーバー、と分けるのが定石。<br><b>ただし</b>管理画面でも、<code>page.tsx</code>（Server Component）でデータを取ったり NextAuth をサーバーで動かしたりしているなら、それは CSR ではなく<b>サーバーが要る構成</b>で、静的配信では動かない。一般論ではなく、<b>自分のプロダクトがどれに当たるか</b>を確かめる。</p>
 
   <h2 id="n6"><span class="num">N6</span> 認証 — NextAuth は token をどう受け取り、どこで判定するか</h2>
   <p class="sub">「tokenを受け取って判定」が具体的に誰の仕事か。<b>NextAuth（session管理）</b>と <b>Goバックエンド（tokenの真偽判定）</b>で役割が分かれているのが要点。</p>
@@ -2744,7 +2757,7 @@ const { data } = useQuery({ queryKey: ['reservations'], queryFn });
 
   <div class="lane" style="border-left:3px solid var(--b5)">
     <div class="lane-h"><span class="ph" style="background:var(--b5-bg);color:var(--b5)">誤解の修正</span> ブラウザは「鍵」を持たない。持つのは「token（暗号化cookie）」だけ</div>
-    <p class="cap"><b>検証用の鍵はサーバー側</b>にある。ブラウザが持つのは<b>暗号化された cookie（token）</b>だけで、しかも <code>httpOnly</code> なので<b>JSからも読めない</b>。つまり「公開キーをブラウザに持って検証する」のではなく、<b>ブラウザはtokenを運ぶだけ・検証はサーバー</b>が行う。</p>
+    <p class="cap"><b>検証用の鍵はサーバー側</b>にある。ブラウザが持つのは<b>暗号化された cookie（token）</b>だけで、しかも <code>httpOnly</code> なので<b>cookie そのものはJSから読めない</b>。<b>ただし</b> session callback で accessToken を session に入れてクライアントに返す（<code>useSession()</code> で読める）と、<b>token は JS に出る＝httpOnly の守りは消える</b>。ブラウザから Bearer を付けて API を直接叩く構成はこれに当たり、XSS で token を盗まれうる。つまり「公開キーをブラウザに持って検証する」のではなく、<b>ブラウザはtokenを運ぶだけ・検証はサーバー</b>が行う。</p>
   </div>
 
   <div class="lane" style="border-left:3px solid var(--b3)">
@@ -2857,7 +2870,8 @@ const { data } = useQuery({ queryKey: ['reservations'], queryFn });
       <thead><tr><th>値</th><th>作る場所</th><th>保存場所</th><th>秘匿</th></tr></thead>
       <tbody>
         <tr><td>秘密鍵（署名用）</td><td>事前生成</td><td><b>Goサーバーのみ</b>（env）</td><td>絶対秘密</td></tr>
-        <tr><td>検証鍵（公開鍵 or 同じ秘密鍵）</td><td>秘密鍵とペア</td><td><b>検証するサーバー</b>（Go / JWKS）</td><td>公開可</td></tr>
+        <tr><td>検証鍵 — RS256 / ES256（公開鍵）</td><td>秘密鍵とペア</td><td><b>検証するサーバー</b>（Go / JWKS）</td><td>公開可</td></tr>
+        <tr><td>検証鍵 — HS256（HMAC・署名と同じ鍵）</td><td>署名鍵そのもの</td><td><b>署名・検証するサーバーのみ</b>（env）</td><td><span class="bad">絶対秘密</span>（漏れると誰でも偽造できる）</td></tr>
         <tr><td>NEXTAUTH_SECRET（session暗号用）</td><td>事前生成</td><td><b>Nextサーバーのみ</b>（env）</td><td>秘密</td></tr>
         <tr><td>accessToken（JWT本体）</td><td><b>Goが発行</b></td><td>cookie内（NextAuth sessionの中）</td><td>署名付き</td></tr>
         <tr><td>session cookie</td><td>NextAuthが暗号化</td><td><b>ブラウザ</b>（httpOnly cookie）</td><td>暗号化済</td></tr>
@@ -2909,12 +2923,12 @@ const { data } = useQuery({ queryKey: ['reservations'], queryFn });
 
   <p class="sub" style="margin:24px 0 10px"><b>④ cookieの仕組み（なぜこれで安全か）</b></p>
   <div class="legend">
-    <div class="card tip"><h3>httpOnly</h3><p class="d">JSから読めない → XSSでのtoken盗難を防ぐ。だから「JSが鍵/tokenを持つ」必要がない。</p></div>
+    <div class="card tip"><h3>httpOnly</h3><p class="d">cookie をJSから読めない → XSSでのtoken盗難を防ぐ。<b>ただし session callback で accessToken をクライアントに出した瞬間、この守りは無効</b>（token が JS から読める）。</p></div>
     <div class="card tip"><h3>Secure</h3><p class="d">HTTPSでのみ送信 → 通信の盗聴を防ぐ。</p></div>
     <div class="card tip"><h3>SameSite</h3><p class="d">他サイト起点の送信を制限 → CSRFを防ぐ。</p></div>
     <div class="card tip"><h3>自動送信</h3><p class="d">ブラウザは対象ドメインへのリクエストにcookieを自動添付。だからfetchで毎回手で付けなくてよい。</p></div>
   </div>
-  <p class="cap" style="margin-top:12px"><b>総まとめ:</b> 値を作るのは <b>Go(accessToken)</b> と <b>NextAuth(暗号化session)</b>。DBに常駐するのは <b>user</b>（+DB戦略なら session）。ブラウザが持つのは<b>暗号化cookie=token だけ・鍵は持たない</b>。取り出すのは「ページ表示のたび(Nextが復号)」と「API呼び出しのたび(Goが署名検証)」の2タイミング。</p>
+  <p class="cap" style="margin-top:12px"><b>総まとめ:</b> 値を作るのは <b>Go(accessToken)</b> と <b>NextAuth(暗号化session)</b>。DBに常駐するのは <b>user</b>（+DB戦略なら session）。ブラウザが持つのは<b>暗号化cookie=token だけ・鍵は持たない</b>（accessToken を session でクライアントに出していなければ）。取り出すのは「ページ表示のたび(Nextが復号)」と「API呼び出しのたび(Goが署名検証)」の2タイミング。</p>
 
   <h2 id="n8"><span class="num">N8</span> さらに知っておくと一段上（Next.js）</h2>
   <p class="sub">サーバー/クライアント境界を掴んだ次に効く、Next.js固有の実務知識。</p>
@@ -3124,10 +3138,10 @@ React.createElement('li', { className: 'row', onClick: f }, '山田太郎')
       <span class="arrow">→</span>
       <div class="pnode" style="--nc:var(--b7)"><div class="t">ブラウザが描画</div><div class="s">style→layout→paint</div></div>
       <span class="arrow">→</span>
-      <div class="pnode" style="--nc:var(--b1)"><div class="t">useEffect</div><div class="s">paint後・非同期</div></div>
+      <div class="pnode" style="--nc:var(--b1)"><div class="t">useEffect</div><div class="s">原則paint後・非同期</div></div>
     </div></div>
     <div class="notes" style="padding:12px 0 0">
-      <div class="nt why"><b class="h">なぜ2つのeffectがあるか</b><code>useLayoutEffect</code> は<b>paint前</b>に同期実行されるので、測って即座に位置を直しても<b>チラつかない</b>（ツールチップ位置など）。代わりにブラウザを待たせる。<code>useEffect</code> は paint 後なので画面が先に出る＝通常はこちら。</div>
+      <div class="nt why"><b class="h">なぜ2つのeffectがあるか</b><code>useLayoutEffect</code> は<b>paint前</b>に同期実行されるので、測って即座に位置を直しても<b>チラつかない</b>（ツールチップ位置など）。代わりにブラウザを待たせる。<code>useEffect</code> は paint 後なので画面が先に出る＝通常はこちら。<br><b>例外:</b> React 18 では、クリックなど<b>離散的な入力</b>から起きた更新の <code>useEffect</code> は paint 前に同期で flush されることがある。「必ず paint 後」と決め打ちしない（計測系のバグで効く）。</div>
       <div class="nt trap"><b class="h">よくある勘違い</b>「setStateしたら次の行でDOMが新しくなっている」は<b>false</b>。setStateはキューに積むだけ。直後に <code>ref.current.offsetHeight</code> を読んでも<b>まだ古い値</b>。読むなら effect の中。</div>
     </div>
   </div>
@@ -3738,7 +3752,7 @@ console.log('③')                  <span class="cmt">// ②より先に出る</
         <span class="tl-macro" style="flex:1.4">render 続き</span>
         <span class="tl-blk" style="flex:1">commit</span>
       </div>
-      <p class="fcap">Reactは重いrenderを<b>複数のmacrotaskに分割</b>して積む（内部的に <code>MessageChannel</code> を使う）。だから<b>renderの途中でブラウザがpaintと入力処理を挟める</b>。<br><b>Render phase が「中断・破棄できる」設計になっている理由がこれ</b>（<span class="tag b5">V2</span>）。commit だけは分割不可・同期。</p>
+      <p class="fcap">Reactは<b><code>startTransition</code> / <code>useDeferredValue</code> などで優先度を下げた更新</b>の重いrenderを<b>複数のmacrotaskに分割</b>して積む（time slicing。内部的に <code>MessageChannel</code> を使う）。<b>クリックや入力から起きた普通の setState は優先度が高く、分割されず同期で render される</b>（だから V6 の「クリック中の重い処理でスピナーが出ない」が起きる）。分割された場合は<b>renderの途中でブラウザがpaintと入力処理を挟める</b>。<br><b>Render phase が「中断・破棄できる」設計になっている理由がこれ</b>（<span class="tag b5">V2</span>）。commit だけは分割不可・同期。</p>
     </div>
   </div>
 
